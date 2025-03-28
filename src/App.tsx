@@ -14,6 +14,12 @@ import OrderManagement from "./components/seller/OrderManagement";
 import PromotionManagement from "./components/seller/PromotionManagement";
 import InventoryManagement from "./components/seller/InventoryManagement";
 import CustomerManagement from "./components/seller/CustomerManagement";
+import AdminDashboard from "./pages/AdminDashboard";
+import UserManagement from "./components/admin/UserManagement";
+import ProductOversight from "./components/admin/ProductOversight";
+import BusinessIntelligence from "./components/admin/BusinessIntelligence";
+import SecurityCompliance from "./components/admin/SecurityCompliance";
+import Logistics from "./components/admin/Logistics";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +54,24 @@ const App = () => (
           </Route>
           <Route path="/seller/promotions" element={<SellerDashboard />}>
             <Route index element={<PromotionManagement />} />
+          </Route>
+          
+          {/* Admin Routes */}
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/users" element={<AdminDashboard />}>
+            <Route index element={<UserManagement />} />
+          </Route>
+          <Route path="/admin/products" element={<AdminDashboard />}>
+            <Route index element={<ProductOversight />} />
+          </Route>
+          <Route path="/admin/analytics" element={<AdminDashboard />}>
+            <Route index element={<BusinessIntelligence />} />
+          </Route>
+          <Route path="/admin/security" element={<AdminDashboard />}>
+            <Route index element={<SecurityCompliance />} />
+          </Route>
+          <Route path="/admin/logistics" element={<AdminDashboard />}>
+            <Route index element={<Logistics />} />
           </Route>
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
