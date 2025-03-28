@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   CheckCircle2,
@@ -57,8 +56,31 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 
-// Mock user data
-const mockUsers = [
+interface UserVerificationDetails {
+  documentType: string;
+  documentId: string;
+  verifiedDate: string | null;
+  verifiedBy: string | null;
+}
+
+interface UserData {
+  id: string;
+  name: string;
+  email: string;
+  type: string;
+  status: string;
+  avatar: string;
+  joined: string;
+  permissions: string[];
+  listings?: number;
+  sales?: string;
+  rating?: number;
+  purchases?: number;
+  spent?: string;
+  verificationDetails?: UserVerificationDetails;
+}
+
+const mockUsers: UserData[] = [
   {
     id: '1',
     name: 'Jane Cooper',
@@ -134,15 +156,14 @@ const mockUsers = [
 ];
 
 const UserManagement = () => {
-  const [users, setUsers] = useState(mockUsers);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [users, setUsers] = useState<UserData[]>(mockUsers);
+  const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [userTypeFilter, setUserTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isUserDetailsOpen, setIsUserDetailsOpen] = useState(false);
   const [isEditPermissionsOpen, setIsEditPermissionsOpen] = useState(false);
 
-  // Filter users based on search and filters
   const filteredUsers = users.filter((user) => {
     const matchesSearch = 
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -157,15 +178,26 @@ const UserManagement = () => {
   const handleUserVerification = (userId: string, status: 'verified' | 'rejected') => {
     setUsers(users.map(user => {
       if (user.id === userId) {
-        return {
+        const updatedUser: UserData = {
           ...user, 
           status: status === 'verified' ? 'verified' : 'rejected',
-          verificationDetails: user.verificationDetails ? {
+        };
+        
+        if (user.verificationDetails) {
+          updatedUser.verificationDetails = {
             ...user.verificationDetails,
             verifiedDate: new Date().toISOString().split('T')[0],
             verifiedBy: 'Current Admin'
-          } : undefined
-        };
+          };
+        }
+        
+        if (user.type === 'seller') {
+          updatedUser.listings = updatedUser.listings || 0;
+          updatedUser.sales = updatedUser.sales || '$0';
+          updatedUser.rating = updatedUser.rating || 0;
+        }
+        
+        return updatedUser;
       }
       return user;
     }));
@@ -201,7 +233,7 @@ const UserManagement = () => {
     });
   };
 
-  const showUserDetails = (user: any) => {
+  const showUserDetails = (user: UserData) => {
     setSelectedUser(user);
     setIsUserDetailsOpen(true);
   };
@@ -467,7 +499,6 @@ const UserManagement = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {/* Show only recent users (for demo, using the first 3) */}
                     {users.slice(0, 3).map((user) => (
                       <TableRow key={user.id}>
                         <TableCell>
@@ -509,7 +540,6 @@ const UserManagement = () => {
         </CardContent>
       </Card>
 
-      {/* User Details Dialog */}
       <Dialog open={isUserDetailsOpen} onOpenChange={setIsUserDetailsOpen}>
         <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
@@ -684,7 +714,6 @@ const UserManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Permissions Dialog */}
       <Dialog open={isEditPermissionsOpen} onOpenChange={setIsEditPermissionsOpen}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
@@ -695,7 +724,6 @@ const UserManagement = () => {
           </DialogHeader>
           
           <div className="space-y-4">
-            {/* Permission groups would go here */}
             <p className="text-sm text-muted-foreground">
               This functionality would allow admins to assign granular permissions to users based on their roles and responsibilities.
             </p>

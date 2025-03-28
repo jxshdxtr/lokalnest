@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Truck, 
@@ -20,7 +19,8 @@ import {
   Ship,
   Plane,
   FileText,
-  DollarSign
+  DollarSign,
+  Clock2
 } from 'lucide-react';
 import { 
   Card, 
@@ -1496,7 +1496,7 @@ const Logistics = () => {
                         {selectedShipment.status === 'processing' ? (
                           <AlertTriangle className="h-4 w-4 text-amber-500" />
                         ) : (
-                          <Clock className="h-4 w-4 text-blue-500" />
+                          <Clock2 className="h-4 w-4 text-blue-500" />
                         )}
                         <span>
                           {selectedShipment.dates.estimated_delivery || 'Pending'}
