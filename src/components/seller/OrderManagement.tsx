@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Search, 
@@ -20,7 +19,8 @@ import {
   ShoppingBag,
   Users,
   DollarSign,
-  MoreHorizontal
+  MoreHorizontal,
+  Send
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,8 +55,44 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
-// Sample order data
-const initialOrders = [
+type PaymentDetails = {
+  cardType?: string;
+  last4?: string;
+  reference?: string;
+};
+
+type Payment = {
+  method: string;
+  status: string;
+  details: PaymentDetails;
+};
+
+type Order = {
+  id: string;
+  customer: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  date: string;
+  items: {
+    id: string;
+    name: string;
+    quantity: number;
+    price: number;
+    currentStock: number;
+  }[];
+  total: number;
+  status: string;
+  payment: Payment;
+  shipping: {
+    address: string;
+    method: string;
+    tracking: string | null;
+  };
+};
+
+const initialOrders: Order[] = [
   {
     id: 'ORD-7352',
     customer: {
@@ -191,7 +227,6 @@ const initialOrders = [
   }
 ];
 
-// Available payment methods
 const paymentMethods = [
   { id: 'card', name: 'Credit/Debit Card', icon: CreditCard },
   { id: 'gcash', name: 'GCash', icon: Wallet },
@@ -201,10 +236,10 @@ const paymentMethods = [
 ];
 
 const OrderManagement = () => {
-  const [orders, setOrders] = useState(initialOrders);
+  const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isOrderDetailOpen, setIsOrderDetailOpen] = useState(false);
   const [isUpdatePaymentOpen, setIsUpdatePaymentOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
@@ -219,13 +254,11 @@ const OrderManagement = () => {
 
   const getFilteredOrders = () => {
     return orders.filter(order => {
-      // Filter by search term
       const searchMatch = 
         order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.customer.email.toLowerCase().includes(searchTerm.toLowerCase());
       
-      // Filter by status
       const statusMatch = statusFilter === 'all' || order.status === statusFilter;
       
       return searchMatch && statusMatch;
@@ -237,21 +270,16 @@ const OrderManagement = () => {
   const updateOrderStatus = (orderId: string, newStatus: string) => {
     setOrders(orders.map(order => {
       if (order.id === orderId) {
-        // If cancelled and previously shipped/processing, restore inventory
         if (newStatus === 'cancelled' && ['processing', 'shipped'].includes(order.status)) {
-          // This would trigger inventory update logic in a real app
           toast.info("Inventory has been automatically updated");
         }
         
-        // If shipping or delivering, reduce inventory
         if ((newStatus === 'shipped' || newStatus === 'delivered') && updateInventory) {
           if (order.status === 'pending' || order.status === 'processing') {
-            // This would trigger inventory reduction logic in a real app
             toast.info("Inventory has been automatically updated");
           }
         }
         
-        // If status changed to delivered, check if payment was COD and update payment status
         if (newStatus === 'delivered' && order.payment.method === 'cod' && order.payment.status === 'pending') {
           return {
             ...order,
@@ -270,7 +298,6 @@ const OrderManagement = () => {
     
     toast.success(`Order ${orderId} status updated to ${newStatus}`);
     
-    // Automatic customer notification
     if (newStatus === 'shipped' || newStatus === 'delivered') {
       const order = orders.find(o => o.id === orderId);
       if (order) {
@@ -283,12 +310,12 @@ const OrderManagement = () => {
     }
   };
 
-  const viewOrderDetails = (order: any) => {
+  const viewOrderDetails = (order: Order) => {
     setSelectedOrder(order);
     setIsOrderDetailOpen(true);
   };
 
-  const openUpdatePayment = (order: any) => {
+  const openUpdatePayment = (order: Order) => {
     setSelectedOrder(order);
     setSelectedPaymentMethod(order.payment.method);
     setPaymentStatus(order.payment.status);
@@ -302,27 +329,38 @@ const OrderManagement = () => {
     }
     
     setOrders(orders.map(order => {
-      if (order.id === selectedOrder.id) {
+      if (order.id === selectedOrder?.id) {
+        let details: PaymentDetails = {};
+        
+        if (selectedPaymentMethod === 'card' && order.payment.method === 'card') {
+          details = {
+            ...order.payment.details,
+          };
+        } else if (selectedPaymentMethod === 'gcash') {
+          details = {
+            reference: order.payment.details.reference || 'GC' + Math.floor(100000 + Math.random() * 900000)
+          };
+        }
+        
         return {
           ...order,
           payment: {
-            ...order.payment,
             method: selectedPaymentMethod,
-            status: paymentStatus
+            status: paymentStatus,
+            details: details
           }
         };
       }
       return order;
     }));
     
-    toast.success(`Payment method for Order ${selectedOrder.id} updated to ${selectedPaymentMethod}`);
+    toast.success(`Payment method for Order ${selectedOrder?.id} updated to ${selectedPaymentMethod}`);
     setIsUpdatePaymentOpen(false);
   };
 
-  const openNotifyCustomer = (order: any) => {
+  const openNotifyCustomer = (order: Order) => {
     setSelectedOrder(order);
     
-    // Pre-populate message based on order status
     let message = '';
     switch(order.status) {
       case 'pending':
@@ -351,8 +389,6 @@ const OrderManagement = () => {
       return;
     }
     
-    // Here you would integrate with your email/SMS service
-    // For now, we'll just show a success toast
     toast.success(`Message sent to ${selectedOrder.customer.name}`);
     setIsNotifyCustomerOpen(false);
   };
@@ -621,7 +657,6 @@ const OrderManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Order Details Dialog */}
       <Dialog open={isOrderDetailOpen} onOpenChange={setIsOrderDetailOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -711,7 +746,6 @@ const OrderManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Update Payment Dialog */}
       <Dialog open={isUpdatePaymentOpen} onOpenChange={setIsUpdatePaymentOpen}>
         <DialogContent>
           <DialogHeader>
@@ -768,7 +802,6 @@ const OrderManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Notify Customer Dialog */}
       <Dialog open={isNotifyCustomerOpen} onOpenChange={setIsNotifyCustomerOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
