@@ -16,8 +16,8 @@ const Hero = () => {
       {/* Background image with overlay */}
       <div className="absolute inset-0 bg-black">
         <img
-          src="https://images.unsplash.com/photo-1488459716781-31db52582fe9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80"
-          alt="Fresh local produce"
+          src="/lovable-uploads/7d8f1f16-ac2a-44a7-9893-174cd3a3581d.png"
+          alt="Handcrafted clothing items on rack"
           className="w-full h-full object-cover opacity-85"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent"></div>
@@ -26,11 +26,14 @@ const Hero = () => {
       {/* Content */}
       <div className="container mx-auto px-4 h-full flex items-center relative z-10">
         <div className="max-w-2xl animate-fade-in">
+          <div className="inline-block px-4 py-1 rounded-full bg-white/10 backdrop-blur-sm text-white text-sm mb-6">
+            Supporting Local Artisans
+          </div>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight">
-            Fresh from Local Producers to Your Table
+            Discover & Support Local Craftsmanship
           </h1>
           <p className="text-lg md:text-xl text-white/90 mb-8 max-w-xl">
-            Discover handcrafted products from the best local artisans and farmers in your community.
+            Connect with skilled artisans in your community. LokalNest brings authentic, handcrafted products directly from local creators to your doorstep.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Button
@@ -38,14 +41,14 @@ const Hero = () => {
               className="bg-white text-black hover:bg-white/90 hover:text-black"
               onClick={scrollToProducts}
             >
-              Shop Now
+              Explore Shop
             </Button>
             <Button
               variant="outline"
               size="lg"
               className="border-white text-white bg-transparent hover:bg-white/10"
             >
-              Meet Our Producers
+              Meet Artisans
             </Button>
           </div>
         </div>

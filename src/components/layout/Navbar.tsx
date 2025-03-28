@@ -26,12 +26,14 @@ import {
 import { cn } from '@/lib/utils';
 
 const categories = [
-  { name: "Fresh Produce", href: "/category/fresh-produce" },
-  { name: "Dairy & Eggs", href: "/category/dairy-eggs" },
-  { name: "Bakery", href: "/category/bakery" },
-  { name: "Meat & Seafood", href: "/category/meat-seafood" },
-  { name: "Honey & Preserves", href: "/category/honey-preserves" },
-  { name: "Handcrafted", href: "/category/handcrafted" },
+  { name: "Textiles & Clothing", href: "/category/textiles-clothing" },
+  { name: "Wooden Crafts", href: "/category/wooden-crafts" },
+  { name: "Pottery & Ceramics", href: "/category/pottery-ceramics" },
+  { name: "Jewelry & Accessories", href: "/category/jewelry-accessories" },
+  { name: "Home Decor", href: "/category/home-decor" },
+  { name: "Food & Beverages", href: "/category/food-beverages" },
+  { name: "Art & Paintings", href: "/category/art-paintings" },
+  { name: "Soaps & Cosmetics", href: "/category/soaps-cosmetics" },
 ];
 
 const Navbar = () => {
@@ -63,7 +65,7 @@ const Navbar = () => {
           to="/" 
           className="text-xl md:text-2xl font-medium tracking-tight"
         >
-          <span className="text-gradient">LocalNook</span>
+          <span className="text-gradient">LokalNest</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -94,8 +96,8 @@ const Navbar = () => {
                 </NavigationMenuContent>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link to="/producers" className="flex items-center gap-1 text-sm font-medium">
-                  Producers
+                <Link to="/artisans" className="flex items-center gap-1 text-sm font-medium">
+                  Artisans
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
@@ -161,8 +163,8 @@ const Navbar = () => {
                         ))}
                       </div>
                     </div>
-                    <Link to="/producers" className="flex items-center py-2 text-base font-medium">
-                      Producers
+                    <Link to="/artisans" className="flex items-center py-2 text-base font-medium">
+                      Artisans
                     </Link>
                     <Link to="/about" className="flex items-center py-2 text-base font-medium">
                       About

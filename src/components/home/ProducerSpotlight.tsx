@@ -23,9 +23,9 @@ const ProducerSpotlight: React.FC<ProducerSpotlightProps> = ({ producers }) => {
     <section className="py-16 bg-marketplace-50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-3">Meet Our Producers</h2>
+          <h2 className="text-3xl font-bold mb-3">Meet Our Artisans</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Get to know the passionate artisans and farmers behind our marketplace.
+            Get to know the passionate craftspeople and creators behind our marketplace.
           </p>
         </div>
 
@@ -33,7 +33,7 @@ const ProducerSpotlight: React.FC<ProducerSpotlightProps> = ({ producers }) => {
           {producers.map((producer) => (
             <Link
               key={producer.id}
-              to={`/producer/${producer.id}`}
+              to={`/artisan/${producer.id}`}
               className={cn(
                 "group bg-white rounded-lg overflow-hidden border border-border",
                 "hover:border-gray-300 hover:shadow-elevation-2 transition-all duration-300"
@@ -73,8 +73,8 @@ const ProducerSpotlight: React.FC<ProducerSpotlightProps> = ({ producers }) => {
 
         <div className="text-center mt-12">
           <Button asChild>
-            <Link to="/producers">
-              View All Producers
+            <Link to="/artisans">
+              View All Artisans
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>

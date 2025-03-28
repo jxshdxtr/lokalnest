@@ -22,38 +22,38 @@ import { cn } from '@/lib/utils';
 // In a real app, you would fetch this data from an API
 const productData = {
   id: "1",
-  name: "Organic Farm-Fresh Eggs",
-  description: "Our free-range hens produce the freshest, most nutritious eggs you've ever tasted. Each egg is collected daily and carefully inspected for quality. Our hens are raised on organic feed without antibiotics or hormones, and have access to open pasture for natural foraging.",
-  price: 120,
+  name: "Handwoven Cotton Tote Bag",
+  description: "This beautiful tote bag is handwoven by skilled artisans using traditional techniques. Made from 100% locally sourced cotton with natural dyes, each piece showcases unique patterns inspired by Philippine indigenous textiles. Perfect for everyday use, this bag combines functionality with cultural artistry.",
+  price: 850,
   discountPrice: null,
-  stock: 24,
+  stock: 15,
   rating: 4.8,
-  reviews: 36,
-  location: "Batangas",
+  reviews: 24,
+  location: "Iloilo",
   seller: {
     id: "1",
-    name: "Green Valley Farm",
-    image: "https://images.unsplash.com/photo-1595829060120-9f309b85e96a?auto=format&fit=crop&w=150&q=80",
+    name: "Bahay Hablon",
+    image: "https://images.unsplash.com/photo-1556760544-74068565f05c?auto=format&fit=crop&w=150&q=80",
     rating: 4.9,
-    products: 12,
+    products: 15,
   },
-  category: "Dairy & Eggs",
+  category: "Textiles & Clothing",
   images: [
-    "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?auto=format&fit=crop&w=2670&q=80",
-    "https://images.unsplash.com/photo-1498654077810-12c21d4d6dc3?auto=format&fit=crop&w=2670&q=80",
-    "https://images.unsplash.com/photo-1506976785307-8732e854ad03?auto=format&fit=crop&w=2670&q=80",
-    "https://images.unsplash.com/photo-1598965675045-45c5e72c7d05?auto=format&fit=crop&w=2670&q=80",
+    "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=2670&q=80",
+    "https://images.unsplash.com/photo-1547619292-8816ee7cdd50?auto=format&fit=crop&w=2670&q=80",
+    "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?auto=format&fit=crop&w=2670&q=80",
+    "https://images.unsplash.com/photo-1605518216938-7c31b7b14ad0?auto=format&fit=crop&w=2670&q=80",
   ],
   details: [
-    { name: "Size", value: "Large" },
-    { name: "Package", value: "Dozen (12 eggs)" },
-    { name: "Type", value: "Fresh, Organic" },
-    { name: "Storage", value: "Refrigerated" },
-    { name: "Shelf Life", value: "21 days from packaging" },
+    { name: "Materials", value: "100% Cotton" },
+    { name: "Dimensions", value: "35cm x 40cm x 10cm" },
+    { name: "Weight", value: "320g" },
+    { name: "Care", value: "Hand wash with mild soap, air dry" },
+    { name: "Origin", value: "Handcrafted in Iloilo, Philippines" },
   ],
   deliveryOptions: [
-    { name: "Standard Delivery", value: "2-3 business days", fee: 50 },
-    { name: "Express Delivery", value: "Next-day delivery", fee: 100 },
+    { name: "Standard Delivery", value: "2-3 business days", fee: 80 },
+    { name: "Express Delivery", value: "Next-day delivery", fee: 150 },
   ],
 };
 
@@ -100,11 +100,11 @@ const ProductDetail = () => {
           <nav className="flex items-center text-sm text-muted-foreground">
             <Link to="/" className="hover:text-foreground">Home</Link>
             <ChevronRight className="h-4 w-4 mx-2" />
-            <Link to={`/category/${product.category.toLowerCase().replace(/ & /g, '-')}`} className="hover:text-foreground">
-              {product.category}
+            <Link to={`/category/${productData.category.toLowerCase().replace(/ & /g, '-')}`} className="hover:text-foreground">
+              {productData.category}
             </Link>
             <ChevronRight className="h-4 w-4 mx-2" />
-            <span className="text-foreground">{product.name}</span>
+            <span className="text-foreground">{productData.name}</span>
           </nav>
         </div>
 
@@ -119,7 +119,7 @@ const ProductDetail = () => {
               )}
               <img 
                 src={mainImage} 
-                alt={product.name} 
+                alt={productData.name} 
                 className={cn(
                   "w-full h-full object-contain",
                   isLoadingImages ? "opacity-0" : "opacity-100 transition-opacity duration-300"
@@ -129,7 +129,7 @@ const ProductDetail = () => {
             </div>
             {/* Image thumbnails */}
             <div className="grid grid-cols-4 gap-2">
-              {product.images.map((image, index) => (
+              {productData.images.map((image, index) => (
                 <button
                   key={index}
                   className={cn(
@@ -142,7 +142,7 @@ const ProductDetail = () => {
                 >
                   <img 
                     src={image} 
-                    alt={`${product.name} - Image ${index + 1}`} 
+                    alt={`${productData.name} - Image ${index + 1}`} 
                     className="w-full h-full object-cover transition-transform duration-500 hover:scale-105" 
                   />
                 </button>
@@ -154,24 +154,24 @@ const ProductDetail = () => {
           <div className="space-y-6">
             <div>
               <Link 
-                to={`/producer/${product.seller.id}`}
+                to={`/artisan/${productData.seller.id}`}
                 className="text-sm text-blue-light hover:underline inline-flex items-center gap-1"
               >
-                {product.seller.name}
+                {productData.seller.name}
               </Link>
-              <h1 className="text-3xl font-semibold mt-1">{product.name}</h1>
+              <h1 className="text-3xl font-semibold mt-1">{productData.name}</h1>
               <div className="flex items-center mt-2">
                 <div className="flex items-center">
                   <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                  <span className="ml-1 text-sm font-medium">{product.rating}</span>
+                  <span className="ml-1 text-sm font-medium">{productData.rating}</span>
                 </div>
                 <span className="mx-2 text-muted-foreground">•</span>
                 <Link to="#reviews" className="text-sm text-muted-foreground hover:text-foreground">
-                  {product.reviews} reviews
+                  {productData.reviews} reviews
                 </Link>
                 <span className="mx-2 text-muted-foreground">•</span>
                 <span className="text-sm text-muted-foreground">
-                  {product.stock > 0 ? 'In stock' : 'Out of stock'}
+                  {productData.stock > 0 ? 'In stock' : 'Out of stock'}
                 </span>
               </div>
             </div>
@@ -180,21 +180,21 @@ const ProductDetail = () => {
 
             {/* Price */}
             <div>
-              {product.discountPrice ? (
+              {productData.discountPrice ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl font-semibold">₱{product.discountPrice.toFixed(2)}</span>
-                  <span className="text-lg text-muted-foreground line-through">₱{product.price.toFixed(2)}</span>
+                  <span className="text-2xl font-semibold">₱{productData.discountPrice.toFixed(2)}</span>
+                  <span className="text-lg text-muted-foreground line-through">₱{productData.price.toFixed(2)}</span>
                   <span className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full font-medium">
-                    {Math.round((1 - product.discountPrice / product.price) * 100)}% OFF
+                    {Math.round((1 - productData.discountPrice / productData.price) * 100)}% OFF
                   </span>
                 </div>
               ) : (
-                <span className="text-2xl font-semibold">₱{product.price.toFixed(2)}</span>
+                <span className="text-2xl font-semibold">₱{productData.price.toFixed(2)}</span>
               )}
             </div>
 
             {/* Description */}
-            <p className="text-muted-foreground">{product.description}</p>
+            <p className="text-muted-foreground">{productData.description}</p>
 
             {/* Add to cart section */}
             <div className="space-y-4">
@@ -217,7 +217,7 @@ const ProductDetail = () => {
                     variant="ghost"
                     size="icon"
                     onClick={incrementQuantity}
-                    disabled={quantity >= product.stock}
+                    disabled={quantity >= productData.stock}
                     aria-label="Increase quantity"
                     className="h-10 w-10 rounded-none rounded-r-md"
                   >
@@ -225,7 +225,7 @@ const ProductDetail = () => {
                   </Button>
                 </div>
                 <span className="text-sm text-muted-foreground">
-                  {product.stock} available
+                  {productData.stock} available
                 </span>
               </div>
 
@@ -234,7 +234,7 @@ const ProductDetail = () => {
                   className="flex-1"
                   size="lg"
                   onClick={handleAddToCart}
-                  disabled={product.stock === 0}
+                  disabled={productData.stock === 0}
                 >
                   <ShoppingCart className="mr-2 h-5 w-5" />
                   Add to Cart
@@ -266,18 +266,18 @@ const ProductDetail = () => {
             <div className="bg-secondary/50 rounded-lg p-4">
               <div className="flex items-center">
                 <img
-                  src={product.seller.image}
-                  alt={product.seller.name}
+                  src={productData.seller.image}
+                  alt={productData.seller.name}
                   className="h-12 w-12 rounded-full object-cover border border-border mr-3"
                 />
                 <div className="flex-1">
-                  <h3 className="font-medium">{product.seller.name}</h3>
+                  <h3 className="font-medium">{productData.seller.name}</h3>
                   <div className="flex items-center text-sm text-muted-foreground">
                     <Star className="h-3 w-3 text-yellow-500 fill-yellow-500 mr-1" />
-                    <span>{product.seller.rating} • {product.seller.products} products</span>
+                    <span>{productData.seller.rating} • {productData.seller.products} products</span>
                   </div>
                 </div>
-                <Link to={`/producer/${product.seller.id}`}>
+                <Link to={`/artisan/${productData.seller.id}`}>
                   <Button variant="outline" size="sm">
                     View Profile
                   </Button>
@@ -289,7 +289,7 @@ const ProductDetail = () => {
             <div>
               <h3 className="font-medium mb-3">Delivery Options</h3>
               <div className="space-y-2">
-                {product.deliveryOptions.map((option, index) => (
+                {productData.deliveryOptions.map((option, index) => (
                   <div key={index} className="flex items-start p-3 rounded-md border border-border">
                     <Truck className="h-5 w-5 text-muted-foreground mt-0.5 mr-3 flex-shrink-0" />
                     <div>
@@ -307,7 +307,7 @@ const ProductDetail = () => {
             <div>
               <h3 className="font-medium mb-3">Product Details</h3>
               <div className="space-y-1">
-                {product.details.map((detail, index) => (
+                {productData.details.map((detail, index) => (
                   <div key={index} className="flex py-2 border-b border-border last:border-0">
                     <span className="w-1/3 text-muted-foreground">{detail.name}</span>
                     <span className="w-2/3">{detail.value}</span>

@@ -1,27 +1,27 @@
 
 import React from 'react';
-import { Truck, Shield, Leaf, HeartHandshake } from 'lucide-react';
+import { Paintbrush, Gem, ThumbsUp, HeartHandshake } from 'lucide-react';
 
 const features = [
   {
-    icon: <Truck className="h-10 w-10 text-blue-light" />,
-    title: 'Fresh Delivery',
-    description: 'Products delivered straight from local farms and artisans to your doorstep.',
+    icon: <Paintbrush className="h-10 w-10 text-blue-light" />,
+    title: 'Handcrafted Quality',
+    description: 'Each item is carefully made by skilled artisans using traditional techniques and premium materials.',
   },
   {
-    icon: <Leaf className="h-10 w-10 text-blue-light" />,
-    title: 'Sustainably Sourced',
-    description: 'We prioritize environmentally friendly and sustainable production methods.',
+    icon: <Gem className="h-10 w-10 text-blue-light" />,
+    title: 'Unique Designs',
+    description: 'Discover one-of-a-kind pieces that showcase cultural heritage and artistic creativity.',
   },
   {
-    icon: <Shield className="h-10 w-10 text-blue-light" />,
-    title: 'Quality Guaranteed',
-    description: 'Every product is vetted for quality and authenticity before reaching our marketplace.',
+    icon: <ThumbsUp className="h-10 w-10 text-blue-light" />,
+    title: 'Ethical Production',
+    description: 'Our artisans use sustainable practices and fair labor standards in creating their products.',
   },
   {
     icon: <HeartHandshake className="h-10 w-10 text-blue-light" />,
     title: 'Support Local',
-    description: 'Your purchase directly supports local producers and their communities.',
+    description: 'Your purchase directly supports local craftspeople and helps preserve traditional arts.',
   },
 ];
 
@@ -32,7 +32,7 @@ const Features = () => {
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold mb-3">Why Shop With Us</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            At LocalNook, we connect consumers directly with local producers to ensure quality, freshness, and community support.
+            At LokalNest, we connect consumers directly with local artisans to support traditional crafts while bringing unique, handmade products to your home.
           </p>
         </div>
 

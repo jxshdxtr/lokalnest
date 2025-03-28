@@ -11,147 +11,147 @@ import Features from '@/components/home/Features';
 const featuredProducts = [
   {
     id: "1",
-    name: "Organic Farm-Fresh Eggs",
-    price: 120,
-    image: "https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
-    seller: "Green Valley Farm",
-    category: "Dairy & Eggs",
-    location: "Batangas"
+    name: "Handwoven Cotton Tote Bag",
+    price: 850,
+    image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
+    seller: "Bahay Hablon",
+    category: "Textiles & Clothing",
+    location: "Iloilo"
   },
   {
     id: "2",
-    name: "Artisanal Sourdough Bread",
-    price: 180,
-    image: "https://images.unsplash.com/photo-1608198093002-ad4e005484ec?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
-    seller: "Bread Haven",
-    category: "Bakery",
-    location: "Quezon City"
+    name: "Handcrafted Wooden Serving Bowl",
+    price: 1200,
+    image: "https://images.unsplash.com/photo-1635995158887-316c704fa35d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
+    seller: "Kalinga Woodcraft",
+    category: "Wooden Crafts",
+    location: "Baguio"
   },
   {
     id: "3",
-    name: "Organic Mixed Greens",
-    price: 95,
-    image: "https://images.unsplash.com/photo-1566385101042-1a0aa0c1268c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
-    seller: "Harmony Farms",
-    category: "Fresh Produce",
+    name: "Hand-painted Ceramic Mug",
+    price: 450,
+    image: "https://images.unsplash.com/photo-1493106641515-6b5631de4bb9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
+    seller: "Binhi Pottery",
+    category: "Pottery & Ceramics",
     location: "Laguna"
   },
   {
     id: "4",
-    name: "Wild Caught Tilapia",
-    price: 220,
-    image: "https://images.unsplash.com/photo-1578635073170-7b327e73cbb0?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
-    seller: "Seaside Catch",
-    category: "Meat & Seafood",
-    location: "Bataan"
+    name: "Handcrafted Silver Earrings",
+    price: 1800,
+    image: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
+    seller: "Isla Silver",
+    category: "Jewelry & Accessories",
+    location: "Davao"
   },
   {
     id: "5",
-    name: "Pure Raw Honey",
-    price: 350,
-    image: "https://images.unsplash.com/photo-1558642891-54be180ea339?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
-    seller: "Mountain Apiaries",
-    category: "Honey & Preserves",
-    location: "Benguet"
+    name: "Handwoven Bamboo Wall Hanging",
+    price: 1650,
+    image: "https://images.unsplash.com/photo-1615529182904-14819c35db37?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
+    seller: "Anahaw Home",
+    category: "Home Decor",
+    location: "Cebu"
   },
   {
     id: "6",
-    name: "Hand-Woven Market Basket",
-    price: 450,
-    image: "https://images.unsplash.com/photo-1590105577767-e21a1067899f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
-    seller: "Artisan Hands",
-    category: "Handcrafted",
-    location: "Ilocos"
+    name: "Artisanal Coconut Jam Set",
+    price: 420,
+    image: "https://images.unsplash.com/photo-1612200482741-3ad34fcd2eb6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
+    seller: "Langkay Foods",
+    category: "Food & Beverages",
+    location: "Quezon"
   },
   {
     id: "7",
-    name: "Grass-Fed Beef Steak",
-    price: 580,
-    image: "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
-    seller: "Green Pastures Farm",
-    category: "Meat & Seafood",
-    location: "Nueva Ecija"
+    name: "Hand-Painted Philippine Landscape",
+    price: 3800,
+    image: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
+    seller: "Sining Art Studio",
+    category: "Art & Paintings",
+    location: "Manila"
   },
   {
     id: "8",
-    name: "Homemade Mango Jam",
-    price: 185,
-    image: "https://images.unsplash.com/photo-1533527853550-49d037841d2f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
-    seller: "Sylvia's Pantry",
-    category: "Honey & Preserves",
-    location: "Guimaras"
+    name: "Handmade Organic Soap Collection",
+    price: 550,
+    image: "https://images.unsplash.com/photo-1600857544200-b2f468e64d7e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
+    seller: "Luntian Organics",
+    category: "Soaps & Cosmetics",
+    location: "Batangas"
   }
 ];
 
 const categories = [
   {
     id: "1",
-    name: "Fresh Produce",
-    image: "https://images.unsplash.com/photo-1590779033100-9f60a05a013d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2574&q=80",
-    count: 48,
-    slug: "fresh-produce"
+    name: "Textiles & Clothing",
+    image: "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2570&q=80",
+    count: 42,
+    slug: "textiles-clothing"
   },
   {
     id: "2",
-    name: "Dairy & Eggs",
-    image: "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
-    count: 32,
-    slug: "dairy-eggs"
+    name: "Wooden Crafts",
+    image: "https://images.unsplash.com/photo-1611486212557-88be5ff6f941?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2574&q=80",
+    count: 36,
+    slug: "wooden-crafts"
   },
   {
     id: "3",
-    name: "Meat & Seafood",
-    image: "https://images.unsplash.com/photo-1595504856044-2c7cc9d7d982?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
-    count: 27,
-    slug: "meat-seafood"
+    name: "Pottery & Ceramics",
+    image: "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
+    count: 28,
+    slug: "pottery-ceramics"
   },
   {
     id: "4",
-    name: "Bakery",
-    image: "https://images.unsplash.com/photo-1586444248902-2f64eddc13df?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2564&q=80",
-    count: 19,
-    slug: "bakery"
+    name: "Jewelry & Accessories",
+    image: "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2564&q=80",
+    count: 34,
+    slug: "jewelry-accessories"
   },
   {
     id: "5",
-    name: "Handcrafted",
-    image: "https://images.unsplash.com/photo-1492707892479-7bc8d5a4ee93?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2565&q=80",
-    count: 36,
-    slug: "handcrafted"
+    name: "Home Decor",
+    image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2558&q=80",
+    count: 45,
+    slug: "home-decor"
   },
   {
     id: "6",
-    name: "Honey & Preserves",
-    image: "https://images.unsplash.com/photo-1587049352851-8d4e89133924?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
-    count: 21,
-    slug: "honey-preserves"
+    name: "Food & Beverages",
+    image: "https://images.unsplash.com/photo-1553531889-e6cf4d692b1b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
+    count: 24,
+    slug: "food-beverages"
   }
 ];
 
 const producers = [
   {
     id: "1",
-    name: "Green Valley Farm",
-    image: "https://images.unsplash.com/photo-1595829060120-9f309b85e96a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2574&q=80",
-    location: "Batangas",
-    description: "Family-owned farm specializing in organic vegetables and free-range eggs. Practicing sustainable farming for over 20 years.",
-    productCount: 12
+    name: "Bahay Hablon",
+    image: "https://images.unsplash.com/photo-1556760544-74068565f05c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2574&q=80",
+    location: "Iloilo",
+    description: "Traditional Filipino textile workshop specializing in handwoven fabrics using indigenous materials and techniques passed down through generations.",
+    productCount: 15
   },
   {
     id: "2",
-    name: "Bread Haven",
-    image: "https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2570&q=80",
-    location: "Quezon City",
-    description: "Artisanal bakery creating handcrafted breads using traditional methods and locally-sourced ingredients.",
-    productCount: 8
+    name: "Kalinga Woodcraft",
+    image: "https://images.unsplash.com/photo-1452860606245-08befc0ff44b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
+    location: "Baguio",
+    description: "Family-run woodworking studio creating handcrafted wooden kitchen items, furniture, and decorative pieces using sustainable local hardwoods.",
+    productCount: 22
   },
   {
     id: "3",
-    name: "Artisan Hands",
-    image: "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
-    location: "Ilocos",
-    description: "Cooperative of skilled craftspeople creating traditional handwoven products using indigenous materials.",
-    productCount: 15
+    name: "Binhi Pottery",
+    image: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
+    location: "Laguna",
+    description: "Ceramic studio founded by local artists creating contemporary pottery inspired by Philippine cultural heritage and natural surroundings.",
+    productCount: 18
   }
 ];
 
@@ -161,13 +161,13 @@ const Index = () => {
       <div className="animate-fade-in">
         <Hero />
         <FeaturedProducts 
-          title="Featured Products" 
-          subtitle="Discover our curated selection of fresh local products"
+          title="Featured Crafts" 
+          subtitle="Discover our curated selection of handcrafted products from talented local artisans"
           products={featuredProducts}
         />
         <CategorySection 
           title="Shop by Category"
-          subtitle="Browse our diverse range of locally-sourced products"
+          subtitle="Browse our diverse range of locally-crafted products"
           categories={categories}
         />
         <ProducerSpotlight producers={producers} />
