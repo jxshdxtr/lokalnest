@@ -17,7 +17,7 @@ const Hero = () => {
       <div className="absolute inset-0 bg-black">
         <img
           src="/lovable-uploads/7d8f1f16-ac2a-44a7-9893-174cd3a3581d.png"
-          alt="Handcrafted clothing items on rack"
+          alt="Handcrafted items from local producers"
           className="w-full h-full object-cover opacity-85"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent"></div>
