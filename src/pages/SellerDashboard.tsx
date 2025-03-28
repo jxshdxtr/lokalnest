@@ -34,6 +34,8 @@ const SellerDashboard = () => {
     if (path === 'products') return 'products';
     if (path === 'orders') return 'orders';
     if (path === 'promotions') return 'promotions';
+    if (path === 'inventory') return 'inventory';
+    if (path === 'customers') return 'customers';
     return 'overview';
   };
 
@@ -57,10 +59,12 @@ const SellerDashboard = () => {
             {/* Content Area */}
             <div className="col-span-1 lg:col-span-9">
               <Tabs defaultValue={getActiveTab()} className="w-full">
-                <TabsList className="w-full mb-6 overflow-x-auto flex sm:grid sm:grid-cols-4">
+                <TabsList className="w-full mb-6 overflow-x-auto flex sm:grid sm:grid-cols-6">
                   <TabsTrigger value="overview" className="flex-1">Overview</TabsTrigger>
                   <TabsTrigger value="products" className="flex-1">Products</TabsTrigger>
+                  <TabsTrigger value="inventory" className="flex-1">Inventory</TabsTrigger>
                   <TabsTrigger value="orders" className="flex-1">Orders</TabsTrigger>
+                  <TabsTrigger value="customers" className="flex-1">Customers</TabsTrigger>
                   <TabsTrigger value="promotions" className="flex-1">Promotions</TabsTrigger>
                 </TabsList>
                 
@@ -72,7 +76,15 @@ const SellerDashboard = () => {
                   <Outlet />
                 </TabsContent>
                 
+                <TabsContent value="inventory">
+                  <Outlet />
+                </TabsContent>
+                
                 <TabsContent value="orders">
+                  <Outlet />
+                </TabsContent>
+                
+                <TabsContent value="customers">
                   <Outlet />
                 </TabsContent>
                 

@@ -11,12 +11,27 @@ import {
   CheckCircle2, 
   Truck, 
   Package, 
-  XCircle 
+  XCircle,
+  CreditCard,
+  Wallet,
+  Phone,
+  Database,
+  Bell,
+  ShoppingBag,
+  Users,
+  DollarSign,
+  MoreHorizontal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { 
   Select,
   SelectContent,
@@ -30,6 +45,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
 // Sample order data
@@ -43,13 +66,17 @@ const initialOrders = [
     },
     date: '2023-06-15',
     items: [
-      { id: 'prod1', name: 'Handwoven Cotton Tote Bag', quantity: 1, price: 850 }
+      { id: 'prod1', name: 'Handwoven Cotton Tote Bag', quantity: 1, price: 850, currentStock: 15 }
     ],
     total: 850,
     status: 'delivered',
     payment: {
       method: 'card',
-      status: 'paid'
+      status: 'paid',
+      details: {
+        cardType: 'Visa',
+        last4: '4242'
+      }
     },
     shipping: {
       address: '123 Bonifacio St, Makati City',
@@ -66,13 +93,17 @@ const initialOrders = [
     },
     date: '2023-06-14',
     items: [
-      { id: 'prod4', name: 'Handcrafted Silver Earrings', quantity: 1, price: 1800 }
+      { id: 'prod4', name: 'Handcrafted Silver Earrings', quantity: 1, price: 1800, currentStock: 5 }
     ],
     total: 1800,
     status: 'shipped',
     payment: {
       method: 'card',
-      status: 'paid'
+      status: 'paid',
+      details: {
+        cardType: 'Mastercard',
+        last4: '5678'
+      }
     },
     shipping: {
       address: '456 Rizal Ave, Quezon City',
@@ -89,14 +120,15 @@ const initialOrders = [
     },
     date: '2023-06-14',
     items: [
-      { id: 'prod3', name: 'Hand-painted Ceramic Mug', quantity: 1, price: 450 },
-      { id: 'prod6', name: 'Artisanal Coconut Jam Set', quantity: 1, price: 420 }
+      { id: 'prod3', name: 'Hand-painted Ceramic Mug', quantity: 1, price: 450, currentStock: 22 },
+      { id: 'prod6', name: 'Artisanal Coconut Jam Set', quantity: 1, price: 420, currentStock: 12 }
     ],
     total: 870,
     status: 'processing',
     payment: {
       method: 'cod',
-      status: 'pending'
+      status: 'pending',
+      details: {}
     },
     shipping: {
       address: '789 Magsaysay Blvd, Manila',
@@ -113,13 +145,16 @@ const initialOrders = [
     },
     date: '2023-06-13',
     items: [
-      { id: 'prod2', name: 'Wooden Serving Bowl', quantity: 1, price: 1200 }
+      { id: 'prod2', name: 'Wooden Serving Bowl', quantity: 1, price: 1200, currentStock: 8 }
     ],
     total: 1200,
     status: 'pending',
     payment: {
       method: 'gcash',
-      status: 'paid'
+      status: 'paid',
+      details: {
+        reference: 'GC123456'
+      }
     },
     shipping: {
       address: '101 Aguinaldo Highway, Cavite',
@@ -136,13 +171,17 @@ const initialOrders = [
     },
     date: '2023-06-12',
     items: [
-      { id: 'prod5', name: 'Handwoven Bamboo Wall Hanging', quantity: 1, price: 1650 }
+      { id: 'prod5', name: 'Handwoven Bamboo Wall Hanging', quantity: 1, price: 1650, currentStock: 0 }
     ],
     total: 1650,
     status: 'cancelled',
     payment: {
       method: 'card',
-      status: 'refunded'
+      status: 'refunded',
+      details: {
+        cardType: 'Visa',
+        last4: '9876'
+      }
     },
     shipping: {
       address: '222 Roxas Avenue, Davao City',
@@ -152,10 +191,27 @@ const initialOrders = [
   }
 ];
 
+// Available payment methods
+const paymentMethods = [
+  { id: 'card', name: 'Credit/Debit Card', icon: CreditCard },
+  { id: 'gcash', name: 'GCash', icon: Wallet },
+  { id: 'paymaya', name: 'PayMaya', icon: Phone },
+  { id: 'cod', name: 'Cash on Delivery', icon: DollarSign },
+  { id: 'bank', name: 'Bank Transfer', icon: Database },
+];
+
 const OrderManagement = () => {
   const [orders, setOrders] = useState(initialOrders);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [isOrderDetailOpen, setIsOrderDetailOpen] = useState(false);
+  const [isUpdatePaymentOpen, setIsUpdatePaymentOpen] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('');
+  const [isNotifyCustomerOpen, setIsNotifyCustomerOpen] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [updateInventory, setUpdateInventory] = useState(true);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -179,11 +235,126 @@ const OrderManagement = () => {
   const filteredOrders = getFilteredOrders();
 
   const updateOrderStatus = (orderId: string, newStatus: string) => {
-    setOrders(orders.map(order => 
-      order.id === orderId ? { ...order, status: newStatus } : order
-    ));
+    setOrders(orders.map(order => {
+      if (order.id === orderId) {
+        // If cancelled and previously shipped/processing, restore inventory
+        if (newStatus === 'cancelled' && ['processing', 'shipped'].includes(order.status)) {
+          // This would trigger inventory update logic in a real app
+          toast.info("Inventory has been automatically updated");
+        }
+        
+        // If shipping or delivering, reduce inventory
+        if ((newStatus === 'shipped' || newStatus === 'delivered') && updateInventory) {
+          if (order.status === 'pending' || order.status === 'processing') {
+            // This would trigger inventory reduction logic in a real app
+            toast.info("Inventory has been automatically updated");
+          }
+        }
+        
+        // If status changed to delivered, check if payment was COD and update payment status
+        if (newStatus === 'delivered' && order.payment.method === 'cod' && order.payment.status === 'pending') {
+          return {
+            ...order,
+            status: newStatus,
+            payment: {
+              ...order.payment,
+              status: 'paid'
+            }
+          };
+        }
+        
+        return { ...order, status: newStatus };
+      }
+      return order;
+    }));
     
     toast.success(`Order ${orderId} status updated to ${newStatus}`);
+    
+    // Automatic customer notification
+    if (newStatus === 'shipped' || newStatus === 'delivered') {
+      const order = orders.find(o => o.id === orderId);
+      if (order) {
+        const message = newStatus === 'shipped' 
+          ? `Your order ${orderId} has been shipped and is on its way to you!`
+          : `Your order ${orderId} has been delivered. Thank you for shopping with us!`;
+        
+        toast.success(`Customer ${order.customer.name} has been automatically notified about their ${newStatus} order`);
+      }
+    }
+  };
+
+  const viewOrderDetails = (order: any) => {
+    setSelectedOrder(order);
+    setIsOrderDetailOpen(true);
+  };
+
+  const openUpdatePayment = (order: any) => {
+    setSelectedOrder(order);
+    setSelectedPaymentMethod(order.payment.method);
+    setPaymentStatus(order.payment.status);
+    setIsUpdatePaymentOpen(true);
+  };
+
+  const updatePaymentMethod = () => {
+    if (!selectedPaymentMethod) {
+      toast.error("Please select a payment method");
+      return;
+    }
+    
+    setOrders(orders.map(order => {
+      if (order.id === selectedOrder.id) {
+        return {
+          ...order,
+          payment: {
+            ...order.payment,
+            method: selectedPaymentMethod,
+            status: paymentStatus
+          }
+        };
+      }
+      return order;
+    }));
+    
+    toast.success(`Payment method for Order ${selectedOrder.id} updated to ${selectedPaymentMethod}`);
+    setIsUpdatePaymentOpen(false);
+  };
+
+  const openNotifyCustomer = (order: any) => {
+    setSelectedOrder(order);
+    
+    // Pre-populate message based on order status
+    let message = '';
+    switch(order.status) {
+      case 'pending':
+        message = `Dear ${order.customer.name},\n\nThank you for your order ${order.id}. We're currently processing it and will update you soon.\n\nBest regards,\nArtisan Crafts Team`;
+        break;
+      case 'processing':
+        message = `Dear ${order.customer.name},\n\nYour order ${order.id} is now being processed. We'll notify you once it ships.\n\nBest regards,\nArtisan Crafts Team`;
+        break;
+      case 'shipped':
+        message = `Dear ${order.customer.name},\n\nGreat news! Your order ${order.id} has been shipped and is on its way to you.\n\nTracking number: ${order.shipping.tracking || 'Will be provided soon'}\n\nBest regards,\nArtisan Crafts Team`;
+        break;
+      case 'delivered':
+        message = `Dear ${order.customer.name},\n\nYour order ${order.id} has been delivered. We hope you love your handcrafted items!\n\nBest regards,\nArtisan Crafts Team`;
+        break;
+      default:
+        message = `Dear ${order.customer.name},\n\nRegarding your order ${order.id}:\n\n[Your message here]\n\nBest regards,\nArtisan Crafts Team`;
+    }
+    
+    setNotificationMessage(message);
+    setIsNotifyCustomerOpen(true);
+  };
+
+  const sendCustomerNotification = () => {
+    if (!notificationMessage) {
+      toast.error("Please enter a message");
+      return;
+    }
+    
+    // Here you would integrate with your email/SMS service
+    // For now, we'll just show a success toast
+    toast.success(`Message sent to ${selectedOrder.customer.name}`);
+    setIsNotifyCustomerOpen(false);
   };
 
   const getStatusBadge = (status: string) => {
@@ -204,15 +375,31 @@ const OrderManagement = () => {
   };
 
   const getPaymentBadge = (method: string, status: string) => {
-    const color = status === 'paid' ? 'green' : 
+    const paymentIcon = paymentMethods.find(p => p.id === method)?.icon || Wallet;
+    
+    const statusColor = status === 'paid' ? 'green' : 
                   status === 'refunded' ? 'orange' : 'yellow';
     
     return (
-      <div className="flex flex-col">
-        <span className="capitalize text-sm">{method}</span>
-        <Badge variant="outline" className={`bg-${color}-100 text-${color}-800 border-${color}-200 text-xs mt-1 w-fit`}>
-          {status}
-        </Badge>
+      <div className="flex items-center gap-2">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <div className="bg-muted p-1 rounded-full">
+                {React.createElement(paymentIcon, { size: 14 })}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              {paymentMethods.find(p => p.id === method)?.name || 'Payment Method'}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <div className="flex flex-col">
+          <span className="capitalize text-sm">{method}</span>
+          <Badge variant="outline" className={`bg-${statusColor}-100 text-${statusColor}-800 border-${statusColor}-200 text-xs mt-1 w-fit`}>
+            {status}
+          </Badge>
+        </div>
       </div>
     );
   };
@@ -221,6 +408,70 @@ const OrderManagement = () => {
     <div className="space-y-6">
       <Card>
         <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-4">
+            <h2 className="text-xl font-semibold">Order Management</h2>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="gap-1">
+                <Bell className="h-4 w-4" />
+                <span>Alerts</span>
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1">
+                <ShoppingBag className="h-4 w-4" />
+                <span>Bulk Update</span>
+              </Button>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card className="bg-blue-50 border-blue-200">
+              <CardContent className="p-4 flex items-center">
+                <div className="bg-blue-100 p-2 rounded-full mr-4">
+                  <Package className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Orders</p>
+                  <p className="text-2xl font-semibold">{orders.length}</p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-yellow-50 border-yellow-200">
+              <CardContent className="p-4 flex items-center">
+                <div className="bg-yellow-100 p-2 rounded-full mr-4">
+                  <ClipboardList className="h-6 w-6 text-yellow-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Pending</p>
+                  <p className="text-2xl font-semibold">{orders.filter(o => o.status === 'pending').length}</p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-purple-50 border-purple-200">
+              <CardContent className="p-4 flex items-center">
+                <div className="bg-purple-100 p-2 rounded-full mr-4">
+                  <Truck className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Shipped</p>
+                  <p className="text-2xl font-semibold">{orders.filter(o => o.status === 'shipped').length}</p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-green-50 border-green-200">
+              <CardContent className="p-4 flex items-center">
+                <div className="bg-green-100 p-2 rounded-full mr-4">
+                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Delivered</p>
+                  <p className="text-2xl font-semibold">{orders.filter(o => o.status === 'delivered').length}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div className="relative w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -288,7 +539,11 @@ const OrderManagement = () => {
                     </td>
                     <td className="p-3 text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => viewOrderDetails(order)}
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
 
@@ -332,9 +587,23 @@ const OrderManagement = () => {
                           </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <Button variant="outline" size="icon">
-                          <Mail className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openUpdatePayment(order)}>
+                              <CreditCard className="h-4 w-4 mr-2" />
+                              Update Payment
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openNotifyCustomer(order)}>
+                              <Mail className="h-4 w-4 mr-2" />
+                              Notify Customer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </td>
                   </tr>
@@ -351,6 +620,196 @@ const OrderManagement = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Order Details Dialog */}
+      <Dialog open={isOrderDetailOpen} onOpenChange={setIsOrderDetailOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Order {selectedOrder?.id} Details</DialogTitle>
+            <DialogDescription>
+              Order placed on {selectedOrder?.date}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedOrder && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <h4 className="font-medium mb-2">Customer Information</h4>
+                  <div className="text-sm">
+                    <p className="font-medium">{selectedOrder.customer.name}</p>
+                    <p>{selectedOrder.customer.email}</p>
+                    <p>{selectedOrder.customer.phone}</p>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-2">Shipping Information</h4>
+                  <div className="text-sm">
+                    <p>{selectedOrder.shipping.address}</p>
+                    <p>Method: {selectedOrder.shipping.method}</p>
+                    {selectedOrder.shipping.tracking && (
+                      <p>Tracking: {selectedOrder.shipping.tracking}</p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-2">Payment Information</h4>
+                  <div className="text-sm">
+                    <p>Method: {selectedOrder.payment.method}</p>
+                    <p>Status: {selectedOrder.payment.status}</p>
+                    {selectedOrder.payment.details && selectedOrder.payment.details.cardType && (
+                      <p>{selectedOrder.payment.details.cardType} ending in {selectedOrder.payment.details.last4}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="font-medium mb-2">Order Items</h4>
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-muted/50 text-left">
+                      <th className="p-2">Product</th>
+                      <th className="p-2">Quantity</th>
+                      <th className="p-2">Price</th>
+                      <th className="p-2">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedOrder.items.map((item) => (
+                      <tr key={item.id} className="border-b border-border">
+                        <td className="p-2">{item.name}</td>
+                        <td className="p-2">{item.quantity}</td>
+                        <td className="p-2">₱{item.price.toFixed(2)}</td>
+                        <td className="p-2">₱{(item.quantity * item.price).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="font-medium">
+                      <td colSpan={3} className="p-2 text-right">Total:</td>
+                      <td className="p-2">₱{selectedOrder.total.toFixed(2)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setIsOrderDetailOpen(false)}>Close</Button>
+                <Button 
+                  onClick={() => {
+                    setIsOrderDetailOpen(false);
+                    openNotifyCustomer(selectedOrder);
+                  }}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Contact Customer
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Payment Dialog */}
+      <Dialog open={isUpdatePaymentOpen} onOpenChange={setIsUpdatePaymentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Payment Method</DialogTitle>
+            <DialogDescription>
+              Update payment details for order {selectedOrder?.id}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Payment Method</label>
+              <Select value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  {paymentMethods.map((method) => (
+                    <SelectItem key={method.id} value={method.id}>
+                      <div className="flex items-center gap-2">
+                        {React.createElement(method.icon, { size: 14 })}
+                        <span>{method.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Payment Status</label>
+              <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="refunded">Refunded</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsUpdatePaymentOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={updatePaymentMethod}>
+              Update Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Notify Customer Dialog */}
+      <Dialog open={isNotifyCustomerOpen} onOpenChange={setIsNotifyCustomerOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Notify Customer</DialogTitle>
+            <DialogDescription>
+              Send a message to {selectedOrder?.customer.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Email</label>
+              <Input 
+                value={selectedOrder?.customer.email} 
+                disabled
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Message</label>
+              <textarea 
+                className="min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={notificationMessage}
+                onChange={(e) => setNotificationMessage(e.target.value)}
+                placeholder="Type your message to the customer here..."
+                rows={6}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNotifyCustomerOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={sendCustomerNotification}>
+              <Send className="h-4 w-4 mr-2" />
+              Send Message
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

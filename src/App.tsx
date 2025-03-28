@@ -12,6 +12,8 @@ import SellerDashboard from "./pages/SellerDashboard";
 import ProductManagement from "./components/seller/ProductManagement";
 import OrderManagement from "./components/seller/OrderManagement";
 import PromotionManagement from "./components/seller/PromotionManagement";
+import InventoryManagement from "./components/seller/InventoryManagement";
+import CustomerManagement from "./components/seller/CustomerManagement";
 
 const queryClient = new QueryClient();
 
@@ -35,8 +37,14 @@ const App = () => (
           <Route path="/seller/products" element={<SellerDashboard />}>
             <Route index element={<ProductManagement />} />
           </Route>
+          <Route path="/seller/inventory" element={<SellerDashboard />}>
+            <Route index element={<InventoryManagement />} />
+          </Route>
           <Route path="/seller/orders" element={<SellerDashboard />}>
             <Route index element={<OrderManagement />} />
+          </Route>
+          <Route path="/seller/customers" element={<SellerDashboard />}>
+            <Route index element={<CustomerManagement />} />
           </Route>
           <Route path="/seller/promotions" element={<SellerDashboard />}>
             <Route index element={<PromotionManagement />} />
