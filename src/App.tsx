@@ -20,6 +20,11 @@ import ProductOversight from "./components/admin/ProductOversight";
 import BusinessIntelligence from "./components/admin/BusinessIntelligence";
 import SecurityCompliance from "./components/admin/SecurityCompliance";
 import Logistics from "./components/admin/Logistics";
+import BuyerDashboard from "./pages/BuyerDashboard";
+import BuyerOrders from "./components/buyer/BuyerOrders";
+import BuyerPayments from "./components/buyer/BuyerPayments";
+import BuyerSupport from "./components/buyer/BuyerSupport";
+import BuyerReviews from "./components/buyer/BuyerReviews";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +42,21 @@ const App = () => (
           <Route path="/artisan/:id" element={<Index />} />
           <Route path="/artisans" element={<Index />} />
           <Route path="/about" element={<Index />} />
+          
+          {/* Buyer Routes */}
+          <Route path="/buyer/dashboard" element={<BuyerDashboard />} />
+          <Route path="/buyer/orders" element={<BuyerDashboard />}>
+            <Route index element={<BuyerOrders />} />
+          </Route>
+          <Route path="/buyer/payments" element={<BuyerDashboard />}>
+            <Route index element={<BuyerPayments />} />
+          </Route>
+          <Route path="/buyer/reviews" element={<BuyerDashboard />}>
+            <Route index element={<BuyerReviews />} />
+          </Route>
+          <Route path="/buyer/support" element={<BuyerDashboard />}>
+            <Route index element={<BuyerSupport />} />
+          </Route>
           
           {/* Seller Routes */}
           <Route path="/seller/dashboard" element={<SellerDashboard />} />
