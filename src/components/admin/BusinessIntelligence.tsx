@@ -105,7 +105,7 @@ const BusinessIntelligence = () => {
   const stats = [
     {
       title: "Total Revenue",
-      value: "$96,200",
+      value: "₱96,200",
       change: "+23.1%",
       trend: "up"
     },
@@ -117,7 +117,7 @@ const BusinessIntelligence = () => {
     },
     {
       title: "Avg. Order Value",
-      value: "$39.26",
+      value: "₱39.26",
       change: "+4.3%",
       trend: "up"
     },
@@ -157,7 +157,7 @@ const BusinessIntelligence = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
+              <Tooltip formatter={(value) => [`₱${value}`, 'Revenue']} />
               <Legend />
               <Line type="monotone" dataKey="revenue" stroke="#9b87f5" strokeWidth={2} />
               <Line type="monotone" dataKey="sales" stroke="#82ca9d" strokeWidth={2} />
@@ -171,7 +171,7 @@ const BusinessIntelligence = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
+              <Tooltip formatter={(value) => [`₱${value}`, 'Revenue']} />
               <Legend />
               <Area type="monotone" dataKey="revenue" stroke="#9b87f5" fill="#9b87f580" />
               <Area type="monotone" dataKey="sales" stroke="#82ca9d" fill="#82ca9d80" />
@@ -186,7 +186,7 @@ const BusinessIntelligence = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
+              <Tooltip formatter={(value) => [`₱${value}`, 'Revenue']} />
               <Legend />
               <Bar dataKey="revenue" fill="#9b87f5" name="Revenue" />
               <Bar dataKey="transactions" fill="#82ca9d" name="Transactions" />
@@ -338,7 +338,7 @@ const BusinessIntelligence = () => {
                         <p className="font-medium">{seller.name}</p>
                         <div className="flex gap-4 text-sm text-muted-foreground">
                           <span>{seller.sales} sales</span>
-                          <span>${seller.revenue} revenue</span>
+                          <span>₱{seller.revenue} revenue</span>
                         </div>
                       </div>
                       <div className={`flex items-center ${

@@ -50,7 +50,7 @@ const AdminOverview = () => {
     },
     {
       title: "Revenue",
-      value: "$152,492",
+      value: "₱152,492",
       change: "+23%",
       trend: "up",
       icon: <DollarSign className="h-5 w-5 text-green-500" />
@@ -143,7 +143,7 @@ const AdminOverview = () => {
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip 
-                    formatter={(value) => [`$${value}`, 'Revenue']} 
+                    formatter={(value) => [`₱${value}`, 'Revenue']} 
                     labelFormatter={(label) => `Month: ${label}`}
                   />
                   <Bar dataKey="value" fill="#9b87f5" radius={[4, 4, 0, 0]} />
@@ -229,7 +229,7 @@ const AdminOverview = () => {
                 },
                 {
                   title: "Large order placed",
-                  description: "Order #4582 - $1,250.00 was placed",
+                  description: "Order #4582 - ₱1,250.00 was placed",
                   time: "3 hours ago",
                   icon: <ShoppingBag className="h-4 w-4" />
                 },
