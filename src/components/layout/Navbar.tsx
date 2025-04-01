@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
   ShoppingCart, 
   Search, 
   User, 
   Menu, 
-  X 
+  X,
+  LogOut
 } from 'lucide-react';
 import {
   Sheet,
@@ -27,6 +28,17 @@ import { cn } from '@/lib/utils';
 import CartSidebar from '@/components/buyer/shopping/CartSidebar';
 import { useCart } from '@/components/buyer/shopping/Cart';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const categories = [
   { name: "Textiles & Clothing", href: "/category/textiles-clothing" },
@@ -43,6 +55,8 @@ const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { totalItems } = useCart();
+  const [user, setUser] = useState<any>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -53,6 +67,44 @@ const Navbar = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Check for existing session
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user || null);
+      }
+    );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      toast.success('Successfully signed out');
+      navigate('/');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to sign out');
+    }
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
 
   return (
     <header 
@@ -132,16 +184,47 @@ const Navbar = () => {
             </Button>
           </CartSidebar>
           
-          <Link to="/profile">
-            <Button variant="ghost" size="icon" aria-label="Profile">
-              <User className="w-5 h-5" />
-            </Button>
-          </Link>
-          <Link to="/auth" className="hidden md:block">
-            <Button variant="default" size="sm" className="ml-4">
-              Sign In
-            </Button>
-          </Link>
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user.user_metadata?.avatar_url || ''} />
+                    <AvatarFallback>
+                      {getInitials(user.user_metadata?.full_name || user.email || '')}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem as={Link} to="/profile">
+                  <User className="mr-2 h-4 w-4" />
+                  Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem as={Link} to="/buyer/orders">
+                  Orders
+                </DropdownMenuItem>
+                {user.user_metadata?.account_type === 'seller' && (
+                  <DropdownMenuItem as={Link} to="/seller/dashboard">
+                    Seller Dashboard
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link to="/auth" className="hidden md:block">
+              <Button variant="default" size="sm" className="ml-4">
+                Sign In
+              </Button>
+            </Link>
+          )}
 
           {/* Mobile menu */}
           <div className="md:hidden">
@@ -186,11 +269,30 @@ const Navbar = () => {
                       Shop
                     </Link>
                     <div className="flex-1"></div>
-                    <Link to="/auth" className="w-full">
-                      <Button className="w-full" size="default">
-                        Sign In
-                      </Button>
-                    </Link>
+                    {!user ? (
+                      <Link to="/auth" className="w-full">
+                        <Button className="w-full" size="default">
+                          Sign In
+                        </Button>
+                      </Link>
+                    ) : (
+                      <>
+                        <Link to="/profile" className="flex items-center py-2 text-base font-medium">
+                          My Profile
+                        </Link>
+                        <Link to="/buyer/orders" className="flex items-center py-2 text-base font-medium">
+                          My Orders
+                        </Link>
+                        {user.user_metadata?.account_type === 'seller' && (
+                          <Link to="/seller/dashboard" className="flex items-center py-2 text-base font-medium">
+                            Seller Dashboard
+                          </Link>
+                        )}
+                        <Button onClick={handleSignOut} variant="outline" className="w-full">
+                          Sign Out
+                        </Button>
+                      </>
+                    )}
                   </nav>
                 </div>
               </SheetContent>

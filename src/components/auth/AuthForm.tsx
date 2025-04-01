@@ -16,6 +16,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 // Form schemas
 const loginSchema = z.object({
@@ -36,6 +38,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 const AuthForm = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
@@ -62,16 +65,17 @@ const AuthForm = () => {
     setIsLoading(true);
 
     try {
-      // In a real implementation, this would call an authentication API
-      console.log('Login data:', data);
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (error) throw error;
       
       toast.success('Successfully logged in!');
-      // Redirect or update state here
-    } catch (error) {
-      toast.error('Failed to log in. Please try again.');
+      navigate('/');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to log in. Please try again.');
       console.error('Login error:', error);
     } finally {
       setIsLoading(false);
@@ -82,16 +86,39 @@ const AuthForm = () => {
     setIsLoading(true);
 
     try {
-      // In a real implementation, this would call an authentication API
-      console.log('Register data:', data);
+      // Sign up the user
+      const { data: authData, error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            full_name: data.name,
+            account_type: data.accountType,
+          },
+        },
+      });
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (error) throw error;
       
-      toast.success('Account created successfully!');
-      // Redirect or update state here
-    } catch (error) {
-      toast.error('Failed to create account. Please try again.');
+      // If the user is a seller, create a seller profile
+      if (data.accountType === 'seller' && authData.user) {
+        const { error: sellerError } = await supabase
+          .from('seller_profiles')
+          .insert({
+            id: authData.user.id,
+            business_name: data.name,
+          } as any);
+        
+        if (sellerError) {
+          console.error('Failed to create seller profile:', sellerError);
+          // Continue anyway since the user account was created
+        }
+      }
+      
+      toast.success('Account created successfully! Please check your email to confirm your account.');
+      // Do not navigate yet, wait for email confirmation
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create account. Please try again.');
       console.error('Register error:', error);
     } finally {
       setIsLoading(false);

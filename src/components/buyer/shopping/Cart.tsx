@@ -2,6 +2,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 
 export type CartItem = {
   id: string;
@@ -51,7 +52,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         return;
       }
       
-      if (!productData.is_available || productData.stock_quantity <= 0) {
+      if (!productData || !productData.is_available || productData.stock_quantity <= 0) {
         toast.error('This product is currently unavailable');
         return;
       }
@@ -65,7 +66,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
           const newItems = [...currentItems];
           const newQuantity = newItems[existingItemIndex].quantity + 1;
           
-          if (newQuantity > productData.stock_quantity) {
+          if (productData && newQuantity > productData.stock_quantity) {
             toast.error(`Sorry, only ${productData.stock_quantity} items available`);
             return currentItems;
           }
@@ -115,7 +116,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         return;
       }
       
-      if (quantity > productData.stock_quantity) {
+      if (productData && quantity > productData.stock_quantity) {
         toast.error(`Sorry, only ${productData.stock_quantity} items available`);
         setItems(currentItems => 
           currentItems.map(item => 
