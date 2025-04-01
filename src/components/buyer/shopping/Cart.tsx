@@ -1,6 +1,7 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export type CartItem = {
   id: string;
@@ -35,23 +36,53 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     localStorage.setItem('cart', JSON.stringify(items));
   }, [items]);
 
-  const addItem = (product: Omit<CartItem, 'quantity'>) => {
-    setItems(currentItems => {
-      // Check if item already exists in cart
-      const existingItemIndex = currentItems.findIndex(item => item.id === product.id);
+  const addItem = async (product: Omit<CartItem, 'quantity'>) => {
+    try {
+      // Check product availability in database
+      const { data: productData, error } = await supabase
+        .from('products')
+        .select('stock_quantity, is_available')
+        .eq('id', product.id)
+        .single();
       
-      if (existingItemIndex > -1) {
-        // If it exists, increase quantity
-        const newItems = [...currentItems];
-        newItems[existingItemIndex].quantity += 1;
-        toast.success(`Added another ${product.name} to your cart`);
-        return newItems;
-      } else {
-        // If it doesn't exist, add new item with quantity 1
-        toast.success(`${product.name} added to your cart`);
-        return [...currentItems, { ...product, quantity: 1 }];
+      if (error) {
+        console.error('Error checking product availability:', error);
+        toast.error('Unable to verify product availability');
+        return;
       }
-    });
+      
+      if (!productData.is_available || productData.stock_quantity <= 0) {
+        toast.error('This product is currently unavailable');
+        return;
+      }
+      
+      setItems(currentItems => {
+        // Check if item already exists in cart
+        const existingItemIndex = currentItems.findIndex(item => item.id === product.id);
+        
+        if (existingItemIndex > -1) {
+          // If it exists, check if we can increase quantity
+          const newItems = [...currentItems];
+          const newQuantity = newItems[existingItemIndex].quantity + 1;
+          
+          if (newQuantity > productData.stock_quantity) {
+            toast.error(`Sorry, only ${productData.stock_quantity} items available`);
+            return currentItems;
+          }
+          
+          newItems[existingItemIndex].quantity = newQuantity;
+          toast.success(`Added another ${product.name} to your cart`);
+          return newItems;
+        } else {
+          // If it doesn't exist, add new item with quantity 1
+          toast.success(`${product.name} added to your cart`);
+          return [...currentItems, { ...product, quantity: 1 }];
+        }
+      });
+    } catch (err) {
+      console.error('Error adding item to cart:', err);
+      toast.error('Failed to add item to cart');
+    }
   };
 
   const removeItem = (id: string) => {
@@ -64,12 +95,45 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     });
   };
 
-  const updateQuantity = (id: string, quantity: number) => {
-    setItems(currentItems => 
-      currentItems.map(item => 
-        item.id === id ? { ...item, quantity } : item
-      )
-    );
+  const updateQuantity = async (id: string, quantity: number) => {
+    try {
+      // Verify quantity against inventory
+      if (quantity <= 0) {
+        removeItem(id);
+        return;
+      }
+      
+      const { data: productData, error } = await supabase
+        .from('products')
+        .select('stock_quantity')
+        .eq('id', id)
+        .single();
+      
+      if (error) {
+        console.error('Error checking product stock:', error);
+        toast.error('Unable to verify product availability');
+        return;
+      }
+      
+      if (quantity > productData.stock_quantity) {
+        toast.error(`Sorry, only ${productData.stock_quantity} items available`);
+        setItems(currentItems => 
+          currentItems.map(item => 
+            item.id === id ? { ...item, quantity: productData.stock_quantity } : item
+          )
+        );
+        return;
+      }
+      
+      setItems(currentItems => 
+        currentItems.map(item => 
+          item.id === id ? { ...item, quantity } : item
+        )
+      );
+    } catch (err) {
+      console.error('Error updating cart quantity:', err);
+      toast.error('Failed to update cart');
+    }
   };
 
   const clearCart = () => {
