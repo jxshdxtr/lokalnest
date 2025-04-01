@@ -18,6 +18,7 @@ import {
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useCart } from '@/components/buyer/shopping/Cart';
 
 // In a real app, you would fetch this data from an API
 const productData = {
@@ -62,13 +63,20 @@ const ProductDetail = () => {
   const [mainImage, setMainImage] = useState(productData.images[0]);
   const [quantity, setQuantity] = useState(1);
   const [isLoadingImages, setIsLoadingImages] = useState(true);
+  const { addItem } = useCart();
 
   // In a real app, you would fetch the product by ID from an API
   // const product = fetchProductById(id);
   const product = productData;
 
   const handleAddToCart = () => {
-    toast.success(`${quantity} x ${product.name} added to cart!`);
+    addItem({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.images[0],
+      seller: product.seller.name
+    });
   };
 
   const handleAddToWishlist = () => {

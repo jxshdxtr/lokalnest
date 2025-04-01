@@ -5,6 +5,7 @@ import { ShoppingCart, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useCart } from '@/components/buyer/shopping/Cart';
 
 interface ProductCardProps {
   id: string;
@@ -29,11 +30,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const { addItem } = useCart();
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    toast.success(`${name} added to cart!`);
+    addItem({ id, name, price, image, seller });
   };
 
   const handleWishlist = (e: React.MouseEvent) => {

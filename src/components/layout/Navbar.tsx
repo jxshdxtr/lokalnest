@@ -24,6 +24,9 @@ import {
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
 import { cn } from '@/lib/utils';
+import CartSidebar from '@/components/buyer/shopping/CartSidebar';
+import { useCart } from '@/components/buyer/shopping/Cart';
+import { Badge } from '@/components/ui/badge';
 
 const categories = [
   { name: "Textiles & Clothing", href: "/category/textiles-clothing" },
@@ -39,6 +42,7 @@ const categories = [
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { totalItems } = useCart();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -111,14 +115,23 @@ const Navbar = () => {
 
         {/* Action buttons */}
         <div className="flex items-center space-x-3">
-          <Button variant="ghost" size="icon" aria-label="Search">
-            <Search className="w-5 h-5" />
-          </Button>
-          <Link to="/cart">
-            <Button variant="ghost" size="icon" aria-label="Cart">
-              <ShoppingCart className="w-5 h-5" />
+          <Link to="/buyer/home">
+            <Button variant="ghost" size="icon" aria-label="Search">
+              <Search className="w-5 h-5" />
             </Button>
           </Link>
+          
+          <CartSidebar>
+            <Button variant="ghost" size="icon" className="relative">
+              <ShoppingCart className="w-5 h-5" />
+              {totalItems > 0 && (
+                <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center">
+                  {totalItems}
+                </Badge>
+              )}
+            </Button>
+          </CartSidebar>
+          
           <Link to="/profile">
             <Button variant="ghost" size="icon" aria-label="Profile">
               <User className="w-5 h-5" />
@@ -168,6 +181,9 @@ const Navbar = () => {
                     </Link>
                     <Link to="/about" className="flex items-center py-2 text-base font-medium">
                       About
+                    </Link>
+                    <Link to="/buyer/home" className="flex items-center py-2 text-base font-medium">
+                      Shop
                     </Link>
                     <div className="flex-1"></div>
                     <Link to="/auth" className="w-full">
