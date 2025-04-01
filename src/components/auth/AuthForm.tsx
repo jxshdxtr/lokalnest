@@ -73,7 +73,14 @@ const AuthForm = () => {
       if (error) throw error;
       
       toast.success('Successfully logged in!');
-      navigate('/');
+      
+      // Redirect based on user role
+      const userType = authData.user?.user_metadata?.account_type;
+      if (userType === 'seller') {
+        navigate('/seller/dashboard');
+      } else {
+        navigate('/');
+      }
     } catch (error: any) {
       toast.error(error.message || 'Failed to log in. Please try again.');
       console.error('Login error:', error);
@@ -115,8 +122,10 @@ const AuthForm = () => {
         }
       }
       
-      toast.success('Account created successfully! Please check your email to confirm your account.');
-      // Do not navigate yet, wait for email confirmation
+      toast.success('Account created! Please check your email for verification code.');
+      
+      // Redirect to OTP verification page
+      navigate(`/verify?email=${encodeURIComponent(data.email)}`);
     } catch (error: any) {
       toast.error(error.message || 'Failed to create account. Please try again.');
       console.error('Register error:', error);
