@@ -199,15 +199,15 @@ const Navbar = () => {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem as={Link} to="/profile">
+                <DropdownMenuItem onClick={() => navigate('/profile')}>
                   <User className="mr-2 h-4 w-4" />
                   Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem as={Link} to="/buyer/orders">
+                <DropdownMenuItem onClick={() => navigate('/buyer/orders')}>
                   Orders
                 </DropdownMenuItem>
                 {user.user_metadata?.account_type === 'seller' && (
-                  <DropdownMenuItem as={Link} to="/seller/dashboard">
+                  <DropdownMenuItem onClick={() => navigate('/seller/dashboard')}>
                     Seller Dashboard
                   </DropdownMenuItem>
                 )}
