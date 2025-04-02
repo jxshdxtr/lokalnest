@@ -15,6 +15,8 @@ import OrderManagement from "./components/seller/OrderManagement";
 import PromotionManagement from "./components/seller/PromotionManagement";
 import InventoryManagement from "./components/seller/InventoryManagement";
 import CustomerManagement from "./components/seller/CustomerManagement";
+import ReviewManagement from "./components/seller/ReviewManagement";
+import StoreManagement from "./components/seller/StoreManagement";
 import AdminDashboard from "./pages/AdminDashboard";
 import UserManagement from "./components/admin/UserManagement";
 import ProductOversight from "./components/admin/ProductOversight";
@@ -111,6 +113,12 @@ const App = () => {
               </Route>
               <Route path="/seller/promotions" element={<SellerDashboard />}>
                 <Route index element={<PromotionManagement />} />
+              </Route>
+              <Route path="/seller/reviews" element={<SellerDashboard />}>
+                <Route index element={<ReviewManagement />} />
+              </Route>
+              <Route path="/seller/settings" element={<SellerDashboard />}>
+                <Route index element={<StoreManagement />} />
               </Route>
               
               {/* Admin Routes */}

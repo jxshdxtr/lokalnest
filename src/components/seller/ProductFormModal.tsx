@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -19,7 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { XCircle, Upload, Plus, Trash2, Info } from 'lucide-react';
+import { XCircle, Upload, Plus, Trash2, Info, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -47,9 +49,12 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     shipping_note: '',
     tags: [] as string[]
   });
-
+  
   const [currentTag, setCurrentTag] = useState('');
-
+  const [uploading, setUploading] = useState(false);
+  const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   // Load product data if editing
   useEffect(() => {
     if (product) {
@@ -67,7 +72,38 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         tags: product.tags || []
       });
     }
+    
+    // Fetch categories from Supabase
+    fetchCategories();
   }, [product]);
+  
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('id, name')
+        .order('name');
+        
+      if (error) throw error;
+      
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      // Use default categories as fallback
+      setCategories([
+        { id: '1', name: "Textiles & Clothing" },
+        { id: '2', name: "Wooden Crafts" },
+        { id: '3', name: "Pottery & Ceramics" },
+        { id: '4', name: "Jewelry & Accessories" },
+        { id: '5', name: "Home Decor" },
+        { id: '6', name: "Food & Beverages" },
+        { id: '7', name: "Art & Paintings" },
+        { id: '8', name: "Soaps & Cosmetics" },
+        { id: '9', name: "Basket Weaving" },
+        { id: '10', name: "Other Crafts" }
+      ]);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -77,21 +113,77 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const handleSelectChange = (value: string, field: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+  
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    setUploading(true);
+    
+    try {
+      const uploadedUrls = await Promise.all(
+        Array.from(files).map(async (file) => {
+          return await uploadImage(file);
+        })
+      );
+      
+      // Filter out any null values (failed uploads)
+      const validUrls = uploadedUrls.filter(url => url !== null) as string[];
+      
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, ...validUrls]
+      }));
+      
+      toast.success(`Successfully uploaded ${validUrls.length} image(s)`);
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      toast.error('Failed to upload one or more images');
+    } finally {
+      setUploading(false);
+      // Reset the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+  
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('You must be logged in to upload images');
+        return null;
+      }
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+      const filePath = `${session.user.id}/${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('product_images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('product_images')
+        .getPublicUrl(filePath);
+        
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      return null;
+    }
+  };
 
   const handleAddImage = () => {
-    // In a real app, you would use a file upload component and cloud storage
-    // For demo, we'll add placeholder images
-    const placeholderImages = [
-      'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80',
-      'https://images.unsplash.com/photo-1635995158887-316c704fa35d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80',
-      'https://images.unsplash.com/photo-1493106641515-6b5631de4bb9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80'
-    ];
-    
-    const randomIndex = Math.floor(Math.random() * placeholderImages.length);
-    const newImage = placeholderImages[randomIndex];
-    
-    if (!formData.images.includes(newImage)) {
-      setFormData(prev => ({ ...prev, images: [...prev.images, newImage] }));
+    // Trigger file input click
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
     }
   };
 
@@ -125,13 +217,56 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       handleAddTag();
     }
   };
+  
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    
+    const droppedFiles = e.dataTransfer.files;
+    if (!droppedFiles || droppedFiles.length === 0) return;
+    
+    setUploading(true);
+    
+    try {
+      const uploadedUrls = await Promise.all(
+        Array.from(droppedFiles).map(async (file) => {
+          // Check if file is an image
+          if (!file.type.startsWith('image/')) {
+            toast.error(`File "${file.name}" is not an image`);
+            return null;
+          }
+          return await uploadImage(file);
+        })
+      );
+      
+      // Filter out any null values (failed uploads)
+      const validUrls = uploadedUrls.filter(url => url !== null) as string[];
+      
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, ...validUrls]
+      }));
+      
+      if (validUrls.length > 0) {
+        toast.success(`Successfully uploaded ${validUrls.length} image(s)`);
+      }
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      toast.error('Failed to upload one or more images');
+    } finally {
+      setUploading(false);
+    }
+  };
+  
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate form
     if (!formData.name || !formData.price || !formData.category || !formData.stock) {
-      alert('Please fill in all required fields');
+      toast.error('Please fill in all required fields');
       return;
     }
     
@@ -143,21 +278,82 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       image: formData.images[0] || '' // Use first image as main image
     };
     
-    onSave(productData);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('You must be logged in to save products');
+        return;
+      }
+      
+      if (product) {
+        // Update existing product
+        const { error } = await supabase
+          .from('products')
+          .update({
+            name: productData.name,
+            description: productData.description,
+            price: productData.price,
+            category_id: productData.category,
+            stock_quantity: productData.stock,
+            shipping_info: productData.shipping_note,
+            // Add other fields as needed
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', product.id);
+          
+        if (error) throw error;
+        
+        // Update product images
+        // In a real app, you would handle this more thoroughly
+        
+        toast.success('Product updated successfully');
+      } else {
+        // Create new product
+        const { data, error } = await supabase
+          .from('products')
+          .insert({
+            name: productData.name,
+            description: productData.description,
+            price: productData.price,
+            category_id: productData.category,
+            stock_quantity: productData.stock,
+            shipping_info: productData.shipping_note,
+            seller_id: session.user.id,
+            // Add other fields as needed
+          })
+          .select();
+          
+        if (error) throw error;
+        
+        // Add product images
+        if (data && data.length > 0 && formData.images.length > 0) {
+          const productId = data[0].id;
+          
+          const imagesToInsert = formData.images.map((url, index) => ({
+            product_id: productId,
+            url,
+            is_primary: index === 0, // First image is primary
+            alt_text: `${productData.name} image ${index + 1}`
+          }));
+          
+          const { error: imageError } = await supabase
+            .from('product_images')
+            .insert(imagesToInsert);
+            
+          if (imageError) {
+            console.error('Error adding product images:', imageError);
+          }
+        }
+        
+        toast.success('Product added successfully');
+      }
+      
+      onSave(productData);
+    } catch (error) {
+      console.error('Error saving product:', error);
+      toast.error('Failed to save product');
+    }
   };
-  
-  const categories = [
-    "Textiles & Clothing",
-    "Wooden Crafts",
-    "Pottery & Ceramics",
-    "Jewelry & Accessories",
-    "Home Decor",
-    "Food & Beverages",
-    "Art & Paintings",
-    "Soaps & Cosmetics",
-    "Basket Weaving",
-    "Other Crafts"
-  ];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -195,8 +391,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -262,10 +458,23 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 variant="outline" 
                 size="sm"
                 onClick={handleAddImage}
+                disabled={uploading}
               >
-                <Plus className="h-4 w-4 mr-1" />
+                {uploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-1" />
+                )}
                 Add Image
               </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept="image/*"
+                multiple
+                onChange={handleFileInputChange}
+              />
             </div>
             
             {formData.images.length > 0 ? (
@@ -294,11 +503,24 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 ))}
               </div>
             ) : (
-              <div className="border-2 border-dashed border-border rounded-md p-8 text-center">
-                <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Drag & drop product images or click "Add Image" button
-                </p>
+              <div 
+                className="border-2 border-dashed border-border rounded-md p-8 text-center"
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+              >
+                {uploading ? (
+                  <div className="flex flex-col items-center">
+                    <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                    <p className="mt-2 text-sm text-muted-foreground">Uploading images...</p>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Drag & drop product images or click "Add Image" button
+                    </p>
+                  </>
+                )}
               </div>
             )}
           </div>
