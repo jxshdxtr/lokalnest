@@ -117,6 +117,7 @@ const ProductManagement = () => {
           description,
           stock_quantity,
           created_at,
+          category_id,
           categories:category_id(name)
         `)
         .eq('seller_id', session.user.id)
@@ -140,7 +141,7 @@ const ProductManagement = () => {
             price: product.price,
             description: product.description,
             image: images && images.length > 0 ? images[0].url : undefined,
-            category: product.category_id, // Use the direct category_id property instead of trying to access it through categories
+            category: product.category_id,
             category_name: product.categories?.name,
             stock: product.stock_quantity,
             status: product.stock_quantity > 0 
