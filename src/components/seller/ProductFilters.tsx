@@ -34,6 +34,32 @@ const ProductFilters: React.FC<FilterProps> = ({
   resetFilters,
   setIsFilterOpen
 }) => {
+  // Create local state to prevent constant re-rendering
+  const [localFilterPrice, setLocalFilterPrice] = React.useState(filterPrice);
+  const [localFilterStock, setLocalFilterStock] = React.useState(filterStock);
+  const [localFilterCategory, setLocalFilterCategory] = React.useState(filterCategory);
+
+  // Initialize local state when props change
+  React.useEffect(() => {
+    setLocalFilterPrice(filterPrice);
+    setLocalFilterStock(filterStock);
+    setLocalFilterCategory(filterCategory);
+  }, [filterPrice, filterStock, filterCategory]);
+
+  // Handle Apply Filters to update parent state all at once
+  const handleApplyFilters = () => {
+    setFilterPrice(localFilterPrice);
+    setFilterStock(localFilterStock);
+    setFilterCategory(localFilterCategory);
+    setIsFilterOpen(false);
+  };
+
+  // Handle local reset
+  const handleResetFilters = () => {
+    resetFilters();
+    setIsFilterOpen(false);
+  };
+
   return (
     <div className="space-y-4">
       <h4 className="font-medium">Filter Products</h4>
@@ -45,16 +71,16 @@ const ProductFilters: React.FC<FilterProps> = ({
             placeholder="Min"
             type="number"
             min="0"
-            value={filterPrice.min}
-            onChange={(e) => setFilterPrice({ ...filterPrice, min: e.target.value })}
+            value={localFilterPrice.min}
+            onChange={(e) => setLocalFilterPrice({ ...localFilterPrice, min: e.target.value })}
           />
           <span>to</span>
           <Input
             placeholder="Max"
             type="number"
             min="0"
-            value={filterPrice.max}
-            onChange={(e) => setFilterPrice({ ...filterPrice, max: e.target.value })}
+            value={localFilterPrice.max}
+            onChange={(e) => setLocalFilterPrice({ ...localFilterPrice, max: e.target.value })}
           />
         </div>
       </div>
@@ -62,8 +88,8 @@ const ProductFilters: React.FC<FilterProps> = ({
       <div className="space-y-2">
         <Label>Category</Label>
         <Select
-          value={filterCategory}
-          onValueChange={setFilterCategory}
+          value={localFilterCategory}
+          onValueChange={setLocalFilterCategory}
         >
           <SelectTrigger>
             <SelectValue placeholder="All Categories" />
@@ -82,8 +108,8 @@ const ProductFilters: React.FC<FilterProps> = ({
       <div className="space-y-2">
         <Label>Stock Status</Label>
         <Select
-          value={filterStock}
-          onValueChange={setFilterStock}
+          value={localFilterStock}
+          onValueChange={setLocalFilterStock}
         >
           <SelectTrigger>
             <SelectValue placeholder="All Stock Status" />
@@ -98,10 +124,10 @@ const ProductFilters: React.FC<FilterProps> = ({
       </div>
       
       <div className="flex justify-between">
-        <Button variant="outline" size="sm" onClick={resetFilters}>
+        <Button variant="outline" size="sm" onClick={handleResetFilters}>
           Reset
         </Button>
-        <Button size="sm" onClick={() => setIsFilterOpen(false)}>
+        <Button size="sm" onClick={handleApplyFilters}>
           Apply Filters
         </Button>
       </div>
