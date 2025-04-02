@@ -45,23 +45,42 @@ const queryClient = new QueryClient({
 });
 
 const App = () => {
-  useEffect(() => {
-    // Handle OAuth redirects
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        const userType = session.user?.user_metadata?.account_type;
-        if (userType === 'seller') {
-          window.location.href = '/seller/dashboard';
-        } else {
-          window.location.href = '/';
-        }
-      }
-    });
+  const [authInitialized, setAuthInitialized] = useState(false);
 
-    return () => {
-      authListener.subscription.unsubscribe();
+  useEffect(() => {
+    // Handle OAuth redirects and initial auth state
+    const initAuth = async () => {
+      // First check for existing session
+      await supabase.auth.getSession();
+      
+      // Then set up the auth listener (but only once)
+      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          const userType = session.user?.user_metadata?.account_type;
+          // Use window.location.replace instead of setting window.location.href
+          // This replaces the current history entry rather than adding a new one
+          if (userType === 'seller') {
+            window.location.replace('/seller/dashboard');
+          } else {
+            window.location.replace('/');
+          }
+        }
+      });
+      
+      setAuthInitialized(true);
+      
+      return () => {
+        authListener.subscription.unsubscribe();
+      };
     };
+    
+    initAuth();
   }, []);
+
+  // Wait for auth to initialize before rendering the app
+  if (!authInitialized) {
+    return null; // or a loading spinner
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
