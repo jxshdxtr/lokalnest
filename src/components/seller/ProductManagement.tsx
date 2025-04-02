@@ -140,7 +140,7 @@ const ProductManagement = () => {
             price: product.price,
             description: product.description,
             image: images && images.length > 0 ? images[0].url : undefined,
-            category: product.categories?.id, // Changed from category_id to categories.id
+            category: product.category_id, // Use the direct category_id property instead of trying to access it through categories
             category_name: product.categories?.name,
             stock: product.stock_quantity,
             status: product.stock_quantity > 0 
