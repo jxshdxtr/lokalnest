@@ -29,86 +29,116 @@ import BuyerReviews from "./components/buyer/BuyerReviews";
 import BuyerHome from "./pages/BuyerHome";
 import Checkout from "./pages/Checkout";
 import { CartProvider } from "./components/buyer/shopping/Cart";
+import { useEffect, useState } from "react";
+import { supabase } from "./integrations/supabase/client";
 
-const queryClient = new QueryClient();
+// Configure the query client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 1,
+    },
+  },
+});
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <CartProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/verify" element={<VerifyOTP />} />
-            <Route path="/product/:id" element={<ProductDetail />} />
-            <Route path="/category/:slug" element={<BuyerHome />} />
-            <Route path="/artisan/:id" element={<Index />} />
-            <Route path="/artisans" element={<Index />} />
-            <Route path="/about" element={<Index />} />
-            <Route path="/buyer/home" element={<BuyerHome />} />
-            <Route path="/checkout" element={<Checkout />} />
-            
-            {/* Buyer Routes */}
-            <Route path="/buyer/dashboard" element={<BuyerDashboard />} />
-            <Route path="/buyer/orders" element={<BuyerDashboard />}>
-              <Route index element={<BuyerOrders />} />
-            </Route>
-            <Route path="/buyer/payments" element={<BuyerDashboard />}>
-              <Route index element={<BuyerPayments />} />
-            </Route>
-            <Route path="/buyer/reviews" element={<BuyerDashboard />}>
-              <Route index element={<BuyerReviews />} />
-            </Route>
-            <Route path="/buyer/support" element={<BuyerDashboard />}>
-              <Route index element={<BuyerSupport />} />
-            </Route>
-            
-            {/* Seller Routes */}
-            <Route path="/seller/dashboard" element={<SellerDashboard />} />
-            <Route path="/seller/products" element={<SellerDashboard />}>
-              <Route index element={<ProductManagement />} />
-            </Route>
-            <Route path="/seller/inventory" element={<SellerDashboard />}>
-              <Route index element={<InventoryManagement />} />
-            </Route>
-            <Route path="/seller/orders" element={<SellerDashboard />}>
-              <Route index element={<OrderManagement />} />
-            </Route>
-            <Route path="/seller/customers" element={<SellerDashboard />}>
-              <Route index element={<CustomerManagement />} />
-            </Route>
-            <Route path="/seller/promotions" element={<SellerDashboard />}>
-              <Route index element={<PromotionManagement />} />
-            </Route>
-            
-            {/* Admin Routes */}
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/users" element={<AdminDashboard />}>
-              <Route index element={<UserManagement />} />
-            </Route>
-            <Route path="/admin/products" element={<AdminDashboard />}>
-              <Route index element={<ProductOversight />} />
-            </Route>
-            <Route path="/admin/analytics" element={<AdminDashboard />}>
-              <Route index element={<BusinessIntelligence />} />
-            </Route>
-            <Route path="/admin/security" element={<AdminDashboard />}>
-              <Route index element={<SecurityCompliance />} />
-            </Route>
-            <Route path="/admin/logistics" element={<AdminDashboard />}>
-              <Route index element={<Logistics />} />
-            </Route>
-            
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </CartProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  useEffect(() => {
+    // Handle OAuth redirects
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        const userType = session.user?.user_metadata?.account_type;
+        if (userType === 'seller') {
+          window.location.href = '/seller/dashboard';
+        } else {
+          window.location.href = '/';
+        }
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <CartProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/verify" element={<VerifyOTP />} />
+              <Route path="/product/:id" element={<ProductDetail />} />
+              <Route path="/category/:slug" element={<BuyerHome />} />
+              <Route path="/artisan/:id" element={<Index />} />
+              <Route path="/artisans" element={<Index />} />
+              <Route path="/about" element={<Index />} />
+              <Route path="/buyer/home" element={<BuyerHome />} />
+              <Route path="/checkout" element={<Checkout />} />
+              
+              {/* Buyer Routes */}
+              <Route path="/buyer/dashboard" element={<BuyerDashboard />} />
+              <Route path="/buyer/orders" element={<BuyerDashboard />}>
+                <Route index element={<BuyerOrders />} />
+              </Route>
+              <Route path="/buyer/payments" element={<BuyerDashboard />}>
+                <Route index element={<BuyerPayments />} />
+              </Route>
+              <Route path="/buyer/reviews" element={<BuyerDashboard />}>
+                <Route index element={<BuyerReviews />} />
+              </Route>
+              <Route path="/buyer/support" element={<BuyerDashboard />}>
+                <Route index element={<BuyerSupport />} />
+              </Route>
+              
+              {/* Seller Routes */}
+              <Route path="/seller/dashboard" element={<SellerDashboard />} />
+              <Route path="/seller/products" element={<SellerDashboard />}>
+                <Route index element={<ProductManagement />} />
+              </Route>
+              <Route path="/seller/inventory" element={<SellerDashboard />}>
+                <Route index element={<InventoryManagement />} />
+              </Route>
+              <Route path="/seller/orders" element={<SellerDashboard />}>
+                <Route index element={<OrderManagement />} />
+              </Route>
+              <Route path="/seller/customers" element={<SellerDashboard />}>
+                <Route index element={<CustomerManagement />} />
+              </Route>
+              <Route path="/seller/promotions" element={<SellerDashboard />}>
+                <Route index element={<PromotionManagement />} />
+              </Route>
+              
+              {/* Admin Routes */}
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/users" element={<AdminDashboard />}>
+                <Route index element={<UserManagement />} />
+              </Route>
+              <Route path="/admin/products" element={<AdminDashboard />}>
+                <Route index element={<ProductOversight />} />
+              </Route>
+              <Route path="/admin/analytics" element={<AdminDashboard />}>
+                <Route index element={<BusinessIntelligence />} />
+              </Route>
+              <Route path="/admin/security" element={<AdminDashboard />}>
+                <Route index element={<SecurityCompliance />} />
+              </Route>
+              <Route path="/admin/logistics" element={<AdminDashboard />}>
+                <Route index element={<Logistics />} />
+              </Route>
+              
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </CartProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

@@ -44,9 +44,30 @@ const VerifyOTP = () => {
   const [resendLoading, setResendLoading] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   
   // Get email from URL parameters
   const email = searchParams.get('email');
+  
+  // Check if user is already authenticated
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        // User is already authenticated
+        const userType = data.session.user?.user_metadata?.account_type;
+        if (userType === 'seller') {
+          navigate('/seller/dashboard');
+        } else {
+          navigate('/');
+        }
+      } else {
+        setIsCheckingSession(false);
+      }
+    };
+    
+    checkSession();
+  }, [navigate]);
   
   // Start countdown for resend button
   useEffect(() => {
@@ -69,11 +90,11 @@ const VerifyOTP = () => {
 
   // Redirect to login if no email is provided
   useEffect(() => {
-    if (!email) {
+    if (!email && !isCheckingSession) {
       toast.error('No email provided for verification');
       navigate('/auth');
     }
-  }, [email, navigate]);
+  }, [email, navigate, isCheckingSession]);
 
   const onSubmit = async (data: OTPFormValues) => {
     if (!email) {
@@ -138,6 +159,16 @@ const VerifyOTP = () => {
       setResendLoading(false);
     }
   };
+
+  if (isCheckingSession) {
+    return (
+      <Layout>
+        <div className="min-h-screen pt-16 pb-16 flex items-center justify-center bg-gradient-soft">
+          <p>Checking authentication status...</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
