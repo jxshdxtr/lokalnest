@@ -32,9 +32,9 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ isOpen, onClose
     if (stock === 0) {
       return <Badge variant="destructive">Out of Stock</Badge>;
     } else if (stock < 10) {
-      return <Badge variant="warning">Low Stock</Badge>;
+      return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">Low Stock</Badge>;
     } else {
-      return <Badge variant="success">In Stock</Badge>;
+      return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">In Stock</Badge>;
     }
   };
 

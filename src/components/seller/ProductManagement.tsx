@@ -140,7 +140,7 @@ const ProductManagement = () => {
             price: product.price,
             description: product.description,
             image: images && images.length > 0 ? images[0].url : undefined,
-            category: product.category_id,
+            category: product.categories?.id, // Changed from category_id to categories.id
             category_name: product.categories?.name,
             stock: product.stock_quantity,
             status: product.stock_quantity > 0 
