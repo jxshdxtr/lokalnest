@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -188,12 +187,10 @@ const PromotionManagement: React.FC = () => {
       ));
       
       // Update in database
-      const { error } = await supabase.rpc('update_promotion_status', {
-        promotion_id: id,
-        new_status: !currentState
+      await supabase.rpc('update_promotion_status', {
+        p_promotion_id: id,
+        p_new_status: !currentState
       });
-      
-      if (error) throw error;
       
       toast.success(`Promotion ${!currentState ? 'activated' : 'deactivated'}`);
     } catch (error) {
@@ -217,11 +214,9 @@ const PromotionManagement: React.FC = () => {
     
     try {
       // Delete from database
-      const { error } = await supabase.rpc('delete_promotion', {
-        promotion_id: currentPromotion.id
+      await supabase.rpc('delete_promotion', {
+        p_promotion_id: currentPromotion.id
       });
-      
-      if (error) throw error;
       
       // Update local state
       setPromotions(promotions.filter(promo => promo.id !== currentPromotion.id));
@@ -286,12 +281,10 @@ const PromotionManagement: React.FC = () => {
       
       if (currentPromotion) {
         // Update existing promotion
-        const { error } = await supabase.rpc('update_promotion', {
-          promotion_id: currentPromotion.id,
-          promotion_data: updatedFormData
+        await supabase.rpc('update_promotion', {
+          p_promotion_id: currentPromotion.id,
+          p_promotion_data: updatedFormData
         });
-        
-        if (error) throw error;
         
         // Update local state
         setPromotions(promotions.map(promo => 
@@ -313,11 +306,9 @@ const PromotionManagement: React.FC = () => {
         };
         
         // Add to database
-        const { error } = await supabase.rpc('create_promotion', {
-          promotion_data: newPromotion
+        await supabase.rpc('create_promotion', {
+          p_promotion_data: newPromotion
         });
-        
-        if (error) throw error;
         
         // Update local state
         setPromotions([newPromotion, ...promotions]);
