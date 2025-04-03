@@ -1,171 +1,65 @@
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Index from '@/pages/Index';
+import Auth from '@/pages/Auth';
+import VerifyOTP from '@/pages/VerifyOTP';
+import ProductDetail from '@/pages/ProductDetail';
+import Checkout from '@/pages/Checkout';
+import BuyerDashboard from '@/pages/BuyerDashboard';
+import SellerDashboard from '@/pages/SellerDashboard';
+import AdminDashboard from '@/pages/AdminDashboard';
+import NotFound from '@/pages/NotFound';
+import { Toaster } from '@/components/ui/sonner';
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import VerifyOTP from "./pages/VerifyOTP";
-import ProductDetail from "./pages/ProductDetail";
-import NotFound from "./pages/NotFound";
-import SellerDashboard from "./pages/SellerDashboard";
-import ProductManagement from "./components/seller/ProductManagement";
-import OrderManagement from "./components/seller/OrderManagement";
-import PromotionManagement from "./components/seller/PromotionManagement";
-import InventoryManagement from "./components/seller/InventoryManagement";
-import CustomerManagement from "./components/seller/CustomerManagement";
-import ReviewManagement from "./components/seller/ReviewManagement";
-import StoreManagement from "./components/seller/StoreManagement";
-import AdminDashboard from "./pages/AdminDashboard";
-import UserManagement from "./components/admin/UserManagement";
-import ProductOversight from "./components/admin/ProductOversight";
-import BusinessIntelligence from "./components/admin/BusinessIntelligence";
-import SecurityCompliance from "./components/admin/SecurityCompliance";
-import Logistics from "./components/admin/Logistics";
-import BuyerDashboard from "./pages/BuyerDashboard";
-import BuyerOrders from "./components/buyer/BuyerOrders";
-import BuyerPayments from "./components/buyer/BuyerPayments";
-import BuyerSupport from "./components/buyer/BuyerSupport";
-import BuyerReviews from "./components/buyer/BuyerReviews";
-import BuyerHome from "./pages/BuyerHome";
-import Checkout from "./pages/Checkout";
-import { CartProvider } from "./components/buyer/shopping/Cart";
-import { useEffect, useState } from "react";
-import { supabase } from "./integrations/supabase/client";
+// Seller dashboard components
+import SellerOverview from '@/components/seller/SellerOverview';
+import ProductManagement from '@/components/seller/ProductManagement';
+import InventoryManagement from '@/components/seller/InventoryManagement';
+import OrderManagement from '@/components/seller/OrderManagement';
+import CustomerManagement from '@/components/seller/CustomerManagement';
+import PromotionManagement from '@/components/seller/PromotionManagement';
+import ReviewManagement from '@/components/seller/ReviewManagement';
+import StoreManagement from '@/components/seller/StoreManagement';
 
-// Configure the query client
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      retry: 1,
-    },
-  },
-});
-
-const App = () => {
-  const [authInitialized, setAuthInitialized] = useState(false);
-
-  useEffect(() => {
-    // Handle OAuth redirects and initial auth state
-    const initAuth = async () => {
-      // First check for existing session
-      await supabase.auth.getSession();
-      
-      // Then set up the auth listener (but only once)
-      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          const userType = session.user?.user_metadata?.account_type;
-          // Use window.location.replace instead of setting window.location.href
-          // This replaces the current history entry rather than adding a new one
-          if (userType === 'seller') {
-            window.location.replace('/seller/dashboard');
-          } else {
-            window.location.replace('/');
-          }
-        }
-      });
-      
-      setAuthInitialized(true);
-      
-      return () => {
-        authListener.subscription.unsubscribe();
-      };
-    };
-    
-    initAuth();
-  }, []);
-
-  // Wait for auth to initialize before rendering the app
-  if (!authInitialized) {
-    return null; // or a loading spinner
-  }
-
+function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <CartProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/verify" element={<VerifyOTP />} />
-              <Route path="/product/:id" element={<ProductDetail />} />
-              <Route path="/category/:slug" element={<BuyerHome />} />
-              <Route path="/artisan/:id" element={<Index />} />
-              <Route path="/artisans" element={<Index />} />
-              <Route path="/about" element={<Index />} />
-              <Route path="/buyer/home" element={<BuyerHome />} />
-              <Route path="/checkout" element={<Checkout />} />
-              
-              {/* Buyer Routes */}
-              <Route path="/buyer/dashboard" element={<BuyerDashboard />} />
-              <Route path="/buyer/orders" element={<BuyerDashboard />}>
-                <Route index element={<BuyerOrders />} />
-              </Route>
-              <Route path="/buyer/payments" element={<BuyerDashboard />}>
-                <Route index element={<BuyerPayments />} />
-              </Route>
-              <Route path="/buyer/reviews" element={<BuyerDashboard />}>
-                <Route index element={<BuyerReviews />} />
-              </Route>
-              <Route path="/buyer/support" element={<BuyerDashboard />}>
-                <Route index element={<BuyerSupport />} />
-              </Route>
-              
-              {/* Seller Routes */}
-              <Route path="/seller/dashboard" element={<SellerDashboard />} />
-              <Route path="/seller/products" element={<SellerDashboard />}>
-                <Route index element={<ProductManagement />} />
-              </Route>
-              <Route path="/seller/inventory" element={<SellerDashboard />}>
-                <Route index element={<InventoryManagement />} />
-              </Route>
-              <Route path="/seller/orders" element={<SellerDashboard />}>
-                <Route index element={<OrderManagement />} />
-              </Route>
-              <Route path="/seller/customers" element={<SellerDashboard />}>
-                <Route index element={<CustomerManagement />} />
-              </Route>
-              <Route path="/seller/promotions" element={<SellerDashboard />}>
-                <Route index element={<PromotionManagement />} />
-              </Route>
-              <Route path="/seller/reviews" element={<SellerDashboard />}>
-                <Route index element={<ReviewManagement />} />
-              </Route>
-              <Route path="/seller/settings" element={<SellerDashboard />}>
-                <Route index element={<StoreManagement />} />
-              </Route>
-              
-              {/* Admin Routes */}
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/users" element={<AdminDashboard />}>
-                <Route index element={<UserManagement />} />
-              </Route>
-              <Route path="/admin/products" element={<AdminDashboard />}>
-                <Route index element={<ProductOversight />} />
-              </Route>
-              <Route path="/admin/analytics" element={<AdminDashboard />}>
-                <Route index element={<BusinessIntelligence />} />
-              </Route>
-              <Route path="/admin/security" element={<AdminDashboard />}>
-                <Route index element={<SecurityCompliance />} />
-              </Route>
-              <Route path="/admin/logistics" element={<AdminDashboard />}>
-                <Route index element={<Logistics />} />
-              </Route>
-              
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </CartProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/verify" element={<VerifyOTP />} />
+        <Route path="/product/:id" element={<ProductDetail />} />
+        <Route path="/checkout" element={<Checkout />} />
+
+        {/* Buyer Dashboard Routes */}
+        <Route path="/buyer" element={<BuyerDashboard />}>
+          {/* Buyer dashboard routes would go here */}
+        </Route>
+
+        {/* Seller Dashboard Routes */}
+        <Route path="/seller" element={<SellerDashboard />}>
+          <Route index element={<Navigate to="/seller/overview" replace />} />
+          <Route path="overview" element={<SellerOverview />} />
+          <Route path="products" element={<ProductManagement />} />
+          <Route path="inventory" element={<InventoryManagement />} />
+          <Route path="orders" element={<OrderManagement />} />
+          <Route path="customers" element={<CustomerManagement />} />
+          <Route path="promotions" element={<PromotionManagement />} />
+          <Route path="reviews" element={<ReviewManagement />} />
+          <Route path="settings" element={<StoreManagement />} />
+          <Route path="profile" element={<StoreManagement />} />
+        </Route>
+
+        {/* Admin Dashboard Routes */}
+        <Route path="/admin" element={<AdminDashboard />}>
+          {/* Admin dashboard routes would go here */}
+        </Route>
+
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <Toaster />
+    </BrowserRouter>
   );
-};
+}
 
 export default App;

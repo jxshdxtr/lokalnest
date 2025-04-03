@@ -4,22 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Customer } from './types';
 
-// Define type for RPC functions
-type CustomerRPCFunctions = {
-  get_seller_customers: (params: { seller_id_param: string }) => Promise<{ data: any[] | null, error: any }>;
-  update_customer_status: (params: { customer_id_param: string, seller_id_param: string, status_param: string }) => Promise<{ data: any, error: any }>;
-}
-
-// Add type definition to supabase
-declare module '@/integrations/supabase/client' {
-  interface SupabaseClient {
-    rpc<T extends keyof CustomerRPCFunctions>(
-      fn: T,
-      ...args: Parameters<CustomerRPCFunctions[T]>
-    ): ReturnType<CustomerRPCFunctions[T]>
-  }
-}
-
 export const useCustomers = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,23 +23,22 @@ export const useCustomers = () => {
         return;
       }
 
-      const { data, error } = await supabase.rpc('get_seller_customers', {
-        seller_id_param: session.user.id
-      });
+      const { data, error } = await supabase.rpc(
+        'get_seller_customers', 
+        { seller_id_param: session.user.id }
+      );
 
       if (error) {
         console.error("Error fetching customers with RPC:", error);
-        // Fallback to mock data if RPC fails
         fetchMockCustomers();
         return;
       }
       
-      // Transform the data - Fix null check
       const customerData: Customer[] = (data || []).map((customer: any) => ({
         id: customer.profile_id || '',
         full_name: customer.full_name || 'Anonymous Customer',
-        email: customer.email,
-        avatar_url: customer.avatar_url,
+        email: customer.email || '',
+        avatar_url: customer.avatar_url || '',
         total_orders: customer.total_orders || 0,
         total_spent: customer.total_spent || 0,
         last_purchase_date: customer.last_purchase_date || '',
@@ -67,7 +50,6 @@ export const useCustomers = () => {
     } catch (error) {
       console.error('Error fetching customers:', error);
       toast.error('Failed to load customers');
-      // Use mock data as fallback
       fetchMockCustomers();
     } finally {
       setLoading(false);
@@ -75,7 +57,6 @@ export const useCustomers = () => {
   };
 
   const fetchMockCustomers = () => {
-    // Mock data for development/fallback
     const mockCustomers: Customer[] = [
       {
         id: '1',
@@ -121,16 +102,17 @@ export const useCustomers = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       
-      // Use RPC for updating status
-      const { error } = await supabase.rpc('update_customer_status', {
-        customer_id_param: customerId,
-        seller_id_param: session.user.id,
-        status_param: status
-      });
+      const { error } = await supabase.rpc(
+        'update_customer_status', 
+        {
+          customer_id_param: customerId,
+          seller_id_param: session.user.id,
+          status_param: status
+        }
+      );
       
       if (error) throw error;
       
-      // Update local state
       setCustomers(customers.map(customer => 
         customer.id === customerId ? { ...customer, status } : customer
       ));
@@ -142,22 +124,17 @@ export const useCustomers = () => {
     }
   };
 
-  // Filter and sort customers
   const getFilteredAndSortedCustomers = () => {
-    // Filter customers
     const filtered = customers.filter(customer => {
-      // Search term filter
       const searchMatch = 
         customer.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
         (customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
       
-      // Status filter
       const statusMatch = statusFilter === 'all' || customer.status === statusFilter;
       
       return searchMatch && statusMatch;
     });
 
-    // Sort customers
     return [...filtered].sort((a, b) => {
       if (sortBy === 'recent') {
         return new Date(b.last_purchase_date || '').getTime() - new Date(a.last_purchase_date || '').getTime();

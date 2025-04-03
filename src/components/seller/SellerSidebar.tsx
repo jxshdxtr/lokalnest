@@ -1,19 +1,21 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  Home, 
-  Package, 
-  ShoppingBag, 
-  Percent, 
-  Users, 
-  Settings, 
-  HelpCircle,
-  MessageSquare
+import { cn } from '@/lib/utils';
+import {
+  BarChart3,
+  Package,
+  ShoppingCart,
+  Users,
+  TagsIcon,
+  Star,
+  ClipboardList,
+  Settings,
+  UserCircle,
 } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 
 interface SellerSidebarProps {
   user: {
@@ -24,106 +26,80 @@ interface SellerSidebarProps {
   };
 }
 
-const SellerSidebar: React.FC<SellerSidebarProps> = ({ user }) => {
+const SellerSidebar = ({ user }: SellerSidebarProps) => {
   const location = useLocation();
-  const pathname = location.pathname;
+  const getPath = () => location.pathname.split('/').pop() || 'overview';
+  const path = getPath();
 
-  const isActive = (path: string) => {
-    return pathname.includes(path);
-  };
-  
-  const navigation = [
-    {
-      title: 'Dashboard',
-      href: '/seller/dashboard',
-      icon: <Home className="w-5 h-5" />,
-    },
-    {
-      title: 'Products',
-      href: '/seller/products',
-      icon: <Package className="w-5 h-5" />,
-    },
-    {
-      title: 'Orders',
-      href: '/seller/orders',
-      icon: <ShoppingBag className="w-5 h-5" />,
-    },
-    {
-      title: 'Promotions',
-      href: '/seller/promotions',
-      icon: <Percent className="w-5 h-5" />,
-    },
-    {
-      title: 'Customers',
-      href: '/seller/customers',
-      icon: <Users className="w-5 h-5" />,
-    },
-    {
-      title: 'Messages',
-      href: '/seller/messages',
-      icon: <MessageSquare className="w-5 h-5" />,
-      badge: '3'
-    },
-    {
-      title: 'Settings',
-      href: '/seller/settings',
-      icon: <Settings className="w-5 h-5" />,
-    },
-    {
-      title: 'Help Center',
-      href: '/seller/help',
-      icon: <HelpCircle className="w-5 h-5" />,
-    },
+  const links = [
+    { name: 'Overview', path: 'overview', icon: <BarChart3 className="h-4 w-4 mr-2" /> },
+    { name: 'Products', path: 'products', icon: <Package className="h-4 w-4 mr-2" /> },
+    { name: 'Inventory', path: 'inventory', icon: <ClipboardList className="h-4 w-4 mr-2" /> },
+    { name: 'Orders', path: 'orders', icon: <ShoppingCart className="h-4 w-4 mr-2" /> },
+    { name: 'Customers', path: 'customers', icon: <Users className="h-4 w-4 mr-2" /> },
+    { name: 'Promotions', path: 'promotions', icon: <TagsIcon className="h-4 w-4 mr-2" /> },
+    { name: 'Reviews', path: 'reviews', icon: <Star className="h-4 w-4 mr-2" /> },
+    { name: 'Store Settings', path: 'settings', icon: <Settings className="h-4 w-4 mr-2" /> },
+    { name: 'Profile', path: 'profile', icon: <UserCircle className="h-4 w-4 mr-2" /> },
   ];
 
   return (
-    <Card className="p-4 rounded-lg h-full">
-      <div className="flex flex-col space-y-6">
-        {/* Seller Profile */}
-        <div className="flex items-center space-x-3 pb-4 border-b">
-          <Avatar className="h-12 w-12">
+    <div className="flex flex-col h-full">
+      <div className="p-4">
+        <div className="flex items-center gap-3 mb-6">
+          <Avatar className="h-10 w-10">
             <AvatarImage src={user.avatar} alt={user.name} />
-            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+            <AvatarFallback>{user.name[0]}</AvatarFallback>
           </Avatar>
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-medium">{user.name}</h3>
+            <div className="font-medium flex items-center gap-1">
+              {user.name}
               {user.verified && (
-                <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 text-xs">
+                <span className="text-xs bg-blue-100 text-blue-800 rounded-full px-1.5 py-0.5 ml-1">
                   Verified
-                </Badge>
+                </span>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">Seller ID: {user.id}</p>
+            <div className="text-xs text-muted-foreground">Seller Account</div>
           </div>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="space-y-1.5">
-          {navigation.map((item) => (
-            <Link
-              key={item.href}
-              to={item.href}
-              className={`flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive(item.href)
-                  ? 'bg-primary text-white'
-                  : 'text-muted-foreground hover:bg-muted'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                {item.icon}
-                <span>{item.title}</span>
-              </div>
-              {item.badge && (
-                <Badge variant="secondary" className="ml-auto">
-                  {item.badge}
-                </Badge>
+        <div className="space-y-1">
+          {links.map((link) => (
+            <Button
+              key={link.path}
+              variant={path === link.path ? 'default' : 'ghost'}
+              className={cn(
+                'w-full justify-start',
+                path === link.path ? '' : 'text-muted-foreground'
               )}
-            </Link>
+              asChild
+            >
+              <Link to={`/seller/${link.path}`}>
+                {link.icon}
+                {link.name}
+              </Link>
+            </Button>
           ))}
-        </nav>
+        </div>
       </div>
-    </Card>
+      
+      <div className="mt-auto">
+        <Separator />
+        <div className="p-4">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full"
+            asChild
+          >
+            <Link to="/">
+              Visit Store
+            </Link>
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 };
 

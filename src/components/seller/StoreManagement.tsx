@@ -12,9 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { UploadCloud, Save, Loader2 } from 'lucide-react';
+import { UploadCloud, Save, Loader2, User, Mail, Phone, MapPin, Image } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface SellerProfile {
   id: string;
@@ -24,6 +25,7 @@ interface SellerProfile {
   contact_phone: string;
   contact_email: string;
   logo_url: string;
+  is_verified: boolean;
 }
 
 const StoreManagement = () => {
@@ -34,12 +36,14 @@ const StoreManagement = () => {
     location: '',
     contact_phone: '',
     contact_email: '',
-    logo_url: ''
+    logo_url: '',
+    is_verified: false
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const navigate = useNavigate();
   
   useEffect(() => {
     fetchSellerProfile();
@@ -50,6 +54,7 @@ const StoreManagement = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast.error('Please sign in to access your store settings');
+        navigate('/auth');
         return;
       }
       
@@ -62,8 +67,31 @@ const StoreManagement = () => {
       if (error) {
         if (error.code === 'PGRST116') {
           // No profile found, create a new one
-          // In a real app, this would be created during signup
           toast.info('Setting up your store profile for the first time');
+          
+          // Get user details from the profiles table
+          const { data: userData, error: userError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (!userError && userData) {
+            setProfile({
+              id: session.user.id,
+              business_name: userData.full_name || '',
+              description: '',
+              location: '',
+              contact_phone: userData.phone || '',
+              contact_email: userData.email || '',
+              logo_url: userData.avatar_url || '',
+              is_verified: false
+            });
+            
+            if (userData.avatar_url) {
+              setLogoPreview(userData.avatar_url);
+            }
+          }
         } else {
           throw error;
         }
@@ -112,6 +140,18 @@ const StoreManagement = () => {
       const fileExt = logoFile.name.split('.').pop();
       const fileName = `${session.user.id}-${Date.now()}.${fileExt}`;
       
+      // Create store_logos bucket if it doesn't exist
+      const { error: bucketError } = await supabase.storage
+        .createBucket('store_logos', {
+          public: true,
+          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml'],
+          fileSizeLimit: 5242880 // 5MB
+        });
+
+      if (bucketError && bucketError.message !== 'Bucket already exists') {
+        console.error('Error creating bucket:', bucketError);
+      }
+
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
         .from('store_logos')
@@ -244,13 +284,17 @@ const StoreManagement = () => {
             
             <div className="space-y-2">
               <Label htmlFor="business_name">Store Name</Label>
-              <Input
-                id="business_name"
-                name="business_name"
-                value={profile.business_name}
-                onChange={handleInputChange}
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="business_name"
+                  name="business_name"
+                  value={profile.business_name}
+                  onChange={handleInputChange}
+                  className="pl-10"
+                  required
+                />
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              </div>
             </div>
             
             <div className="space-y-2">
@@ -268,38 +312,59 @@ const StoreManagement = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="location">Location</Label>
-                <Input
-                  id="location"
-                  name="location"
-                  value={profile.location || ''}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Manila, Philippines"
-                />
+                <div className="relative">
+                  <Input
+                    id="location"
+                    name="location"
+                    value={profile.location || ''}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Manila, Philippines"
+                    className="pl-10"
+                  />
+                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                </div>
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="contact_phone">Contact Phone</Label>
-                <Input
-                  id="contact_phone"
-                  name="contact_phone"
-                  value={profile.contact_phone || ''}
-                  onChange={handleInputChange}
-                  placeholder="+63 XXX XXX XXXX"
-                />
+                <div className="relative">
+                  <Input
+                    id="contact_phone"
+                    name="contact_phone"
+                    value={profile.contact_phone || ''}
+                    onChange={handleInputChange}
+                    placeholder="+63 XXX XXX XXXX"
+                    className="pl-10"
+                  />
+                  <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                </div>
               </div>
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="contact_email">Contact Email</Label>
-              <Input
-                id="contact_email"
-                name="contact_email"
-                type="email"
-                value={profile.contact_email || ''}
-                onChange={handleInputChange}
-                placeholder="your@email.com"
-              />
+              <div className="relative">
+                <Input
+                  id="contact_email"
+                  name="contact_email"
+                  type="email"
+                  value={profile.contact_email || ''}
+                  onChange={handleInputChange}
+                  placeholder="your@email.com"
+                  className="pl-10"
+                />
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              </div>
             </div>
+
+            {profile.is_verified && (
+              <div className="bg-green-50 border border-green-200 rounded-md p-3 text-green-800 text-sm flex items-center">
+                <svg className="h-5 w-5 mr-2 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Your store is verified. Customers will see a verified badge on your store page.
+              </div>
+            )}
             
             <div className="flex justify-end">
               <Button type="submit" disabled={saving}>

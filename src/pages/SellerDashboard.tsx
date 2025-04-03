@@ -1,31 +1,83 @@
 
-import React from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SellerSidebar from '@/components/seller/SellerSidebar';
 import SellerOverview from '@/components/seller/SellerOverview';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
-// Mock current user data - this would come from your auth system
-const currentUser = {
-  id: 'seller123',
-  role: 'seller',
-  name: 'Artisan Crafts Co.',
-  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80',
-  verified: true
-};
+// Define seller user type
+interface SellerUser {
+  id: string;
+  name: string;
+  avatar?: string;
+  verified?: boolean;
+}
 
 const SellerDashboard = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [user, setUser] = useState<SellerUser | null>(null);
+  const [loading, setLoading] = useState(true);
   
-  // Redirect to login if not authenticated
-  if (!currentUser) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+  // Fetch current user data from auth and seller_profiles
+  useEffect(() => {
+    const fetchUserData = async () => {
+      setLoading(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          navigate('/auth', { state: { from: location } });
+          return;
+        }
+
+        // Get seller profile
+        const { data: sellerProfile, error } = await supabase
+          .from('seller_profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error("Error fetching seller profile:", error);
+          toast.error("Failed to load your seller profile");
+        }
+
+        // Get user metadata
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        // Set user data combining auth and profile data
+        setUser({
+          id: session.user.id,
+          name: sellerProfile?.business_name || profile?.full_name || 'Seller Account',
+          avatar: profile?.avatar_url || '',
+          verified: sellerProfile?.is_verified || false
+        });
+
+      } catch (error) {
+        console.error("Error in fetchUserData:", error);
+        toast.error("An error occurred while loading your profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [location, navigate]);
+
+  // Redirect if loading or no user
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
 
-  // Redirect if user is not a seller
-  if (currentUser.role !== 'seller') {
-    return <Navigate to="/" replace />;
+  if (!user) {
+    return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
   // Get current active tab from path
@@ -38,6 +90,7 @@ const SellerDashboard = () => {
     if (path === 'customers') return 'customers';
     if (path === 'reviews') return 'reviews';
     if (path === 'settings') return 'settings';
+    if (path === 'profile') return 'profile';
     return 'overview';
   };
 
@@ -55,13 +108,13 @@ const SellerDashboard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Sidebar */}
             <div className="hidden lg:block lg:col-span-3">
-              <SellerSidebar user={currentUser} />
+              <SellerSidebar user={user} />
             </div>
 
             {/* Content Area */}
             <div className="col-span-1 lg:col-span-9">
               <Tabs defaultValue={getActiveTab()} className="w-full">
-                <TabsList className="w-full mb-6 overflow-x-auto flex sm:grid sm:grid-cols-7">
+                <TabsList className="w-full mb-6 overflow-x-auto flex sm:grid sm:grid-cols-8">
                   <TabsTrigger value="overview" className="flex-1">Overview</TabsTrigger>
                   <TabsTrigger value="products" className="flex-1">Products</TabsTrigger>
                   <TabsTrigger value="inventory" className="flex-1">Inventory</TabsTrigger>
@@ -69,6 +122,7 @@ const SellerDashboard = () => {
                   <TabsTrigger value="customers" className="flex-1">Customers</TabsTrigger>
                   <TabsTrigger value="promotions" className="flex-1">Promotions</TabsTrigger>
                   <TabsTrigger value="reviews" className="flex-1">Reviews</TabsTrigger>
+                  <TabsTrigger value="settings" className="flex-1">Settings</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="overview">
@@ -100,6 +154,10 @@ const SellerDashboard = () => {
                 </TabsContent>
 
                 <TabsContent value="settings">
+                  <Outlet />
+                </TabsContent>
+                
+                <TabsContent value="profile">
                   <Outlet />
                 </TabsContent>
               </Tabs>
