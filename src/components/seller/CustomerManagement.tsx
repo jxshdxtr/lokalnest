@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import CustomerFilters from './customers/CustomerFilters';
@@ -16,7 +17,9 @@ const CustomerManagement = () => {
     setSearch, 
     setStatusFilter, 
     setSortField,
-    setSortOrder
+    setSortOrder,
+    addTag,
+    removeTag
   } = useCustomers();
 
   // Map sortField and sortOrder to a single sortBy value for the filter component
@@ -45,17 +48,10 @@ const CustomerManagement = () => {
     }
   };
 
-  // Handle search input change
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-  };
-
   // Handle customer status update
   const updateCustomerStatus = (customerId: string, status: string) => {
-    // Since we don't have this function directly from useCustomers,
-    // we would need to implement it here using the available methods
     console.log(`Updating customer ${customerId} status to ${status}`);
-    // In a real implementation, we would call an API or use the addTag/removeTag methods
+    // In a real implementation, we would call an API or use other methods
   };
 
   return (
@@ -66,7 +62,7 @@ const CustomerManagement = () => {
             searchTerm={search}
             statusFilter={statusFilter}
             sortBy={getSortByValue()}
-            onSearchChange={handleSearch}
+            onSearchChange={(e) => setSearch(e.target.value)}
             onStatusChange={setStatusFilter}
             onSortChange={handleSortChange}
           />

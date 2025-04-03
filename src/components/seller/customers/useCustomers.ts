@@ -156,7 +156,7 @@ export const useCustomers = () => {
     // Search filter
     const matchesSearch = search === '' || 
       customer.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      customer.email.toLowerCase().includes(search.toLowerCase());
+      (customer.email && customer.email.toLowerCase().includes(search.toLowerCase()));
       
     // Status filter
     const matchesStatus = statusFilter === 'all' || customer.status === statusFilter;
@@ -184,8 +184,8 @@ export const useCustomers = () => {
     }
     
     // For strings
-    const valueA = String(a[sortField]).toLowerCase();
-    const valueB = String(b[sortField]).toLowerCase();
+    const valueA = String(a[sortField] || '').toLowerCase();
+    const valueB = String(b[sortField] || '').toLowerCase();
     
     if (sortOrder === 'asc') {
       return valueA.localeCompare(valueB);
