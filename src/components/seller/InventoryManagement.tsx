@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Search,
   Filter,
@@ -13,7 +13,8 @@ import {
   RotateCcw,
   History,
   Bell,
-  ShoppingBag
+  ShoppingBag,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,92 +42,157 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
-// Sample inventory data
-const initialInventory = [
-  {
-    id: 'prod1',
-    name: 'Handwoven Cotton Tote Bag',
-    sku: 'TOT-001',
-    category: 'Textiles & Clothing',
-    stock: 15,
-    alert_threshold: 5,
-    status: 'in_stock',
-    location: 'Warehouse A',
-    last_updated: '2023-06-15',
-    image: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80'
-  },
-  {
-    id: 'prod2',
-    name: 'Handcrafted Wooden Serving Bowl',
-    sku: 'BOWL-002',
-    category: 'Wooden Crafts',
-    stock: 8,
-    alert_threshold: 3,
-    status: 'in_stock',
-    location: 'Warehouse A',
-    last_updated: '2023-06-14',
-    image: 'https://images.unsplash.com/photo-1635995158887-316c704fa35d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80'
-  },
-  {
-    id: 'prod3',
-    name: 'Hand-painted Ceramic Mug',
-    sku: 'MUG-003',
-    category: 'Pottery & Ceramics',
-    stock: 22,
-    alert_threshold: 10,
-    status: 'in_stock',
-    location: 'Warehouse B',
-    last_updated: '2023-06-14',
-    image: 'https://images.unsplash.com/photo-1493106641515-6b5631de4bb9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80'
-  },
-  {
-    id: 'prod4',
-    name: 'Handcrafted Silver Earrings',
-    sku: 'EAR-004',
-    category: 'Jewelry & Accessories',
-    stock: 5,
-    alert_threshold: 5,
-    status: 'low_stock',
-    location: 'Warehouse A',
-    last_updated: '2023-06-13',
-    image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80'
-  },
-  {
-    id: 'prod5',
-    name: 'Handwoven Bamboo Wall Hanging',
-    sku: 'DECO-005',
-    category: 'Home Decor',
-    stock: 0,
-    alert_threshold: 2,
-    status: 'out_of_stock',
-    location: 'Warehouse B',
-    last_updated: '2023-06-12',
-    image: 'https://images.unsplash.com/photo-1615529182904-14819c35db37?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80'
-  },
-  {
-    id: 'prod6',
-    name: 'Artisanal Coconut Jam Set',
-    sku: 'FOOD-006',
-    category: 'Food & Beverages',
-    stock: 12,
-    alert_threshold: 8,
-    status: 'in_stock',
-    location: 'Warehouse C',
-    last_updated: '2023-06-10',
-    image: 'https://images.unsplash.com/photo-1612200482741-3ad34fcd2eb6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80'
-  }
-];
+interface InventoryItem {
+  id: string;
+  name: string;
+  sku?: string;
+  category_name?: string;
+  category_id?: string;
+  stock: number;
+  alert_threshold?: number;
+  status: 'in_stock' | 'low_stock' | 'out_of_stock';
+  location?: string;
+  last_updated: string;
+  image?: string;
+}
+
+interface InventoryLog {
+  id: string;
+  product_id: string;
+  previous_quantity: number;
+  new_quantity: number;
+  change_quantity: number;
+  reason: string;
+  created_at: string;
+}
 
 const InventoryManagement = () => {
-  const [inventory, setInventory] = useState(initialInventory);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
   const [isStockUpdateDialogOpen, setIsStockUpdateDialogOpen] = useState(false);
-  const [currentItem, setCurrentItem] = useState<any>(null);
+  const [currentItem, setCurrentItem] = useState<InventoryItem | null>(null);
   const [newStockValue, setNewStockValue] = useState('');
   const [updateReason, setUpdateReason] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
+  const [inventoryLogs, setInventoryLogs] = useState<InventoryLog[]>([]);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchInventory();
+    fetchCategories();
+  }, []);
+
+  const fetchInventory = async () => {
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('You must be logged in to view your inventory');
+        navigate('/auth');
+        return;
+      }
+      
+      // Fetch products with category names
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          id,
+          name,
+          stock_quantity,
+          updated_at,
+          category_id,
+          categories:category_id(name)
+        `)
+        .eq('seller_id', session.user.id)
+        .order('name');
+      
+      if (error) throw error;
+      
+      // Fetch product images
+      const inventoryWithImages = await Promise.all(
+        (data || []).map(async (product) => {
+          const { data: images } = await supabase
+            .from('product_images')
+            .select('url')
+            .eq('product_id', product.id)
+            .eq('is_primary', true)
+            .limit(1);
+          
+          // Determine status based on stock level
+          let status: 'in_stock' | 'low_stock' | 'out_of_stock' = 'in_stock';
+          if (product.stock_quantity === 0) {
+            status = 'out_of_stock';
+          } else if (product.stock_quantity < 10) {
+            status = 'low_stock';
+          }
+          
+          return {
+            id: product.id,
+            name: product.name,
+            sku: `PROD-${product.id.substring(0, 6)}`,
+            category_name: product.categories?.name,
+            category_id: product.category_id,
+            stock: product.stock_quantity,
+            alert_threshold: 5, // Default alert threshold
+            status,
+            location: 'Main Warehouse',
+            last_updated: product.updated_at,
+            image: images && images.length > 0 ? images[0].url : undefined,
+          };
+        })
+      );
+      
+      setInventory(inventoryWithImages);
+    } catch (error) {
+      console.error('Error fetching inventory:', error);
+      toast.error('Failed to load inventory data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('id, name')
+        .order('name');
+        
+      if (error) throw error;
+      
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+  
+  const fetchInventoryLogs = async (productId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('inventory_logs')
+        .select('*')
+        .eq('product_id', productId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      setInventoryLogs(data || []);
+    } catch (error) {
+      console.error('Error fetching inventory logs:', error);
+      toast.error('Failed to load inventory history');
+    }
+  };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -136,11 +202,13 @@ const InventoryManagement = () => {
     // Filter by search term
     const searchMatch =
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchTerm.toLowerCase());
+      (item.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+      (item.category_name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
     
     // Filter by category
-    const categoryMatch = categoryFilter === 'all' || item.category === categoryFilter;
+    const categoryMatch = 
+      categoryFilter === 'all' || 
+      item.category_id === categoryFilter;
     
     // Filter by stock status
     let stockMatch = true;
@@ -151,7 +219,7 @@ const InventoryManagement = () => {
     return searchMatch && categoryMatch && stockMatch;
   });
 
-  const updateStock = () => {
+  const updateStock = async () => {
     if (!currentItem || !newStockValue || isNaN(Number(newStockValue))) {
       toast.error("Please enter a valid stock quantity");
       return;
@@ -159,34 +227,61 @@ const InventoryManagement = () => {
 
     const stockValue = Number(newStockValue);
     
-    // Update the stock and status
-    const updatedInventory = inventory.map(item => {
-      if (item.id === currentItem.id) {
-        const status = stockValue === 0 ? 'out_of_stock' : 
-                      stockValue <= item.alert_threshold ? 'low_stock' : 'in_stock';
-        
-        return {
-          ...item,
-          stock: stockValue,
-          status: status,
-          last_updated: new Date().toISOString().split('T')[0]
-        };
-      }
-      return item;
-    });
-    
-    setInventory(updatedInventory);
-    setIsStockUpdateDialogOpen(false);
-    setNewStockValue('');
-    setUpdateReason('');
-    
-    toast.success(`Stock for ${currentItem.name} updated successfully to ${stockValue}`);
+    try {
+      // Update the stock in database
+      const { error } = await supabase
+        .from('products')
+        .update({
+          stock_quantity: stockValue,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', currentItem.id);
+      
+      if (error) throw error;
+      
+      // The inventory_logs will be updated automatically through the trigger we created
+      
+      // Update local state
+      const updatedInventory = inventory.map(item => {
+        if (item.id === currentItem.id) {
+          let status: 'in_stock' | 'low_stock' | 'out_of_stock' = 'in_stock';
+          if (stockValue === 0) {
+            status = 'out_of_stock';
+          } else if (stockValue < 10) {
+            status = 'low_stock';
+          }
+          
+          return {
+            ...item,
+            stock: stockValue,
+            status,
+            last_updated: new Date().toISOString()
+          };
+        }
+        return item;
+      });
+      
+      setInventory(updatedInventory);
+      setIsStockUpdateDialogOpen(false);
+      setNewStockValue('');
+      setUpdateReason('');
+      
+      toast.success(`Stock for ${currentItem.name} updated successfully to ${stockValue}`);
+    } catch (error) {
+      console.error('Error updating stock:', error);
+      toast.error('Failed to update stock');
+    }
   };
 
-  const openStockUpdateDialog = (item: any) => {
+  const openStockUpdateDialog = (item: InventoryItem) => {
     setCurrentItem(item);
     setNewStockValue(item.stock.toString());
     setIsStockUpdateDialogOpen(true);
+  };
+
+  const openHistoryModal = async (productId: string) => {
+    await fetchInventoryLogs(productId);
+    setIsHistoryModalOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -202,9 +297,12 @@ const InventoryManagement = () => {
     }
   };
 
-  const getUniqueCategories = () => {
-    const categories = inventory.map(item => item.category);
-    return ['all', ...new Set(categories)];
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'MMM dd, yyyy HH:mm');
+    } catch (e) {
+      return 'Invalid date';
+    }
   };
 
   return (
@@ -273,9 +371,10 @@ const InventoryManagement = () => {
                   <SelectValue placeholder="Filter by category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {getUniqueCategories().map(category => (
-                    <SelectItem key={category} value={category}>
-                      {category === 'all' ? 'All Categories' : category}
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map(category => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -300,154 +399,176 @@ const InventoryManagement = () => {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-muted/50 text-left">
-                  <th className="p-3 text-sm font-medium">Product</th>
-                  <th className="p-3 text-sm font-medium">SKU</th>
-                  <th className="p-3 text-sm font-medium">Category</th>
-                  <th className="p-3 text-sm font-medium">Location</th>
-                  <th className="p-3 text-sm font-medium">Stock</th>
-                  <th className="p-3 text-sm font-medium">Status</th>
-                  <th className="p-3 text-sm font-medium">Last Updated</th>
-                  <th className="p-3 text-sm font-medium text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredInventory.map((item) => (
-                  <tr key={item.id} className="border-b border-border hover:bg-muted/30">
-                    <td className="p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded overflow-hidden bg-muted flex-shrink-0">
-                          <img 
-                            src={item.image} 
-                            alt={item.name} 
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                        <div className="truncate max-w-[150px]">
-                          <p className="font-medium truncate">{item.name}</p>
-                          <p className="text-xs text-muted-foreground">ID: {item.id}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-3 text-sm">{item.sku}</td>
-                    <td className="p-3 text-sm">{item.category}</td>
-                    <td className="p-3 text-sm">{item.location}</td>
-                    <td className="p-3 text-sm font-medium">{item.stock}</td>
-                    <td className="p-3 text-sm">
-                      {getStatusBadge(item.status)}
-                    </td>
-                    <td className="p-3 text-sm">{item.last_updated}</td>
-                    <td className="p-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => openStockUpdateDialog(item)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <History className="h-4 w-4" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-80">
-                            <div className="space-y-2">
-                              <h4 className="font-medium">Stock History</h4>
-                              <div className="text-sm">
-                                <p className="text-muted-foreground">Mock historical data would appear here</p>
-                                <ul className="mt-2 space-y-1">
-                                  <li className="text-xs">2023-06-15: Stock updated to 15</li>
-                                  <li className="text-xs">2023-06-10: Stock updated to 18</li>
-                                  <li className="text-xs">2023-06-05: Stock updated to 20</li>
-                                </ul>
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-muted/50 text-left">
+                    <th className="p-3 text-sm font-medium">Product</th>
+                    <th className="p-3 text-sm font-medium">SKU</th>
+                    <th className="p-3 text-sm font-medium">Category</th>
+                    <th className="p-3 text-sm font-medium">Location</th>
+                    <th className="p-3 text-sm font-medium">Stock</th>
+                    <th className="p-3 text-sm font-medium">Status</th>
+                    <th className="p-3 text-sm font-medium">Last Updated</th>
+                    <th className="p-3 text-sm font-medium text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredInventory.length > 0 ? filteredInventory.map((item) => (
+                    <tr key={item.id} className="border-b border-border hover:bg-muted/30">
+                      <td className="p-3">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded overflow-hidden bg-muted flex-shrink-0">
+                            {item.image ? (
+                              <img 
+                                src={item.image} 
+                                alt={item.name} 
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="h-full w-full bg-muted flex items-center justify-center text-muted-foreground">
+                                <Package className="h-5 w-5" />
                               </div>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filteredInventory.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="p-6 text-center text-muted-foreground">
-                      No inventory items found. Try adjusting your search filters.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                            )}
+                          </div>
+                          <div className="truncate max-w-[150px]">
+                            <p className="font-medium truncate">{item.name}</p>
+                            <p className="text-xs text-muted-foreground">ID: {item.id.substring(0, 8)}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-3 text-sm">{item.sku}</td>
+                      <td className="p-3 text-sm">{item.category_name || 'Uncategorized'}</td>
+                      <td className="p-3 text-sm">{item.location || 'Main Warehouse'}</td>
+                      <td className="p-3 text-sm">{item.stock}</td>
+                      <td className="p-3 text-sm">
+                        {getStatusBadge(item.status)}
+                      </td>
+                      <td className="p-3 text-sm">{formatDate(item.last_updated)}</td>
+                      <td className="p-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            onClick={() => openStockUpdateDialog(item)}
+                            title="Update Stock"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            onClick={() => openHistoryModal(item.id)}
+                            title="View History"
+                          >
+                            <History className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={8} className="p-6 text-center text-muted-foreground">
+                        {searchTerm || categoryFilter !== 'all' || stockFilter !== 'all' ? 
+                          'No inventory items match your filters.' :
+                          'No inventory items found. Add products to see them here.'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
+      {/* Stock Update Dialog */}
       <Dialog open={isStockUpdateDialogOpen} onOpenChange={setIsStockUpdateDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Update Stock Quantity</DialogTitle>
+            <DialogTitle>Update Inventory Stock</DialogTitle>
             <DialogDescription>
-              Enter the new stock quantity for {currentItem?.name}.
+              Update the stock quantity for {currentItem?.name}
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="stock" className="text-right">
-                Current Stock
-              </label>
-              <Input
-                id="current-stock"
-                value={currentItem?.stock}
-                disabled
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="stock" className="text-right">
-                New Stock
-              </label>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="stock">New Stock Quantity</Label>
               <Input
                 id="stock"
-                value={newStockValue}
-                onChange={(e) => setNewStockValue(e.target.value)}
                 type="number"
                 min="0"
-                className="col-span-3"
+                value={newStockValue}
+                onChange={(e) => setNewStockValue(e.target.value)}
+                placeholder="Enter new stock quantity"
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="reason" className="text-right">
-                Reason
-              </label>
-              <Select value={updateReason} onValueChange={setUpdateReason}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select reason for update" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new_stock">New Stock Arrived</SelectItem>
-                  <SelectItem value="sold">Items Sold</SelectItem>
-                  <SelectItem value="damaged">Items Damaged</SelectItem>
-                  <SelectItem value="correction">Inventory Correction</SelectItem>
-                  <SelectItem value="returned">Customer Returns</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="space-y-2">
+              <Label htmlFor="reason">Reason for Update (optional)</Label>
+              <Textarea
+                id="reason"
+                value={updateReason}
+                onChange={(e) => setUpdateReason(e.target.value)}
+                placeholder="e.g., New inventory, Stock adjustment, etc."
+                rows={3}
+              />
             </div>
           </div>
-          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsStockUpdateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={updateStock}>
-              Update Stock
-            </Button>
+            <Button variant="outline" onClick={() => setIsStockUpdateDialogOpen(false)}>Cancel</Button>
+            <Button onClick={updateStock}>Update Stock</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Inventory History Modal */}
+      <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Inventory History</DialogTitle>
+            <DialogDescription>
+              Stock change history for this product
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {inventoryLogs.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2">Date</th>
+                      <th className="text-left p-2">Change</th>
+                      <th className="text-left p-2">Before</th>
+                      <th className="text-left p-2">After</th>
+                      <th className="text-left p-2">Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {inventoryLogs.map(log => (
+                      <tr key={log.id} className="border-b">
+                        <td className="p-2">{formatDate(log.created_at)}</td>
+                        <td className="p-2">
+                          <Badge variant={log.change_quantity > 0 ? "success" : "destructive"}>
+                            {log.change_quantity > 0 ? `+${log.change_quantity}` : log.change_quantity}
+                          </Badge>
+                        </td>
+                        <td className="p-2">{log.previous_quantity}</td>
+                        <td className="p-2">{log.new_quantity}</td>
+                        <td className="p-2">{log.reason || 'No reason provided'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-4">No history found for this product.</p>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

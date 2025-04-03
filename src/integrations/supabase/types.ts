@@ -81,6 +81,47 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_logs: {
+        Row: {
+          change_quantity: number
+          created_at: string | null
+          created_by: string | null
+          id: string
+          new_quantity: number
+          previous_quantity: number
+          product_id: string | null
+          reason: string | null
+        }
+        Insert: {
+          change_quantity: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          new_quantity: number
+          previous_quantity: number
+          product_id?: string | null
+          reason?: string | null
+        }
+        Update: {
+          change_quantity?: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          new_quantity?: number
+          previous_quantity?: number
+          product_id?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_logs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           created_at: string
@@ -373,6 +414,95 @@ export type Database = {
         }
         Relationships: []
       }
+      promotion_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          item_id: string
+          item_type: string
+          promotion_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          item_id: string
+          item_type: string
+          promotion_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          item_id?: string
+          item_type?: string
+          promotion_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_items_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotions: {
+        Row: {
+          applies_to: string | null
+          coupon_code: string | null
+          created_at: string | null
+          description: string | null
+          discount_type: string
+          discount_value: number
+          end_date: string
+          id: string
+          is_active: boolean | null
+          minimum_purchase: number | null
+          seller_id: string
+          start_date: string
+          title: string
+          updated_at: string | null
+          usage_count: number | null
+          usage_limit: number | null
+        }
+        Insert: {
+          applies_to?: string | null
+          coupon_code?: string | null
+          created_at?: string | null
+          description?: string | null
+          discount_type: string
+          discount_value: number
+          end_date: string
+          id?: string
+          is_active?: boolean | null
+          minimum_purchase?: number | null
+          seller_id: string
+          start_date: string
+          title: string
+          updated_at?: string | null
+          usage_count?: number | null
+          usage_limit?: number | null
+        }
+        Update: {
+          applies_to?: string | null
+          coupon_code?: string | null
+          created_at?: string | null
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          end_date?: string
+          id?: string
+          is_active?: boolean | null
+          minimum_purchase?: number | null
+          seller_id?: string
+          start_date?: string
+          title?: string
+          updated_at?: string | null
+          usage_count?: number | null
+          usage_limit?: number | null
+        }
+        Relationships: []
+      }
       reviews: {
         Row: {
           buyer_id: string
@@ -417,6 +547,56 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seller_customers: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          id: string
+          last_purchase_date: string | null
+          notes: string | null
+          seller_id: string | null
+          status: string | null
+          tags: string[] | null
+          total_orders: number | null
+          total_spent: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          last_purchase_date?: string | null
+          notes?: string | null
+          seller_id?: string | null
+          status?: string | null
+          tags?: string[] | null
+          total_orders?: number | null
+          total_spent?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          last_purchase_date?: string | null
+          notes?: string | null
+          seller_id?: string | null
+          status?: string | null
+          tags?: string[] | null
+          total_orders?: number | null
+          total_spent?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_customers_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

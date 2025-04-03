@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Info, Tag, Percent } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PromotionFormModalProps {
   isOpen: boolean;
@@ -35,36 +36,40 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
   promotion 
 }) => {
   const [formData, setFormData] = useState({
-    name: '',
+    title: '',
     description: '',
-    type: 'percentage',
-    value: '',
-    code: '',
-    startDate: '',
-    endDate: '',
-    products: 'all',
+    discount_type: 'percentage',
+    discount_value: '',
+    coupon_code: '',
+    start_date: '',
+    end_date: '',
+    applies_to: 'all',
     category: '',
-    minimumPurchase: '',
-    usageLimit: '',
-    status: 'active'
+    minimum_purchase: '',
+    usage_limit: '',
+    is_active: true
   });
 
-  // Load promotion data if editing
+  const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
+
   useEffect(() => {
+    fetchCategories();
+    
+    // Load promotion data if editing
     if (promotion) {
       setFormData({
-        name: promotion.name || '',
+        title: promotion.title || '',
         description: promotion.description || '',
-        type: promotion.type || 'percentage',
-        value: promotion.value?.toString() || '',
-        code: promotion.code || '',
-        startDate: promotion.startDate || '',
-        endDate: promotion.endDate || '',
-        products: promotion.products || 'all',
+        discount_type: promotion.discount_type || 'percentage',
+        discount_value: promotion.discount_value?.toString() || '',
+        coupon_code: promotion.coupon_code || '',
+        start_date: promotion.start_date ? new Date(promotion.start_date).toISOString().split('T')[0] : '',
+        end_date: promotion.end_date ? new Date(promotion.end_date).toISOString().split('T')[0] : '',
+        applies_to: promotion.applies_to || 'all',
         category: promotion.category || '',
-        minimumPurchase: promotion.minimumPurchase?.toString() || '',
-        usageLimit: promotion.usageLimit?.toString() || '',
-        status: promotion.status || 'active'
+        minimum_purchase: promotion.minimum_purchase?.toString() || '',
+        usage_limit: promotion.usage_limit?.toString() || '',
+        is_active: promotion.is_active !== undefined ? promotion.is_active : true
       });
     } else {
       // Default values for new promotion
@@ -74,11 +79,26 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
       
       setFormData({
         ...formData,
-        startDate: today.toISOString().split('T')[0],
-        endDate: nextMonth.toISOString().split('T')[0]
+        start_date: today.toISOString().split('T')[0],
+        end_date: nextMonth.toISOString().split('T')[0]
       });
     }
   }, [promotion]);
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('id, name')
+        .order('name');
+        
+      if (error) throw error;
+      
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -93,7 +113,7 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
     e.preventDefault();
     
     // Validate form
-    if (!formData.name || !formData.value || !formData.code || !formData.startDate || !formData.endDate) {
+    if (!formData.title || !formData.discount_value || !formData.coupon_code || !formData.start_date || !formData.end_date) {
       alert('Please fill in all required fields');
       return;
     }
@@ -101,26 +121,13 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
     // Parse numeric values
     const promoData = {
       ...formData,
-      value: parseFloat(formData.value),
-      minimumPurchase: formData.minimumPurchase ? parseFloat(formData.minimumPurchase) : 0,
-      usageLimit: formData.usageLimit ? parseInt(formData.usageLimit) : 0
+      discount_value: parseFloat(formData.discount_value),
+      minimum_purchase: formData.minimum_purchase ? parseFloat(formData.minimum_purchase) : 0,
+      usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null
     };
     
     onSave(promoData);
   };
-  
-  const categories = [
-    "Textiles & Clothing",
-    "Wooden Crafts",
-    "Pottery & Ceramics",
-    "Jewelry & Accessories",
-    "Home Decor",
-    "Food & Beverages",
-    "Art & Paintings",
-    "Soaps & Cosmetics",
-    "Basket Weaving",
-    "Other Crafts"
-  ];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -135,11 +142,11 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
             <h3 className="text-sm font-medium text-muted-foreground">Promotion Details</h3>
             
             <div className="space-y-2">
-              <Label htmlFor="name">Promotion Name <span className="text-red-500">*</span></Label>
+              <Label htmlFor="title">Promotion Name <span className="text-red-500">*</span></Label>
               <Input
-                id="name"
-                name="name"
-                value={formData.name}
+                id="title"
+                name="title"
+                value={formData.title}
                 onChange={handleChange}
                 placeholder="Enter promotion name"
                 required
@@ -166,8 +173,8 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
             <div className="space-y-2">
               <Label>Discount Type <span className="text-red-500">*</span></Label>
               <RadioGroup 
-                value={formData.type} 
-                onValueChange={(value) => handleSelectChange(value, 'type')}
+                value={formData.discount_type} 
+                onValueChange={(value) => handleSelectChange(value, 'discount_type')}
                 className="flex flex-col space-y-1"
               >
                 <div className="flex items-center space-x-2">
@@ -189,40 +196,40 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="value">Discount Value <span className="text-red-500">*</span></Label>
+                <Label htmlFor="discount_value">Discount Value <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                    {formData.type === 'percentage' ? (
+                    {formData.discount_type === 'percentage' ? (
                       <Percent className="h-4 w-4 text-muted-foreground" />
                     ) : (
                       <span className="text-muted-foreground">₱</span>
                     )}
                   </div>
                   <Input
-                    id="value"
-                    name="value"
+                    id="discount_value"
+                    name="discount_value"
                     type="number"
-                    value={formData.value}
+                    value={formData.discount_value}
                     onChange={handleChange}
-                    placeholder={formData.type === 'percentage' ? "10" : "100"}
+                    placeholder={formData.discount_type === 'percentage' ? "10" : "100"}
                     className="pl-10"
                     min="0"
-                    max={formData.type === 'percentage' ? "100" : undefined}
-                    step={formData.type === 'percentage' ? "1" : "0.01"}
+                    max={formData.discount_type === 'percentage' ? "100" : undefined}
+                    step={formData.discount_type === 'percentage' ? "1" : "0.01"}
                     required
                   />
                 </div>
-                {formData.type === 'percentage' && (
+                {formData.discount_type === 'percentage' && (
                   <p className="text-xs text-muted-foreground">Enter a percentage value (0-100)</p>
                 )}
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="code">Promotion Code <span className="text-red-500">*</span></Label>
+                <Label htmlFor="coupon_code">Promotion Code <span className="text-red-500">*</span></Label>
                 <Input
-                  id="code"
-                  name="code"
-                  value={formData.code}
+                  id="coupon_code"
+                  name="coupon_code"
+                  value={formData.coupon_code}
                   onChange={handleChange}
                   placeholder="SUMMER2023"
                   className="uppercase"
@@ -238,24 +245,24 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="startDate">Start Date <span className="text-red-500">*</span></Label>
+                <Label htmlFor="start_date">Start Date <span className="text-red-500">*</span></Label>
                 <Input
-                  id="startDate"
-                  name="startDate"
+                  id="start_date"
+                  name="start_date"
                   type="date"
-                  value={formData.startDate}
+                  value={formData.start_date}
                   onChange={handleChange}
                   required
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="endDate">End Date <span className="text-red-500">*</span></Label>
+                <Label htmlFor="end_date">End Date <span className="text-red-500">*</span></Label>
                 <Input
-                  id="endDate"
-                  name="endDate"
+                  id="end_date"
+                  name="end_date"
                   type="date"
-                  value={formData.endDate}
+                  value={formData.end_date}
                   onChange={handleChange}
                   required
                 />
@@ -270,8 +277,8 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
             <div className="space-y-2">
               <Label>Apply Discount To</Label>
               <RadioGroup 
-                value={formData.products} 
-                onValueChange={(value) => handleSelectChange(value, 'products')}
+                value={formData.applies_to} 
+                onValueChange={(value) => handleSelectChange(value, 'applies_to')}
                 className="flex flex-col space-y-1"
               >
                 <div className="flex items-center space-x-2">
@@ -279,17 +286,17 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   <Label htmlFor="all" className="cursor-pointer">All Products</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="category" id="category" />
-                  <Label htmlFor="category" className="cursor-pointer">Specific Category</Label>
+                  <RadioGroupItem value="specific_categories" id="specific_categories" />
+                  <Label htmlFor="specific_categories" className="cursor-pointer">Specific Category</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="selected" id="selected" />
-                  <Label htmlFor="selected" className="cursor-pointer">Selected Products</Label>
+                  <RadioGroupItem value="specific_products" id="specific_products" />
+                  <Label htmlFor="specific_products" className="cursor-pointer">Selected Products</Label>
                 </div>
               </RadioGroup>
             </div>
             
-            {formData.products === 'category' && (
+            {formData.applies_to === 'specific_categories' && (
               <div className="space-y-2">
                 <Label htmlFor="category">Select Category</Label>
                 <Select 
@@ -301,8 +308,8 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -310,7 +317,7 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
               </div>
             )}
             
-            {formData.products === 'selected' && (
+            {formData.applies_to === 'specific_products' && (
               <div className="p-4 border border-dashed rounded-md border-muted-foreground/30 text-center">
                 <p className="text-sm text-muted-foreground">
                   Product selection will be available after creating the promotion.
@@ -325,12 +332,12 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="minimumPurchase">Minimum Purchase Amount (₱)</Label>
+                <Label htmlFor="minimum_purchase">Minimum Purchase Amount (₱)</Label>
                 <Input
-                  id="minimumPurchase"
-                  name="minimumPurchase"
+                  id="minimum_purchase"
+                  name="minimum_purchase"
                   type="number"
-                  value={formData.minimumPurchase}
+                  value={formData.minimum_purchase}
                   onChange={handleChange}
                   placeholder="0"
                   min="0"
@@ -340,12 +347,12 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="usageLimit">Usage Limit</Label>
+                <Label htmlFor="usage_limit">Usage Limit</Label>
                 <Input
-                  id="usageLimit"
-                  name="usageLimit"
+                  id="usage_limit"
+                  name="usage_limit"
                   type="number"
-                  value={formData.usageLimit}
+                  value={formData.usage_limit}
                   onChange={handleChange}
                   placeholder="Unlimited"
                   min="0"

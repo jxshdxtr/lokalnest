@@ -1,24 +1,8 @@
 
-import React, { useState } from 'react';
-import {
-  Search,
-  Mail,
-  Phone,
-  User,
-  ShoppingBag,
-  MessageSquare,
-  FileText,
-  Calendar,
-  Tag,
-  Filter,
-  MoreHorizontal,
-  Send,
-  Download
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -28,482 +12,344 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+import { 
+  Search, 
+  Users, 
+  UserPlus, 
+  ShoppingBag, 
+  Calendar,
+  MoreHorizontal,
+  Edit,
+  Mail,
+  MessagesSquare,
+  UserX,
+  Tag,
+  Loader2
+} from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDistance } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-// Sample customer data
-const initialCustomers = [
-  {
-    id: 'cust001',
-    name: 'Juan Dela Cruz',
-    email: 'juan@example.com',
-    phone: '+63 912 345 6789',
-    location: 'Makati City',
-    totalOrders: 5,
-    totalSpent: 3850,
-    lastOrderDate: '2023-06-15',
-    status: 'active',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80'
-  },
-  {
-    id: 'cust002',
-    name: 'Maria Santos',
-    email: 'maria@example.com',
-    phone: '+63 919 876 5432',
-    location: 'Quezon City',
-    totalOrders: 3,
-    totalSpent: 2450,
-    lastOrderDate: '2023-06-14',
-    status: 'active',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80'
-  },
-  {
-    id: 'cust003',
-    name: 'Pedro Gomez',
-    email: 'pedro@example.com',
-    phone: '+63 917 555 1234',
-    location: 'Manila',
-    totalOrders: 2,
-    totalSpent: 1870,
-    lastOrderDate: '2023-06-14',
-    status: 'active',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80'
-  },
-  {
-    id: 'cust004',
-    name: 'Sofia Garcia',
-    email: 'sofia@example.com',
-    phone: '+63 920 123 4567',
-    location: 'Cavite',
-    totalOrders: 1,
-    totalSpent: 1200,
-    lastOrderDate: '2023-06-13',
-    status: 'active',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80'
-  },
-  {
-    id: 'cust005',
-    name: 'Roberto Lim',
-    email: 'roberto@example.com',
-    phone: '+63 995 555 7890',
-    location: 'Davao City',
-    totalOrders: 1,
-    totalSpent: 1650,
-    lastOrderDate: '2023-06-12',
-    status: 'inactive',
-    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80'
-  }
-];
-
-// Sample message templates
-const messageTemplates = [
-  {
-    id: 'temp1',
-    name: 'Order Confirmation',
-    subject: 'Your Order Has Been Confirmed',
-    content: 'Dear {{customerName}},\n\nThank you for your order! We\'re pleased to confirm that your order #{{orderNumber}} has been received and is being processed.\n\nYou can track your order status through your account.\n\nBest regards,\nThe Artisan Crafts Team'
-  },
-  {
-    id: 'temp2',
-    name: 'Shipping Notification',
-    subject: 'Your Order Has Been Shipped',
-    content: 'Dear {{customerName}},\n\nGreat news! Your order #{{orderNumber}} has been shipped and is on its way to you!\n\nTracking Number: {{trackingNumber}}\n\nYou can track your package\'s journey using the link below:\n{{trackingLink}}\n\nBest regards,\nThe Artisan Crafts Team'
-  },
-  {
-    id: 'temp3',
-    name: 'Thank You',
-    subject: 'Thank You for Your Purchase',
-    content: 'Dear {{customerName}},\n\nThank you for your recent purchase! We hope you love your handcrafted items.\n\nWe would appreciate it if you could take a moment to leave a review on our website.\n\nBest regards,\nThe Artisan Crafts Team'
-  },
-  {
-    id: 'temp4',
-    name: 'Special Offer',
-    subject: 'Special Offer Just for You',
-    content: 'Dear {{customerName}},\n\nAs a valued customer, we\'re delighted to offer you a special 15% discount on your next purchase. Simply use the code ARTISAN15 at checkout.\n\nValid until {{expiryDate}}.\n\nBest regards,\nThe Artisan Crafts Team'
-  }
-];
+interface Customer {
+  id: string;
+  full_name: string;
+  email?: string;
+  avatar_url?: string;
+  total_orders: number;
+  total_spent: number;
+  last_purchase_date: string;
+  status: string;
+  tags?: string[];
+}
 
 const CustomerManagement = () => {
-  const [customers, setCustomers] = useState(initialCustomers);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
-  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
-  const [messageSubject, setMessageSubject] = useState('');
-  const [messageContent, setMessageContent] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [sortBy, setSortBy] = useState('recent');
+  
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const fetchCustomers = async () => {
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('You must be logged in to view customers');
+        navigate('/auth');
+        return;
+      }
+
+      // Fetch customer data
+      const { data, error } = await supabase
+        .from('seller_customers')
+        .select(`
+          id,
+          total_orders,
+          total_spent,
+          last_purchase_date,
+          status,
+          tags,
+          profiles:customer_id(id, full_name, email, avatar_url)
+        `)
+        .eq('seller_id', session.user.id);
+        
+      if (error) throw error;
+      
+      // Transform the data
+      const customerData = data?.map(customer => ({
+        id: customer.profiles?.id || '',
+        full_name: customer.profiles?.full_name || 'Anonymous Customer',
+        email: customer.profiles?.email,
+        avatar_url: customer.profiles?.avatar_url,
+        total_orders: customer.total_orders || 0,
+        total_spent: customer.total_spent || 0,
+        last_purchase_date: customer.last_purchase_date || '',
+        status: customer.status || 'active',
+        tags: customer.tags || []
+      })) || [];
+      
+      setCustomers(customerData);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      toast.error('Failed to load customers');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
 
+  const updateCustomerStatus = async (customerId: string, status: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const { error } = await supabase
+        .from('seller_customers')
+        .update({ status })
+        .eq('seller_id', session.user.id)
+        .eq('customer_id', customerId);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setCustomers(customers.map(customer => 
+        customer.id === customerId ? { ...customer, status } : customer
+      ));
+      
+      toast.success(`Customer status updated to ${status}`);
+    } catch (error) {
+      console.error('Error updating customer status:', error);
+      toast.error('Failed to update customer status');
+    }
+  };
+
+  // Filter and sort customers
   const filteredCustomers = customers.filter(customer => {
-    // Filter by search term
-    const searchMatch =
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.location.toLowerCase().includes(searchTerm.toLowerCase());
+    // Search term filter
+    const searchMatch = 
+      customer.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     
-    // Filter by status
+    // Status filter
     const statusMatch = statusFilter === 'all' || customer.status === statusFilter;
     
     return searchMatch && statusMatch;
   });
 
-  const openMessageDialog = (customer: any) => {
-    setSelectedCustomer(customer);
-    setMessageSubject('');
-    setMessageContent('');
-    setSelectedTemplate('');
-    setIsMessageDialogOpen(true);
-  };
-
-  const handleTemplateChange = (templateId: string) => {
-    setSelectedTemplate(templateId);
-    if (templateId && selectedCustomer) {
-      const template = messageTemplates.find(t => t.id === templateId);
-      if (template) {
-        setMessageSubject(template.subject);
-        
-        // Replace placeholders with actual customer data
-        let content = template.content
-          .replace('{{customerName}}', selectedCustomer.name)
-          .replace('{{orderNumber}}', 'ORD-' + Math.floor(Math.random() * 10000))
-          .replace('{{trackingNumber}}', 'TRK' + Math.floor(Math.random() * 1000000))
-          .replace('{{trackingLink}}', 'https://tracking.example.com/' + Math.floor(Math.random() * 1000000))
-          .replace('{{expiryDate}}', new Date(Date.now() + 30*24*60*60*1000).toLocaleDateString());
-        
-        setMessageContent(content);
-      }
+  // Sort customers
+  const sortedCustomers = [...filteredCustomers].sort((a, b) => {
+    if (sortBy === 'recent') {
+      return new Date(b.last_purchase_date || '').getTime() - new Date(a.last_purchase_date || '').getTime();
+    } else if (sortBy === 'orders') {
+      return b.total_orders - a.total_orders;
+    } else if (sortBy === 'spent') {
+      return b.total_spent - a.total_spent;
+    } else {
+      return a.full_name.localeCompare(b.full_name);
     }
+  });
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
   };
 
-  const sendMessage = () => {
-    if (!messageSubject || !messageContent) {
-      toast.error("Please enter both subject and message content");
-      return;
+  const formatLastPurchaseDate = (dateString: string) => {
+    if (!dateString) return 'Never';
+    try {
+      return formatDistance(new Date(dateString), new Date(), { addSuffix: true });
+    } catch (e) {
+      return 'Invalid date';
     }
-    
-    // Here you would integrate with your email service
-    // For now, we'll just show a success toast
-    toast.success(`Message sent to ${selectedCustomer.name}`);
-    setIsMessageDialogOpen(false);
-  };
-
-  const downloadCustomerData = () => {
-    toast.success("Customer data export started. File will be ready for download shortly.");
-    
-    // Here you would implement actual export functionality
-    setTimeout(() => {
-      toast.success("Customer data export completed!");
-    }, 2000);
   };
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="customers" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="customers">Customer Management</TabsTrigger>
-          <TabsTrigger value="communications">Communication Tools</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="customers" className="space-y-6 pt-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <div className="relative w-full sm:w-auto">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search customers..."
-                    value={searchTerm}
-                    onChange={handleSearch}
-                    className="pl-10 w-full sm:w-[300px]"
-                  />
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                  <Select 
-                    value={statusFilter} 
-                    onValueChange={setStatusFilter}
-                  >
-                    <SelectTrigger className="w-full sm:w-[180px]">
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Customers</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="outline" className="w-full sm:w-auto" onClick={downloadCustomerData}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Export
-                  </Button>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-muted/50 text-left">
-                      <th className="p-3 text-sm font-medium">Customer</th>
-                      <th className="p-3 text-sm font-medium">Contact</th>
-                      <th className="p-3 text-sm font-medium">Location</th>
-                      <th className="p-3 text-sm font-medium">Orders</th>
-                      <th className="p-3 text-sm font-medium">Total Spent</th>
-                      <th className="p-3 text-sm font-medium">Last Order</th>
-                      <th className="p-3 text-sm font-medium">Status</th>
-                      <th className="p-3 text-sm font-medium text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredCustomers.map((customer) => (
-                      <tr key={customer.id} className="border-b border-border hover:bg-muted/30">
-                        <td className="p-3">
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full overflow-hidden bg-muted flex-shrink-0">
-                              <img 
-                                src={customer.avatar} 
-                                alt={customer.name} 
-                                className="h-full w-full object-cover"
-                              />
-                            </div>
-                            <div>
-                              <p className="font-medium">{customer.name}</p>
-                              <p className="text-xs text-muted-foreground">ID: {customer.id}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="space-y-1">
-                            <div className="flex items-center text-sm">
-                              <Mail className="h-3 w-3 mr-2 text-muted-foreground" />
-                              {customer.email}
-                            </div>
-                            <div className="flex items-center text-sm">
-                              <Phone className="h-3 w-3 mr-2 text-muted-foreground" />
-                              {customer.phone}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-3 text-sm">{customer.location}</td>
-                        <td className="p-3 text-sm">{customer.totalOrders}</td>
-                        <td className="p-3 text-sm font-medium">₱{customer.totalSpent.toFixed(2)}</td>
-                        <td className="p-3 text-sm">{customer.lastOrderDate}</td>
-                        <td className="p-3 text-sm">
-                          <Badge 
-                            variant="outline" 
-                            className={customer.status === 'active' ? 
-                              'bg-green-100 text-green-800 border-green-200' : 
-                              'bg-gray-100 text-gray-800 border-gray-200'}
-                          >
-                            {customer.status === 'active' ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </td>
-                        <td className="p-3 text-right">
-                          <div className="flex justify-end">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => openMessageDialog(customer)}>
-                                  <Mail className="h-4 w-4 mr-2" />
-                                  Send Message
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <User className="h-4 w-4 mr-2" />
-                                  View Profile
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <ShoppingBag className="h-4 w-4 mr-2" />
-                                  View Orders
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <FileText className="h-4 w-4 mr-2" />
-                                  View Notes
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Tag className="h-4 w-4 mr-2" />
-                                  Add Tag
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredCustomers.length === 0 && (
-                      <tr>
-                        <td colSpan={8} className="p-6 text-center text-muted-foreground">
-                          No customers found. Try adjusting your search filters.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="communications" className="space-y-6 pt-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Message Templates</h3>
-                  <div className="space-y-4">
-                    {messageTemplates.map((template) => (
-                      <Card key={template.id} className="p-4 cursor-pointer hover:bg-muted/30">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-medium">{template.name}</h4>
-                            <p className="text-sm text-muted-foreground">{template.subject}</p>
-                          </div>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              setMessageSubject(template.subject);
-                              setMessageContent(template.content);
-                              setSelectedTemplate(template.id);
-                            }}
-                          >
-                            Use Template
-                          </Button>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">New Message</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium mb-1 block">To</label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select customer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {customers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-1 block">Subject</label>
-                      <Input 
-                        value={messageSubject} 
-                        onChange={(e) => setMessageSubject(e.target.value)}
-                        placeholder="Message subject"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-1 block">Message</label>
-                      <Textarea 
-                        value={messageContent} 
-                        onChange={(e) => setMessageContent(e.target.value)}
-                        placeholder="Type your message here..."
-                        rows={8}
-                      />
-                    </div>
-                    <div className="flex justify-end">
-                      <Button>
-                        <Send className="h-4 w-4 mr-2" />
-                        Send Message
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      <Dialog open={isMessageDialogOpen} onOpenChange={setIsMessageDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Send Message to {selectedCustomer?.name}</DialogTitle>
-            <DialogDescription>
-              Compose your message or use a template.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Use Template</label>
-              <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a template" />
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div className="relative w-full sm:w-auto">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search customers..."
+                value={searchTerm}
+                onChange={handleSearch}
+                className="pl-10 w-full sm:w-[300px]"
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[140px]">
+                  <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None (Custom Message)</SelectItem>
-                  {messageTemplates.map((template) => (
-                    <SelectItem key={template.id} value={template.id}>
-                      {template.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Subject</label>
-              <Input 
-                value={messageSubject} 
-                onChange={(e) => setMessageSubject(e.target.value)}
-                placeholder="Enter message subject"
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Message</label>
-              <Textarea 
-                value={messageContent} 
-                onChange={(e) => setMessageContent(e.target.value)}
-                placeholder="Type your message here..."
-                rows={10}
-              />
+              
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-full sm:w-[140px]">
+                  <SelectValue placeholder="Sort By" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">Recent Purchase</SelectItem>
+                  <SelectItem value="name">Name</SelectItem>
+                  <SelectItem value="orders">Total Orders</SelectItem>
+                  <SelectItem value="spent">Total Spent</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Button className="w-full sm:w-auto">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Add Customer
+              </Button>
             </div>
           </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsMessageDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={sendMessage}>
-              <Send className="h-4 w-4 mr-2" />
-              Send Message
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : sortedCustomers.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-3 text-sm font-medium">Customer</th>
+                    <th className="text-left p-3 text-sm font-medium">Status</th>
+                    <th className="text-left p-3 text-sm font-medium">Tags</th>
+                    <th className="text-center p-3 text-sm font-medium">Orders</th>
+                    <th className="text-center p-3 text-sm font-medium">Total Spent</th>
+                    <th className="text-left p-3 text-sm font-medium">Last Purchase</th>
+                    <th className="text-right p-3 text-sm font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedCustomers.map((customer) => (
+                    <tr key={customer.id} className="border-b hover:bg-muted/30">
+                      <td className="p-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9">
+                            <AvatarImage src={customer.avatar_url} />
+                            <AvatarFallback>{getInitials(customer.full_name)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{customer.full_name}</p>
+                            <p className="text-xs text-muted-foreground">{customer.email || 'No email'}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        {customer.status === 'active' ? (
+                          <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
+                        ) : (
+                          <Badge className="bg-gray-100 text-gray-800 border-gray-200">Inactive</Badge>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex flex-wrap gap-1">
+                          {customer.tags && customer.tags.length > 0 ? (
+                            customer.tags.map((tag, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No tags</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                          <span>{customer.total_orders}</span>
+                        </div>
+                      </td>
+                      <td className="p-3 text-center font-medium">₱{customer.total_spent.toFixed(2)}</td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{formatLastPurchaseDate(customer.last_purchase_date)}</span>
+                        </div>
+                      </td>
+                      <td className="p-3 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Mail className="h-4 w-4 mr-2" />
+                              Send Email
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <MessagesSquare className="h-4 w-4 mr-2" />
+                              Message
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Tag className="h-4 w-4 mr-2" />
+                              Add Tags
+                            </DropdownMenuItem>
+                            {customer.status === 'active' ? (
+                              <DropdownMenuItem onClick={() => updateCustomerStatus(customer.id, 'inactive')}>
+                                <UserX className="h-4 w-4 mr-2" />
+                                Mark Inactive
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => updateCustomerStatus(customer.id, 'active')}>
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Mark Active
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">No customers found</h3>
+              <p className="text-muted-foreground">
+                {searchTerm || statusFilter !== 'all'
+                  ? 'Try adjusting your search filters.'
+                  : "You don't have any customers yet."}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

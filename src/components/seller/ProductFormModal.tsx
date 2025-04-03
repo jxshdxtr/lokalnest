@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Dialog, 
@@ -71,11 +70,36 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         shipping_note: product.shipping_note || '',
         tags: product.tags || []
       });
+
+      // If editing an existing product, fetch all its images
+      if (product.id) {
+        fetchProductImages(product.id);
+      }
     }
     
     // Fetch categories from Supabase
     fetchCategories();
   }, [product]);
+
+  const fetchProductImages = async (productId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('product_images')
+        .select('url')
+        .eq('product_id', productId)
+        .order('is_primary', { ascending: false });
+        
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        const imageUrls = data.map(img => img.url);
+        setFormData(prev => ({ ...prev, images: imageUrls }));
+      }
+    } catch (error) {
+      console.error('Error fetching product images:', error);
+      toast.error('Failed to load product images');
+    }
+  };
   
   const fetchCategories = async () => {
     try {
@@ -89,19 +113,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setCategories(data || []);
     } catch (error) {
       console.error('Error fetching categories:', error);
-      // Use default categories as fallback
-      setCategories([
-        { id: '1', name: "Textiles & Clothing" },
-        { id: '2', name: "Wooden Crafts" },
-        { id: '3', name: "Pottery & Ceramics" },
-        { id: '4', name: "Jewelry & Accessories" },
-        { id: '5', name: "Home Decor" },
-        { id: '6', name: "Food & Beverages" },
-        { id: '7', name: "Art & Paintings" },
-        { id: '8', name: "Soaps & Cosmetics" },
-        { id: '9', name: "Basket Weaving" },
-        { id: '10', name: "Other Crafts" }
-      ]);
+      toast.error('Failed to load categories');
     }
   };
 
@@ -176,6 +188,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       return publicUrl;
     } catch (error) {
       console.error('Error uploading image:', error);
+      toast.error('Failed to upload image');
       return null;
     }
   };
@@ -285,7 +298,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         return;
       }
       
-      if (product) {
+      if (product && product.id) {
         // Update existing product
         const { error } = await supabase
           .from('products')
@@ -303,8 +316,31 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
           
         if (error) throw error;
         
-        // Update product images
-        // In a real app, you would handle this more thoroughly
+        // Handle product images update
+        // First delete existing images
+        if (productData.images.length > 0) {
+          // Keep track of existing images that should remain
+          const existingImageUrls = product.images || [];
+          const newImageUrls = productData.images.filter(url => !existingImageUrls.includes(url));
+          
+          // Add new images
+          if (newImageUrls.length > 0) {
+            const imagesToInsert = newImageUrls.map((url, index) => ({
+              product_id: product.id,
+              url,
+              is_primary: index === 0 && existingImageUrls.length === 0, // First new image is primary if no existing images
+              alt_text: `${productData.name} image ${index + 1}`
+            }));
+            
+            const { error: imageError } = await supabase
+              .from('product_images')
+              .insert(imagesToInsert);
+              
+            if (imageError) {
+              console.error('Error adding product images:', imageError);
+            }
+          }
+        }
         
         toast.success('Product updated successfully');
       } else {
