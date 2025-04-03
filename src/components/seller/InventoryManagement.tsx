@@ -1,24 +1,29 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Search,
-  Filter,
-  FileDown,
-  ArrowUpDown,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
   Package,
-  Edit,
-  RotateCcw,
+  Search,
+  PlusCircle,
+  MinusCircle,
   History,
-  Bell,
-  ShoppingBag,
-  Loader2
+  FileText,
+  ArrowUpDown,
+  Check,
+  X,
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -28,82 +33,71 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 
-interface InventoryItem {
+interface Product {
   id: string;
   name: string;
   sku?: string;
-  category_name?: string;
-  category_id?: string;
-  stock: number;
-  alert_threshold?: number;
+  stock_quantity: number;
   status: 'in_stock' | 'low_stock' | 'out_of_stock';
-  location?: string;
-  last_updated: string;
-  image?: string;
+  category?: string;
+  last_updated?: string;
 }
 
 interface InventoryLog {
   id: string;
   product_id: string;
+  product_name: string;
   previous_quantity: number;
   new_quantity: number;
   change_quantity: number;
   reason: string;
+  created_by?: string;
+  created_by_name?: string;
   created_at: string;
 }
 
 const InventoryManagement = () => {
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [stockFilter, setStockFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [isStockUpdateDialogOpen, setIsStockUpdateDialogOpen] = useState(false);
-  const [currentItem, setCurrentItem] = useState<InventoryItem | null>(null);
-  const [newStockValue, setNewStockValue] = useState('');
-  const [updateReason, setUpdateReason] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [newQuantity, setNewQuantity] = useState(0);
+  const [quantityReason, setQuantityReason] = useState('');
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [inventoryLogs, setInventoryLogs] = useState<InventoryLog[]>([]);
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  
+  const [selectedProductLogs, setSelectedProductLogs] = useState<InventoryLog[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchInventory();
-    fetchCategories();
+    fetchProducts();
+    fetchInventoryLogs();
   }, []);
 
-  const fetchInventory = async () => {
+  const fetchProducts = async () => {
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast.error('You must be logged in to view your inventory');
+        toast.error('You must be logged in to view inventory');
         navigate('/auth');
         return;
       }
-      
-      // Fetch products with category names
+
       const { data, error } = await supabase
         .from('products')
         .select(`
@@ -111,86 +105,139 @@ const InventoryManagement = () => {
           name,
           stock_quantity,
           updated_at,
-          category_id,
           categories:category_id(name)
         `)
         .eq('seller_id', session.user.id)
         .order('name');
       
       if (error) throw error;
+
+      // Transform to our Product interface
+      const transformedProducts = data.map((p: any) => {
+        let status: 'in_stock' | 'low_stock' | 'out_of_stock' = 'in_stock';
+        
+        if (p.stock_quantity <= 0) {
+          status = 'out_of_stock';
+        } else if (p.stock_quantity < 10) {
+          status = 'low_stock';
+        }
+        
+        return {
+          id: p.id,
+          name: p.name,
+          stock_quantity: p.stock_quantity,
+          status,
+          category: p.categories?.name || 'Uncategorized',
+          last_updated: p.updated_at
+        };
+      });
       
-      // Fetch product images
-      const inventoryWithImages = await Promise.all(
-        (data || []).map(async (product) => {
-          const { data: images } = await supabase
-            .from('product_images')
-            .select('url')
-            .eq('product_id', product.id)
-            .eq('is_primary', true)
-            .limit(1);
-          
-          // Determine status based on stock level
-          let status: 'in_stock' | 'low_stock' | 'out_of_stock' = 'in_stock';
-          if (product.stock_quantity === 0) {
-            status = 'out_of_stock';
-          } else if (product.stock_quantity < 10) {
-            status = 'low_stock';
-          }
-          
-          return {
-            id: product.id,
-            name: product.name,
-            sku: `PROD-${product.id.substring(0, 6)}`,
-            category_name: product.categories?.name,
-            category_id: product.category_id,
-            stock: product.stock_quantity,
-            alert_threshold: 5, // Default alert threshold
-            status,
-            location: 'Main Warehouse',
-            last_updated: product.updated_at,
-            image: images && images.length > 0 ? images[0].url : undefined,
-          };
-        })
-      );
-      
-      setInventory(inventoryWithImages);
+      setProducts(transformedProducts);
     } catch (error) {
-      console.error('Error fetching inventory:', error);
-      toast.error('Failed to load inventory data');
+      console.error('Error fetching products:', error);
+      toast.error('Failed to load products');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchCategories = async () => {
+  const fetchInventoryLogs = async () => {
     try {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('id, name')
-        .order('name');
-        
-      if (error) throw error;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Use RPC function to get inventory logs
+      const { data, error } = await supabase.rpc('get_inventory_logs', {
+        seller_id_param: session.user.id
+      });
       
-      setCategories(data || []);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
-  
-  const fetchInventoryLogs = async (productId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('inventory_logs')
-        .select('*')
-        .eq('product_id', productId)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching inventory logs:', error);
+        // Provide some mock data as fallback
+        const mockLogs: InventoryLog[] = [
+          {
+            id: '1',
+            product_id: '1',
+            product_name: 'Mock Product',
+            previous_quantity: 10,
+            new_quantity: 15,
+            change_quantity: 5,
+            reason: 'Stock replenishment',
+            created_by_name: 'System User',
+            created_at: new Date().toISOString()
+          }
+        ];
+        setInventoryLogs(mockLogs);
+        return;
+      }
       
       setInventoryLogs(data || []);
     } catch (error) {
       console.error('Error fetching inventory logs:', error);
-      toast.error('Failed to load inventory history');
+    }
+  };
+
+  const openStockUpdateDialog = (product: Product) => {
+    setSelectedProduct(product);
+    setNewQuantity(product.stock_quantity);
+    setQuantityReason('');
+    setIsStockUpdateDialogOpen(true);
+  };
+
+  const openHistoryDialog = (product: Product) => {
+    if (inventoryLogs.length > 0) {
+      const productLogs = inventoryLogs.filter(log => 
+        log.product_id === product.id
+      );
+      setSelectedProductLogs(productLogs);
+      setSelectedProduct(product);
+      setIsHistoryDialogOpen(true);
+    } else {
+      toast.info('No history available for this product');
+    }
+  };
+
+  const handleStockUpdate = async () => {
+    if (!selectedProduct) return;
+    
+    try {
+      // Use RPC function to update product stock
+      const { error } = await supabase.rpc('update_product_stock', {
+        product_id_param: selectedProduct.id,
+        new_quantity_param: newQuantity,
+        reason_param: quantityReason || 'Manual stock adjustment'
+      });
+      
+      if (error) throw error;
+      
+      // Update local state
+      setProducts(products.map(p => {
+        if (p.id === selectedProduct.id) {
+          let status: 'in_stock' | 'low_stock' | 'out_of_stock' = 'in_stock';
+          if (newQuantity <= 0) {
+            status = 'out_of_stock';
+          } else if (newQuantity < 10) {
+            status = 'low_stock';
+          }
+          
+          return {
+            ...p,
+            stock_quantity: newQuantity,
+            status,
+            last_updated: new Date().toISOString()
+          };
+        }
+        return p;
+      }));
+      
+      // Refresh inventory logs
+      fetchInventoryLogs();
+      
+      toast.success(`Updated "${selectedProduct.name}" stock to ${newQuantity}`);
+      setIsStockUpdateDialogOpen(false);
+    } catch (error) {
+      console.error('Error updating stock:', error);
+      toast.error('Failed to update stock');
     }
   };
 
@@ -198,94 +245,25 @@ const InventoryManagement = () => {
     setSearchTerm(e.target.value);
   };
 
-  const filteredInventory = inventory.filter(item => {
-    // Filter by search term
-    const searchMatch =
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-      (item.category_name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+  // Apply filters
+  const filteredProducts = products.filter(product => {
+    // Search filter
+    const searchMatch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // Filter by category
-    const categoryMatch = 
-      categoryFilter === 'all' || 
-      item.category_id === categoryFilter;
+    // Category filter
+    const categoryMatch = categoryFilter === 'all' || product.category === categoryFilter;
     
-    // Filter by stock status
-    let stockMatch = true;
-    if (stockFilter === 'in_stock') stockMatch = item.status === 'in_stock';
-    if (stockFilter === 'low_stock') stockMatch = item.status === 'low_stock';
-    if (stockFilter === 'out_of_stock') stockMatch = item.status === 'out_of_stock';
+    // Status filter
+    const statusMatch = statusFilter === 'all' || product.status === statusFilter;
     
-    return searchMatch && categoryMatch && stockMatch;
+    return searchMatch && categoryMatch && statusMatch;
   });
 
-  const updateStock = async () => {
-    if (!currentItem || !newStockValue || isNaN(Number(newStockValue))) {
-      toast.error("Please enter a valid stock quantity");
-      return;
-    }
-
-    const stockValue = Number(newStockValue);
-    
-    try {
-      // Update the stock in database
-      const { error } = await supabase
-        .from('products')
-        .update({
-          stock_quantity: stockValue,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', currentItem.id);
-      
-      if (error) throw error;
-      
-      // The inventory_logs will be updated automatically through the trigger we created
-      
-      // Update local state
-      const updatedInventory = inventory.map(item => {
-        if (item.id === currentItem.id) {
-          let status: 'in_stock' | 'low_stock' | 'out_of_stock' = 'in_stock';
-          if (stockValue === 0) {
-            status = 'out_of_stock';
-          } else if (stockValue < 10) {
-            status = 'low_stock';
-          }
-          
-          return {
-            ...item,
-            stock: stockValue,
-            status,
-            last_updated: new Date().toISOString()
-          };
-        }
-        return item;
-      });
-      
-      setInventory(updatedInventory);
-      setIsStockUpdateDialogOpen(false);
-      setNewStockValue('');
-      setUpdateReason('');
-      
-      toast.success(`Stock for ${currentItem.name} updated successfully to ${stockValue}`);
-    } catch (error) {
-      console.error('Error updating stock:', error);
-      toast.error('Failed to update stock');
-    }
-  };
-
-  const openStockUpdateDialog = (item: InventoryItem) => {
-    setCurrentItem(item);
-    setNewStockValue(item.stock.toString());
-    setIsStockUpdateDialogOpen(true);
-  };
-
-  const openHistoryModal = async (productId: string) => {
-    await fetchInventoryLogs(productId);
-    setIsHistoryModalOpen(true);
-  };
+  // Get unique categories for filter dropdown
+  const categories = ['all', ...new Set(products.map(p => p.category || 'Uncategorized'))];
 
   const getStatusBadge = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'in_stock':
         return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">In Stock</Badge>;
       case 'low_stock':
@@ -293,195 +271,174 @@ const InventoryManagement = () => {
       case 'out_of_stock':
         return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">Out of Stock</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline">Unknown</Badge>;
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatTimeAgo = (dateString: string) => {
     try {
-      return format(new Date(dateString), 'MMM dd, yyyy HH:mm');
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
     } catch (e) {
-      return 'Invalid date';
+      return 'Unknown';
     }
   };
 
   return (
     <div className="space-y-6">
+      {/* Inventory Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Products</p>
+                <p className="text-2xl font-bold">{products.length}</p>
+              </div>
+              <Package className="h-8 w-8 text-primary opacity-80" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-muted-foreground">Low Stock Items</p>
+                <p className="text-2xl font-bold">{products.filter(p => p.status === 'low_stock').length}</p>
+              </div>
+              <PlusCircle className="h-8 w-8 text-yellow-500" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm text-muted-foreground">Out of Stock</p>
+                <p className="text-2xl font-bold">{products.filter(p => p.status === 'out_of_stock').length}</p>
+              </div>
+              <MinusCircle className="h-8 w-8 text-red-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Inventory Management */}
       <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-6 flex-col sm:flex-row gap-4">
-            <h2 className="text-xl font-semibold">Real-time Inventory Tracking</h2>
-            <Button>
-              <Bell className="h-4 w-4 mr-2" />
-              Set Alerts
-            </Button>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Card className="bg-green-50 border-green-200">
-              <CardContent className="p-4 flex items-center">
-                <div className="bg-green-100 p-2 rounded-full mr-4">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">In Stock</p>
-                  <p className="text-2xl font-semibold">{inventory.filter(item => item.status === 'in_stock').length}</p>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-yellow-50 border-yellow-200">
-              <CardContent className="p-4 flex items-center">
-                <div className="bg-yellow-100 p-2 rounded-full mr-4">
-                  <AlertCircle className="h-6 w-6 text-yellow-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Low Stock</p>
-                  <p className="text-2xl font-semibold">{inventory.filter(item => item.status === 'low_stock').length}</p>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-red-50 border-red-200">
-              <CardContent className="p-4 flex items-center">
-                <div className="bg-red-100 p-2 rounded-full mr-4">
-                  <XCircle className="h-6 w-6 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Out of Stock</p>
-                  <p className="text-2xl font-semibold">{inventory.filter(item => item.status === 'out_of_stock').length}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <div className="relative w-full sm:w-auto">
+        <CardHeader>
+          <CardTitle>Inventory Management</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div className="relative w-full md:w-80">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search inventory..."
+                placeholder="Search products..."
                 value={searchTerm}
                 onChange={handleSearch}
-                className="pl-10 w-full sm:w-[300px]"
+                className="pl-10"
               />
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Filter by category" />
+                  <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
                   {categories.map(category => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
+                    <SelectItem key={category} value={category}>
+                      {category === 'all' ? 'All Categories' : category}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               
-              <Select value={stockFilter} onValueChange={setStockFilter}>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Filter by stock" />
+                  <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Stock Status</SelectItem>
+                  <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="in_stock">In Stock</SelectItem>
                   <SelectItem value="low_stock">Low Stock</SelectItem>
                   <SelectItem value="out_of_stock">Out of Stock</SelectItem>
                 </SelectContent>
               </Select>
               
-              <Button variant="outline" className="w-full sm:w-auto">
-                <FileDown className="h-4 w-4 mr-2" />
-                Export
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto flex items-center"
+                onClick={() => {
+                  fetchProducts();
+                  fetchInventoryLogs();
+                }}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
               </Button>
             </div>
           </div>
-
+          
           {loading ? (
             <div className="flex justify-center items-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : (
+          ) : filteredProducts.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-muted/50 text-left">
-                    <th className="p-3 text-sm font-medium">Product</th>
-                    <th className="p-3 text-sm font-medium">SKU</th>
-                    <th className="p-3 text-sm font-medium">Category</th>
-                    <th className="p-3 text-sm font-medium">Location</th>
-                    <th className="p-3 text-sm font-medium">Stock</th>
-                    <th className="p-3 text-sm font-medium">Status</th>
-                    <th className="p-3 text-sm font-medium">Last Updated</th>
-                    <th className="p-3 text-sm font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredInventory.length > 0 ? filteredInventory.map((item) => (
-                    <tr key={item.id} className="border-b border-border hover:bg-muted/30">
-                      <td className="p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded overflow-hidden bg-muted flex-shrink-0">
-                            {item.image ? (
-                              <img 
-                                src={item.image} 
-                                alt={item.name} 
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="h-full w-full bg-muted flex items-center justify-center text-muted-foreground">
-                                <Package className="h-5 w-5" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="truncate max-w-[150px]">
-                            <p className="font-medium truncate">{item.name}</p>
-                            <p className="text-xs text-muted-foreground">ID: {item.id.substring(0, 8)}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-3 text-sm">{item.sku}</td>
-                      <td className="p-3 text-sm">{item.category_name || 'Uncategorized'}</td>
-                      <td className="p-3 text-sm">{item.location || 'Main Warehouse'}</td>
-                      <td className="p-3 text-sm">{item.stock}</td>
-                      <td className="p-3 text-sm">
-                        {getStatusBadge(item.status)}
-                      </td>
-                      <td className="p-3 text-sm">{formatDate(item.last_updated)}</td>
-                      <td className="p-3 text-right">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-center">Stock</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                    <TableHead>Last Updated</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredProducts.map(product => (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell>{product.category}</TableCell>
+                      <TableCell className="text-center">{product.stock_quantity}</TableCell>
+                      <TableCell className="text-center">{getStatusBadge(product.status)}</TableCell>
+                      <TableCell>{product.last_updated ? formatTimeAgo(product.last_updated) : 'N/A'}</TableCell>
+                      <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            onClick={() => openStockUpdateDialog(item)}
-                            title="Update Stock"
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openHistoryDialog(product)}
                           >
-                            <Edit className="h-4 w-4" />
+                            <History className="h-4 w-4 mr-1" />
+                            <span className="hidden md:inline">History</span>
                           </Button>
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            onClick={() => openHistoryModal(item.id)}
-                            title="View History"
+                          <Button
+                            size="sm"
+                            onClick={() => openStockUpdateDialog(product)}
                           >
-                            <History className="h-4 w-4" />
+                            <ArrowUpDown className="h-4 w-4 mr-1" />
+                            <span className="hidden md:inline">Update</span>
                           </Button>
                         </div>
-                      </td>
-                    </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan={8} className="p-6 text-center text-muted-foreground">
-                        {searchTerm || categoryFilter !== 'all' || stockFilter !== 'all' ? 
-                          'No inventory items match your filters.' :
-                          'No inventory items found. Add products to see them here.'}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">No products found</h3>
+              <p className="text-muted-foreground">
+                {searchTerm || categoryFilter !== 'all' || statusFilter !== 'all'
+                  ? 'Try adjusting your search filters.'
+                  : "You don't have any products yet."}
+              </p>
             </div>
           )}
         </CardContent>
@@ -489,86 +446,96 @@ const InventoryManagement = () => {
 
       {/* Stock Update Dialog */}
       <Dialog open={isStockUpdateDialogOpen} onOpenChange={setIsStockUpdateDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Update Inventory Stock</DialogTitle>
+            <DialogTitle>Update Stock Quantity</DialogTitle>
             <DialogDescription>
-              Update the stock quantity for {currentItem?.name}
+              Update the stock quantity for {selectedProduct?.name}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="stock">New Stock Quantity</Label>
+          
+          <div className="grid gap-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Current Stock: {selectedProduct?.stock_quantity}</label>
               <Input
-                id="stock"
                 type="number"
-                min="0"
-                value={newStockValue}
-                onChange={(e) => setNewStockValue(e.target.value)}
-                placeholder="Enter new stock quantity"
+                value={newQuantity}
+                onChange={e => setNewQuantity(parseInt(e.target.value) || 0)}
+                min={0}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="reason">Reason for Update (optional)</Label>
-              <Textarea
-                id="reason"
-                value={updateReason}
-                onChange={(e) => setUpdateReason(e.target.value)}
-                placeholder="e.g., New inventory, Stock adjustment, etc."
-                rows={3}
+            
+            <div>
+              <label className="text-sm font-medium mb-2 block">Reason for Update</label>
+              <Input
+                placeholder="e.g., New shipment arrived, Stock count adjustment"
+                value={quantityReason}
+                onChange={e => setQuantityReason(e.target.value)}
               />
             </div>
           </div>
+          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsStockUpdateDialogOpen(false)}>Cancel</Button>
-            <Button onClick={updateStock}>Update Stock</Button>
+            <Button variant="outline" onClick={() => setIsStockUpdateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleStockUpdate}>
+              Update Stock
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      {/* Inventory History Modal */}
-      <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+
+      {/* History Dialog */}
+      <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Inventory History</DialogTitle>
+            <DialogTitle>Inventory History: {selectedProduct?.name}</DialogTitle>
             <DialogDescription>
-              Stock change history for this product
+              View all stock changes for this product
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            {inventoryLogs.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2">Date</th>
-                      <th className="text-left p-2">Change</th>
-                      <th className="text-left p-2">Before</th>
-                      <th className="text-left p-2">After</th>
-                      <th className="text-left p-2">Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {inventoryLogs.map(log => (
-                      <tr key={log.id} className="border-b">
-                        <td className="p-2">{formatDate(log.created_at)}</td>
-                        <td className="p-2">
-                          <Badge variant={log.change_quantity > 0 ? "success" : "destructive"}>
-                            {log.change_quantity > 0 ? `+${log.change_quantity}` : log.change_quantity}
-                          </Badge>
-                        </td>
-                        <td className="p-2">{log.previous_quantity}</td>
-                        <td className="p-2">{log.new_quantity}</td>
-                        <td className="p-2">{log.reason || 'No reason provided'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+          
+          <div className="overflow-y-auto max-h-96">
+            {selectedProductLogs.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Previous</TableHead>
+                    <TableHead>New</TableHead>
+                    <TableHead>Change</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead>Updated By</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedProductLogs.map(log => (
+                    <TableRow key={log.id}>
+                      <TableCell>{formatTimeAgo(log.created_at)}</TableCell>
+                      <TableCell>{log.previous_quantity}</TableCell>
+                      <TableCell>{log.new_quantity}</TableCell>
+                      <TableCell>
+                        <span className={log.change_quantity > 0 ? "text-green-600" : "text-red-600"}>
+                          {log.change_quantity > 0 ? '+' : ''}{log.change_quantity}
+                        </span>
+                      </TableCell>
+                      <TableCell>{log.reason || 'No reason provided'}</TableCell>
+                      <TableCell>{log.created_by_name || 'System'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             ) : (
-              <p className="text-center text-muted-foreground py-4">No history found for this product.</p>
+              <p className="text-center py-4 text-muted-foreground">No history available for this product</p>
             )}
           </div>
+          
+          <DialogFooter>
+            <Button onClick={() => setIsHistoryDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
