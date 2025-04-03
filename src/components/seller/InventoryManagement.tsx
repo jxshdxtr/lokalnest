@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Package,
@@ -66,6 +65,22 @@ interface InventoryLog {
   created_by?: string;
   created_by_name?: string;
   created_at: string;
+}
+
+// Define type for RPC functions
+type RPCFunctions = {
+  get_inventory_logs: (params: { seller_id_param: string }) => Promise<{ data: InventoryLog[] | null, error: any }>;
+  update_product_stock: (params: { product_id_param: string, new_quantity_param: number, reason_param: string }) => Promise<{ data: any, error: any }>;
+}
+
+// Add type definition to supabase
+declare module '@/integrations/supabase/client' {
+  interface SupabaseClient {
+    rpc<T extends keyof RPCFunctions>(
+      fn: T,
+      ...args: Parameters<RPCFunctions[T]>
+    ): ReturnType<RPCFunctions[T]>
+  }
 }
 
 const InventoryManagement = () => {

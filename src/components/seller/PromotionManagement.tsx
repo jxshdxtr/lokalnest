@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
@@ -46,6 +45,50 @@ interface Promotion {
   applies_to: string;
   is_active: boolean;
   created_at?: string;
+}
+
+// Define type for RPC functions
+type PromotionRPCFunctions = {
+  get_seller_promotions: (params: { seller_id_param: string }) => Promise<{ data: Promotion[] | null, error: any }>;
+  delete_promotion: (params: { promotion_id_param: string }) => Promise<{ data: any, error: any }>;
+  update_promotion_status: (params: { promotion_id_param: string, is_active_param: boolean }) => Promise<{ data: any, error: any }>;
+  update_promotion: (params: { 
+    promotion_id_param: string,
+    title_param: string,
+    description_param?: string,
+    discount_value_param: number,
+    discount_type_param: 'percentage' | 'fixed',
+    start_date_param: string,
+    end_date_param: string,
+    is_active_param: boolean,
+    coupon_code_param: string,
+    minimum_purchase_param?: number,
+    usage_limit_param?: number,
+    applies_to_param: string
+  }) => Promise<{ data: any, error: any }>;
+  create_promotion: (params: {
+    seller_id_param: string,
+    title_param: string,
+    description_param?: string,
+    discount_value_param: number,
+    discount_type_param: 'percentage' | 'fixed',
+    start_date_param: string,
+    end_date_param: string,
+    coupon_code_param: string,
+    minimum_purchase_param?: number,
+    usage_limit_param?: number,
+    applies_to_param: string
+  }) => Promise<{ data: any, error: any }>;
+}
+
+// Add type definition to supabase
+declare module '@/integrations/supabase/client' {
+  interface SupabaseClient {
+    rpc<T extends keyof PromotionRPCFunctions>(
+      fn: T,
+      ...args: Parameters<PromotionRPCFunctions[T]>
+    ): ReturnType<PromotionRPCFunctions[T]>
+  }
 }
 
 const PromotionManagement = () => {

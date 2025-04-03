@@ -1,9 +1,24 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Customer } from './types';
+
+// Define type for RPC functions
+type CustomerRPCFunctions = {
+  get_seller_customers: (params: { seller_id_param: string }) => Promise<{ data: any[] | null, error: any }>;
+  update_customer_status: (params: { customer_id_param: string, seller_id_param: string, status_param: string }) => Promise<{ data: any, error: any }>;
+}
+
+// Add type definition to supabase
+declare module '@/integrations/supabase/client' {
+  interface SupabaseClient {
+    rpc<T extends keyof CustomerRPCFunctions>(
+      fn: T,
+      ...args: Parameters<CustomerRPCFunctions[T]>
+    ): ReturnType<CustomerRPCFunctions[T]>
+  }
+}
 
 export const useCustomers = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -35,8 +50,8 @@ export const useCustomers = () => {
         return;
       }
       
-      // Transform the data
-      const customerData: Customer[] = data?.map((customer: any) => ({
+      // Transform the data - Fix null check
+      const customerData: Customer[] = (data || []).map((customer: any) => ({
         id: customer.profile_id || '',
         full_name: customer.full_name || 'Anonymous Customer',
         email: customer.email,
@@ -46,7 +61,7 @@ export const useCustomers = () => {
         last_purchase_date: customer.last_purchase_date || '',
         status: customer.status || 'active',
         tags: customer.tags || []
-      })) || [];
+      }));
       
       setCustomers(customerData);
     } catch (error) {
