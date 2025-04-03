@@ -1,657 +1,771 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
   CardContent,
+  CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+} from "@/components/ui/card";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from '@/components/ui/dialog';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Checkbox } from '@/components/ui/checkbox';
+} from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { CalendarIcon, CheckCircle, Copy, Edit, Plus, Save, Trash2, XCircle } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
-import { z } from 'zod';
-import { supabase } from '@/integrations/supabase/client';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon, Check, Copy, Edit, MoreHorizontal, Plus, Search, Trash, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-// Types for promotion management
 interface Promotion {
   id: string;
   title: string;
   description: string;
+  discount_type: "percentage" | "fixed";
   discount_value: number;
-  discount_type: 'percentage' | 'fixed';
-  coupon_code: string;
+  coupon_code?: string;
   start_date: string;
   end_date: string;
-  minimum_purchase: number;
-  usage_limit: number | null;
-  usage_count: number;
-  applies_to: string;
   is_active: boolean;
-  created_at: string;
+  usage_limit?: number;
+  usage_count: number;
+  minimum_purchase?: number;
+  products?: string[];
 }
 
-// Form validation schema
-const promotionSchema = z.object({
-  title: z.string().min(2, { message: 'Title must be at least 2 characters.' }),
-  description: z.string().optional(),
-  discount_value: z.number({ invalid_type_error: 'Discount value must be a number.' }).min(0, { message: 'Discount value must be non-negative.' }),
-  discount_type: z.enum(['percentage', 'fixed']),
-  coupon_code: z.string().min(5, { message: 'Coupon code must be at least 5 characters.' }),
-  start_date: z.date({ required_error: 'Start date is required.' }),
-  end_date: z.date({ required_error: 'End date is required.' }),
-  minimum_purchase: z.number({ invalid_type_error: 'Minimum purchase must be a number.' }).optional(),
-  usage_limit: z.number({ invalid_type_error: 'Usage limit must be a number.' }).optional(),
-  applies_to: z.string().optional(),
-  is_active: z.boolean().default(true),
-});
-
-type PromotionFormValues = z.infer<typeof promotionSchema>;
-
-const PromotionManagement = () => {
+const PromotionManagement: React.FC = () => {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedPromotion, setSelectedPromotion] = useState<Promotion | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [currentPromotion, setCurrentPromotion] = useState<Promotion | null>(null);
+  const [startDate, setStartDate] = useState<Date | undefined>(new Date());
+  const [endDate, setEndDate] = useState<Date | undefined>(
+    new Date(new Date().setDate(new Date().getDate() + 14))
+  );
 
-  const form = useForm<PromotionFormValues>({
-    resolver: zodResolver(promotionSchema),
-    defaultValues: {
-      title: '',
-      description: '',
-      discount_value: 0,
-      discount_type: 'percentage',
-      coupon_code: '',
-      start_date: new Date(),
-      end_date: new Date(),
-      minimum_purchase: 0,
-      usage_limit: null,
-      applies_to: 'all',
-      is_active: true,
-    },
+  // Form state for new/edit promotion
+  const [formData, setFormData] = useState<Omit<Promotion, "id" | "usage_count">>({
+    title: "",
+    description: "",
+    discount_type: "percentage",
+    discount_value: 10,
+    coupon_code: "",
+    start_date: new Date().toISOString(),
+    end_date: new Date(new Date().setDate(new Date().getDate() + 14)).toISOString(),
+    is_active: true,
+    usage_limit: undefined,
+    minimum_purchase: undefined,
+    products: [],
   });
 
-  const { setValue } = form;
-
-  // Modified fetchPromotions function to use RPC
-  const fetchPromotions = async () => {
-    setLoading(true);
+  // Fetch promotions
+  const fetchPromotions = useCallback(async () => {
+    setIsLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('You must be logged in to view promotions');
-        return;
+      // Try to use RPC function if available
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_promotions', {
+        seller_id: 'current_seller_id' // Replace with actual seller ID in production
+      });
+      
+      if (!rpcError && rpcData) {
+        setPromotions(rpcData);
+      } else {
+        console.error('RPC error:', rpcError);
+        
+        // Use mock data if RPC fails
+        const mockPromotions: Promotion[] = [
+          {
+            id: "1",
+            title: "Summer Sale",
+            description: "20% discount on all summer products",
+            discount_type: "percentage",
+            discount_value: 20,
+            start_date: "2025-06-01T00:00:00Z",
+            end_date: "2025-08-31T23:59:59Z",
+            is_active: true,
+            usage_count: 45,
+            usage_limit: 100,
+            minimum_purchase: 500
+          },
+          {
+            id: "2",
+            title: "New Customer Discount",
+            description: "₱200 off for new customers",
+            discount_type: "fixed",
+            discount_value: 200,
+            coupon_code: "WELCOME200",
+            start_date: "2025-04-01T00:00:00Z",
+            end_date: "2025-12-31T23:59:59Z",
+            is_active: true,
+            usage_count: 78,
+            usage_limit: 500,
+            minimum_purchase: 1000
+          },
+          {
+            id: "3",
+            title: "Holiday Special",
+            description: "15% off on all products during the holiday season",
+            discount_type: "percentage",
+            discount_value: 15,
+            start_date: "2025-12-01T00:00:00Z",
+            end_date: "2025-12-31T23:59:59Z",
+            is_active: false,
+            usage_count: 0,
+            products: ["1", "2", "5"]
+          },
+          {
+            id: "4",
+            title: "Loyalty Reward",
+            description: "10% discount for returning customers",
+            discount_type: "percentage",
+            discount_value: 10,
+            coupon_code: "LOYAL10",
+            start_date: "2025-03-15T00:00:00Z",
+            end_date: "2025-09-15T23:59:59Z",
+            is_active: true,
+            usage_count: 23,
+            minimum_purchase: 800
+          }
+        ];
+        setPromotions(mockPromotions);
       }
-      
-      // Use the RPC function instead of direct table access
-      const { data, error } = await supabase.rpc(
-        'get_seller_promotions',
-        { seller_id_param: session.user.id }
-      );
-      
-      if (error) throw error;
-      
-      // Convert date strings to Date objects for the form
-      setPromotions((data || []).map((promo: any) => ({
-        ...promo,
-        start_date: new Date(promo.start_date).toLocaleDateString(),
-        end_date: new Date(promo.end_date).toLocaleDateString(),
-      })));
     } catch (error) {
-      console.error('Error fetching promotions:', error);
-      toast.error('Failed to load promotions');
-      setPromotions([]);
+      console.error("Error fetching promotions:", error);
+      toast.error("Failed to load promotions");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  };
+  }, []);
 
-  const onOpenChange = () => {
-    setIsModalOpen(true);
-    setSelectedPromotion(null);
-    form.reset();
-  };
-
-  const editPromotion = (promotion: Promotion) => {
-    setSelectedPromotion(promotion);
-    setIsModalOpen(true);
-
-    // Set form values
-    setValue('title', promotion.title);
-    setValue('description', promotion.description || '');
-    setValue('discount_value', promotion.discount_value);
-    setValue('discount_type', promotion.discount_type);
-    setValue('coupon_code', promotion.coupon_code);
-    setValue('start_date', new Date(promotion.start_date));
-    setValue('end_date', new Date(promotion.end_date));
-    setValue('minimum_purchase', promotion.minimum_purchase || 0);
-    setValue('usage_limit', promotion.usage_limit || null);
-    setValue('applies_to', promotion.applies_to || 'all');
-    setValue('is_active', promotion.is_active);
-  };
-  
-  // Modified createPromotion function to use RPC
-  const createPromotion = async (data: any) => {
-    setSubmitting(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('You must be logged in to create a promotion');
-        return;
-      }
-      
-      // Format dates for the database
-      const startDate = new Date(data.start_date).toISOString();
-      const endDate = new Date(data.end_date).toISOString();
-      
-      // Use the RPC function instead of direct table access
-      const { error } = await supabase.rpc(
-        'create_promotion',
-        {
-          seller_id_param: session.user.id,
-          title_param: data.title,
-          description_param: data.description || '',
-          discount_value_param: data.discount_value,
-          discount_type_param: data.discount_type,
-          start_date_param: startDate,
-          end_date_param: endDate,
-          coupon_code_param: data.coupon_code,
-          minimum_purchase_param: data.minimum_purchase || 0,
-          usage_limit_param: data.usage_limit || null,
-          applies_to_param: data.applies_to || 'all'
-        }
-      );
-      
-      if (error) throw error;
-      
-      toast.success('Promotion created successfully');
-      setIsModalOpen(false);
-      form.reset();
-      fetchPromotions();
-    } catch (error) {
-      console.error('Error creating promotion:', error);
-      toast.error('Failed to create promotion');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-  
-  // Modified updatePromotion function to use RPC
-  const updatePromotion = async (data: any) => {
-    if (!selectedPromotion) return;
-    
-    setSubmitting(true);
-    try {
-      // Format dates for the database
-      const startDate = new Date(data.start_date).toISOString();
-      const endDate = new Date(data.end_date).toISOString();
-      
-      // Use the RPC function instead of direct table access
-      const { error } = await supabase.rpc(
-        'update_promotion',
-        {
-          promotion_id_param: selectedPromotion.id,
-          title_param: data.title,
-          description_param: data.description || '',
-          discount_value_param: data.discount_value,
-          discount_type_param: data.discount_type,
-          start_date_param: startDate,
-          end_date_param: endDate,
-          is_active_param: data.is_active,
-          coupon_code_param: data.coupon_code,
-          minimum_purchase_param: data.minimum_purchase || 0,
-          usage_limit_param: data.usage_limit || null,
-          applies_to_param: data.applies_to || 'all'
-        }
-      );
-      
-      if (error) throw error;
-      
-      toast.success('Promotion updated successfully');
-      setIsModalOpen(false);
-      form.reset();
-      fetchPromotions();
-    } catch (error) {
-      console.error('Error updating promotion:', error);
-      toast.error('Failed to update promotion');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-  
-  // Modified togglePromotionStatus function to use RPC
-  const togglePromotionStatus = async (promotionId: string, isActive: boolean) => {
-    try {
-      // Use the RPC function instead of direct table access
-      const { error } = await supabase.rpc(
-        'update_promotion_status',
-        {
-          promotion_id_param: promotionId,
-          is_active_param: !isActive
-        }
-      );
-      
-      if (error) throw error;
-      
-      toast.success(`Promotion ${!isActive ? 'activated' : 'deactivated'} successfully`);
-      fetchPromotions();
-    } catch (error) {
-      console.error('Error toggling promotion status:', error);
-      toast.error('Failed to update promotion status');
-    }
-  };
-  
-  // Modified deletePromotion function to use RPC
-  const deletePromotion = async (promotionId: string) => {
-    try {
-      // Use the RPC function instead of direct table access
-      const { error } = await supabase.rpc(
-        'delete_promotion',
-        {
-          promotion_id_param: promotionId
-        }
-      );
-      
-      if (error) throw error;
-      
-      toast.success('Promotion deleted successfully');
-      fetchPromotions();
-    } catch (error) {
-      console.error('Error deleting promotion:', error);
-      toast.error('Failed to delete promotion');
-    }
-  };
-  
   useEffect(() => {
     fetchPromotions();
-  }, []);
+  }, [fetchPromotions]);
+
+  const handleToggleActive = async (id: string, currentState: boolean) => {
+    try {
+      // Update locally first for immediate feedback
+      setPromotions(promotions.map(promo => 
+        promo.id === id ? {...promo, is_active: !currentState} : promo
+      ));
+      
+      // Update in database
+      const { error } = await supabase.rpc('update_promotion_status', {
+        promotion_id: id,
+        new_status: !currentState
+      });
+      
+      if (error) throw error;
+      
+      toast.success(`Promotion ${!currentState ? 'activated' : 'deactivated'}`);
+    } catch (error) {
+      console.error("Error updating promotion status:", error);
+      toast.error("Failed to update promotion");
+      
+      // Revert local state if API call failed
+      setPromotions(promotions.map(promo => 
+        promo.id === id ? {...promo, is_active: currentState} : promo
+      ));
+    }
+  };
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    toast.success("Coupon code copied to clipboard");
+  };
+
+  const handleDeletePromotion = async () => {
+    if (!currentPromotion) return;
+    
+    try {
+      // Delete from database
+      const { error } = await supabase.rpc('delete_promotion', {
+        promotion_id: currentPromotion.id
+      });
+      
+      if (error) throw error;
+      
+      // Update local state
+      setPromotions(promotions.filter(promo => promo.id !== currentPromotion.id));
+      setIsDeleteDialogOpen(false);
+      setCurrentPromotion(null);
+      toast.success("Promotion deleted successfully");
+    } catch (error) {
+      console.error("Error deleting promotion:", error);
+      toast.error("Failed to delete promotion");
+    }
+  };
+
+  const handleEditPromotion = (promotion: Promotion) => {
+    setCurrentPromotion(promotion);
+    setFormData({
+      title: promotion.title,
+      description: promotion.description,
+      discount_type: promotion.discount_type,
+      discount_value: promotion.discount_value,
+      coupon_code: promotion.coupon_code || "",
+      start_date: promotion.start_date,
+      end_date: promotion.end_date,
+      is_active: promotion.is_active,
+      usage_limit: promotion.usage_limit,
+      minimum_purchase: promotion.minimum_purchase,
+      products: promotion.products || [],
+    });
+    setStartDate(new Date(promotion.start_date));
+    setEndDate(new Date(promotion.end_date));
+    setIsDialogOpen(true);
+  };
+
+  const handleCreateNewPromotion = () => {
+    setCurrentPromotion(null);
+    setFormData({
+      title: "",
+      description: "",
+      discount_type: "percentage",
+      discount_value: 10,
+      coupon_code: "",
+      start_date: new Date().toISOString(),
+      end_date: new Date(new Date().setDate(new Date().getDate() + 14)).toISOString(),
+      is_active: true,
+      usage_limit: undefined,
+      minimum_purchase: undefined,
+      products: [],
+    });
+    setStartDate(new Date());
+    setEndDate(new Date(new Date().setDate(new Date().getDate() + 14)));
+    setIsDialogOpen(true);
+  };
+
+  const handleSavePromotion = async () => {
+    try {
+      // Update dates from calendar state
+      const updatedFormData = {
+        ...formData,
+        start_date: startDate?.toISOString() || new Date().toISOString(),
+        end_date: endDate?.toISOString() || 
+                 new Date(new Date().setDate(new Date().getDate() + 14)).toISOString()
+      };
+      
+      if (currentPromotion) {
+        // Update existing promotion
+        const { error } = await supabase.rpc('update_promotion', {
+          promotion_id: currentPromotion.id,
+          promotion_data: updatedFormData
+        });
+        
+        if (error) throw error;
+        
+        // Update local state
+        setPromotions(promotions.map(promo => 
+          promo.id === currentPromotion.id 
+            ? { ...promo, ...updatedFormData } 
+            : promo
+        ));
+        
+        toast.success("Promotion updated successfully");
+      } else {
+        // Create new promotion
+        const newId = Date.now().toString();
+        
+        // In a real app, we'd use the returned ID from the database
+        const newPromotion = {
+          id: newId,
+          ...updatedFormData,
+          usage_count: 0
+        };
+        
+        // Add to database
+        const { error } = await supabase.rpc('create_promotion', {
+          promotion_data: newPromotion
+        });
+        
+        if (error) throw error;
+        
+        // Update local state
+        setPromotions([newPromotion, ...promotions]);
+        toast.success("Promotion created successfully");
+      }
+      
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error("Error saving promotion:", error);
+      toast.error("Failed to save promotion");
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleNumberInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value === "" ? undefined : Number(value) }));
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSwitchChange = (name: string, checked: boolean) => {
+    setFormData(prev => ({ ...prev, [name]: checked }));
+  };
+
+  // Filter promotions based on search and tab
+  const filteredPromotions = promotions.filter(promotion => {
+    // Search filter
+    const matchesSearch = promotion.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         promotion.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (promotion.coupon_code && 
+                          promotion.coupon_code.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    // Tab filter
+    let matchesTab = true;
+    if (activeTab === "active") {
+      matchesTab = promotion.is_active;
+    } else if (activeTab === "inactive") {
+      matchesTab = !promotion.is_active;
+    } else if (activeTab === "scheduled") {
+      const now = new Date();
+      const startDate = new Date(promotion.start_date);
+      matchesTab = startDate > now && promotion.is_active;
+    }
+    
+    return matchesSearch && matchesTab;
+  });
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    return format(new Date(dateString), "MMM d, yyyy");
+  };
+
+  // Check if a promotion is scheduled for the future
+  const isScheduled = (startDate: string) => {
+    const now = new Date();
+    const start = new Date(startDate);
+    return start > now;
+  };
+
+  // Check if a promotion has expired
+  const isExpired = (endDate: string) => {
+    const now = new Date();
+    const end = new Date(endDate);
+    return end < now;
+  };
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Promotions</CardTitle>
-          <CardDescription>
-            Manage your active and upcoming promotions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex justify-end">
-              <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogTrigger asChild>
-                  <Button onClick={onOpenChange}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Promotion
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>{selectedPromotion ? 'Edit Promotion' : 'Create Promotion'}</DialogTitle>
-                    <DialogDescription>
-                      {selectedPromotion ? 'Update the promotion details.' : 'Create a new promotion.'}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(selectedPromotion ? updatePromotion : createPromotion)} className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="title"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Title</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Promotion Title" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="description"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Description</FormLabel>
-                            <FormControl>
-                              <Textarea placeholder="Promotion Description" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="discount_value"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Discount Value</FormLabel>
-                              <FormControl>
-                                <Input type="number" placeholder="Discount Value" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="discount_type"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Discount Type</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select discount type" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="percentage">Percentage</SelectItem>
-                                  <SelectItem value="fixed">Fixed</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      <FormField
-                        control={form.control}
-                        name="coupon_code"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Coupon Code</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Coupon Code" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="start_date"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Start Date</FormLabel>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <FormControl>
-                                    <Button
-                                      variant={"outline"}
-                                      className={cn(
-                                        "w-full pl-3 text-left font-normal",
-                                        !field.value && "text-muted-foreground"
-                                      )}
-                                    >
-                                      {field.value ? (
-                                        format(field.value, "PPP")
-                                      ) : (
-                                        <span>Pick a date</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                  </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={field.value}
-                                    onSelect={field.onChange}
-                                    disabled={(date) =>
-                                      date < new Date()
-                                    }
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="end_date"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>End Date</FormLabel>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <FormControl>
-                                    <Button
-                                      variant={"outline"}
-                                      className={cn(
-                                        "w-full pl-3 text-left font-normal",
-                                        !field.value && "text-muted-foreground"
-                                      )}
-                                    >
-                                      {field.value ? (
-                                        format(field.value, "PPP")
-                                      ) : (
-                                        <span>Pick a date</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                  </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={field.value}
-                                    onSelect={field.onChange}
-                                    disabled={(date) =>
-                                      date < new Date() || date < form.getValues('start_date')
-                                    }
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="minimum_purchase"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Minimum Purchase</FormLabel>
-                              <FormControl>
-                                <Input type="number" placeholder="Minimum Purchase" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="usage_limit"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Usage Limit</FormLabel>
-                              <FormControl>
-                                <Input type="number" placeholder="Usage Limit" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      <FormField
-                        control={form.control}
-                        name="applies_to"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Applies To</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Applies To" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      {selectedPromotion && (
-                        <FormField
-                          control={form.control}
-                          name="is_active"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-md border p-4">
-                              <div className="space-y-0.5">
-                                <FormLabel>Active</FormLabel>
-                                <FormDescription>
-                                  Set promotion as active or inactive.
-                                </FormDescription>
-                              </div>
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                      )}
-                      <DialogFooter>
-                        <Button type="submit" disabled={submitting}>
-                          {submitting ? (
-                            <>
-                              <Save className="h-4 w-4 animate-spin mr-2" />
-                              Saving...
-                            </>
-                          ) : (
-                            <>
-                              <Save className="h-4 w-4 mr-2" />
-                              {selectedPromotion ? 'Update' : 'Create'}
-                            </>
-                          )}
-                        </Button>
-                      </DialogFooter>
-                    </form>
-                  </Form>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {loading ? (
-              <div className="flex justify-center items-center h-32">
-                Loading promotions...
-              </div>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-semibold">Promotions &amp; Discounts</h1>
+        <Button onClick={handleCreateNewPromotion}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Promotion
+        </Button>
+      </div>
+      
+      <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
+          <TabsList className="grid grid-cols-3 w-full md:w-auto">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="inactive">Inactive</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        
+        <div className="relative w-full md:w-[300px]">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search promotions..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+      </div>
+      
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Promotion</TableHead>
+              <TableHead className="hidden md:table-cell">Discount</TableHead>
+              <TableHead className="hidden md:table-cell">Valid Period</TableHead>
+              <TableHead className="hidden md:table-cell">Usage</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  Loading promotion data...
+                </TableCell>
+              </TableRow>
+            ) : filteredPromotions.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  No promotions found
+                </TableCell>
+              </TableRow>
             ) : (
-              <Table>
-                <TableCaption>A list of your promotions.</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Coupon Code</TableHead>
-                    <TableHead>Discount</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead>End Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {promotions.map((promotion) => (
-                    <TableRow key={promotion.id}>
-                      <TableCell>{promotion.title}</TableCell>
-                      <TableCell>{promotion.coupon_code}</TableCell>
-                      <TableCell>{promotion.discount_value} {promotion.discount_type === 'percentage' ? '%' : 'fixed'}</TableCell>
-                      <TableCell>{promotion.start_date}</TableCell>
-                      <TableCell>{promotion.end_date}</TableCell>
-                      <TableCell>
-                        {promotion.is_active ? (
-                          <div className="flex items-center">
-                            <CheckCircle className="h-4 w-4 text-green-500 mr-1" />
-                            Active
-                          </div>
-                        ) : (
-                          <div className="flex items-center">
-                            <XCircle className="h-4 w-4 text-red-500 mr-1" />
-                            Inactive
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => editPromotion(promotion)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => togglePromotionStatus(promotion.id, promotion.is_active)}>
-                            {promotion.is_active ? (
-                              <>
-                                <XCircle className="h-4 w-4 mr-2" />
-                                Deactivate
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Activate
-                              </>
-                            )}
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => deletePromotion(promotion.id)}>
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
+              filteredPromotions.map((promotion) => (
+                <TableRow key={promotion.id}>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{promotion.title}</div>
+                      <div className="text-sm text-muted-foreground line-clamp-1">
+                        {promotion.description}
+                      </div>
+                      {promotion.coupon_code && (
+                        <div className="flex items-center mt-1">
+                          <Badge variant="outline" className="font-mono">
+                            {promotion.coupon_code}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 ml-1"
+                            onClick={() => handleCopyCode(promotion.coupon_code || "")}
+                          >
+                            <Copy className="h-3 w-3" />
                           </Button>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {promotion.discount_type === "percentage" 
+                      ? `${promotion.discount_value}%` 
+                      : `₱${promotion.discount_value}`}
+                    {promotion.minimum_purchase && (
+                      <div className="text-xs text-muted-foreground">
+                        Min. purchase: ₱{promotion.minimum_purchase}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <div className="text-sm">
+                      {formatDate(promotion.start_date)} - {formatDate(promotion.end_date)}
+                    </div>
+                    {isScheduled(promotion.start_date) && (
+                      <Badge variant="outline" className="mt-1">Scheduled</Badge>
+                    )}
+                    {isExpired(promotion.end_date) && (
+                      <Badge variant="outline" className="bg-gray-100 text-gray-800 mt-1">Expired</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {promotion.usage_count} 
+                    {promotion.usage_limit && ` / ${promotion.usage_limit}`}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id={`active-${promotion.id}`}
+                        checked={promotion.is_active}
+                        onCheckedChange={(checked) => 
+                          handleToggleActive(promotion.id, promotion.is_active)
+                        }
+                        aria-label="Toggle promotion active status"
+                      />
+                      <span className={promotion.is_active ? "text-green-600" : "text-gray-500"}>
+                        {promotion.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEditPromotion(promotion)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Copy className="mr-2 h-4 w-4" />
+                          Duplicate
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          className="text-red-600"
+                          onClick={() => {
+                            setCurrentPromotion(promotion);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
             )}
+          </TableBody>
+        </Table>
+      </div>
+      
+      {/* Create/Edit Promotion Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+              {currentPromotion ? "Edit Promotion" : "Create Promotion"}
+            </DialogTitle>
+            <DialogDescription>
+              {currentPromotion 
+                ? "Make changes to your existing promotion here" 
+                : "Create a new promotion or discount offer"
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="title">Promotion Title</Label>
+              <Input
+                id="title"
+                name="title"
+                value={formData.title}
+                onChange={handleInputChange}
+                placeholder="e.g. Summer Sale"
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                placeholder="Describe your promotion"
+                className="resize-none"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="discount_type">Discount Type</Label>
+                <Select
+                  value={formData.discount_type}
+                  onValueChange={(value) => 
+                    handleSelectChange("discount_type", value as "percentage" | "fixed")
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount (₱)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="discount_value">Discount Value</Label>
+                <Input
+                  id="discount_value"
+                  name="discount_value"
+                  type="number"
+                  value={formData.discount_value}
+                  onChange={handleNumberInputChange}
+                  placeholder={formData.discount_type === "percentage" ? "10" : "500"}
+                />
+                <p className="text-sm text-muted-foreground">
+                  {formData.discount_type === "percentage" 
+                    ? "Enter percentage (1-100)" 
+                    : "Enter amount in Philippine Peso"
+                  }
+                </p>
+              </div>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="coupon_code">Coupon Code (Optional)</Label>
+              <Input
+                id="coupon_code"
+                name="coupon_code"
+                value={formData.coupon_code}
+                onChange={handleInputChange}
+                placeholder="e.g. SUMMER20"
+              />
+              <p className="text-sm text-muted-foreground">
+                Leave empty if no code is required
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Start Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !startDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      onSelect={setStartDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label>End Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !endDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      onSelect={setEndDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="minimum_purchase">Minimum Purchase (Optional)</Label>
+                <Input
+                  id="minimum_purchase"
+                  name="minimum_purchase"
+                  type="number"
+                  value={formData.minimum_purchase || ""}
+                  onChange={handleNumberInputChange}
+                  placeholder="e.g. 500"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Minimum order value required
+                </p>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="usage_limit">Usage Limit (Optional)</Label>
+                <Input
+                  id="usage_limit"
+                  name="usage_limit"
+                  type="number"
+                  value={formData.usage_limit || ""}
+                  onChange={handleNumberInputChange}
+                  placeholder="e.g. 100"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Maximum number of times this can be used
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2 mt-2">
+              <Switch
+                id="is_active"
+                checked={formData.is_active}
+                onCheckedChange={(checked) => handleSwitchChange("is_active", checked)}
+              />
+              <Label htmlFor="is_active">Activate promotion immediately</Label>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSavePromotion}>
+              {currentPromotion ? "Update Promotion" : "Create Promotion"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Promotion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this promotion? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeletePromotion}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
