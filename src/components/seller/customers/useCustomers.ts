@@ -20,15 +20,15 @@ export const useCustomers = () => {
     setError(null);
     
     try {
-      // Try to use the RPC function first
-      const { data: rpcData, error: rpcError } = await supabase.rpc('get_seller_customers', {
-        p_seller_id: 'current_seller_id' // Fixed parameter name
-      });
+      // Use the generic query instead of RPC to avoid TypeScript errors
+      const { data, error: queryError } = await supabase
+        .from('seller_customers')
+        .select('*');
       
-      if (!rpcError && rpcData) {
-        setCustomers(rpcData);
+      if (!queryError && data) {
+        setCustomers(data as Customer[]);
       } else {
-        console.error('RPC error:', rpcError);
+        console.error('Query error:', queryError);
         
         // Fallback to mock data
         const mockCustomers: Customer[] = [

@@ -175,15 +175,15 @@ const InventoryManagement: React.FC = () => {
   // Fetch inventory logs
   const fetchInventoryLogs = useCallback(async () => {
     try {
-      // Try to use the RPC function first
-      const { data: rpcData, error: rpcError } = await supabase.rpc('get_inventory_logs', {
-        p_seller_id: 'current_seller_id' // Fixed parameter name
-      });
+      // Use regular query instead of RPC to avoid TypeScript errors
+      const { data, error: queryError } = await supabase
+        .from('inventory_logs')
+        .select('*');
       
-      if (!rpcError && rpcData) {
-        setLogs(rpcData);
+      if (!queryError && data) {
+        setLogs(data as InventoryLog[]);
       } else {
-        console.error('RPC error:', rpcError);
+        console.error('Query error:', queryError);
         
         // Mock inventory logs
         const mockLogs: InventoryLog[] = [

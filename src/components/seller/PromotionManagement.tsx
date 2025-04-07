@@ -98,14 +98,14 @@ const PromotionManagement: React.FC = () => {
   const fetchPromotions = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data: rpcData, error: rpcError } = await supabase.rpc('get_promotions', {
-        p_seller_id: 'current_seller_id'
-      });
+      const { data, error: queryError } = await supabase
+        .from('promotions')
+        .select('*');
       
-      if (!rpcError && rpcData) {
-        setPromotions(rpcData);
+      if (!queryError && data) {
+        setPromotions(data as Promotion[]);
       } else {
-        console.error('RPC error:', rpcError);
+        console.error('Query error:', queryError);
         
         const mockPromotions: Promotion[] = [
           {
@@ -181,11 +181,12 @@ const PromotionManagement: React.FC = () => {
         promo.id === id ? {...promo, is_active: !currentState} : promo
       ));
       
-      await supabase.rpc('update_promotion_status', {
-        p_promotion_id: id,
-        p_new_status: !currentState
-      });
+      const { error } = await supabase
+        .from('promotions')
+        .update({ is_active: !currentState })
+        .eq('id', id);
       
+      if (error) throw error;
       toast.success(`Promotion ${!currentState ? 'activated' : 'deactivated'}`);
     } catch (error) {
       console.error("Error updating promotion status:", error);
@@ -206,9 +207,12 @@ const PromotionManagement: React.FC = () => {
     if (!currentPromotion) return;
     
     try {
-      await supabase.rpc('delete_promotion', {
-        p_promotion_id: currentPromotion.id
-      });
+      const { error } = await supabase
+        .from('promotions')
+        .delete()
+        .eq('id', currentPromotion.id);
+        
+      if (error) throw error;
       
       setPromotions(promotions.filter(promo => promo.id !== currentPromotion.id));
       setIsDeleteDialogOpen(false);
@@ -270,10 +274,12 @@ const PromotionManagement: React.FC = () => {
       };
       
       if (currentPromotion) {
-        await supabase.rpc('update_promotion', {
-          p_promotion_id: currentPromotion.id,
-          p_promotion_data: updatedFormData
-        });
+        const { error } = await supabase
+          .from('promotions')
+          .update(updatedFormData)
+          .eq('id', currentPromotion.id);
+          
+        if (error) throw error;
         
         setPromotions(promotions.map(promo => 
           promo.id === currentPromotion.id 
@@ -291,9 +297,11 @@ const PromotionManagement: React.FC = () => {
           usage_count: 0
         };
         
-        await supabase.rpc('create_promotion', {
-          p_promotion_data: newPromotion
-        });
+        const { error } = await supabase
+          .from('promotions')
+          .insert(newPromotion);
+          
+        if (error) throw error;
         
         setPromotions([newPromotion, ...promotions]);
         toast.success("Promotion created successfully");
