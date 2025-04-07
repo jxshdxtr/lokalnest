@@ -413,7 +413,7 @@ const OrderManagement = () => {
             </div>
           ) : sortedOrders.length > 0 ? (
             <div className="overflow-x-auto">
-              <Table className="border-collapse w-full">
+              <Table className="w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[200px]">Order Info</TableHead>

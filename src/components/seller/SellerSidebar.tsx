@@ -2,20 +2,29 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import {
-  BarChart3,
   Package,
   ShoppingCart,
+  Tag,
   Users,
-  TagsIcon,
-  Star,
-  ClipboardList,
   Settings,
-  UserCircle,
+  Star,
+  BarChart2,
+  Truck,
+  Boxes,
+  Menu
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
+
+type NavItem = {
+  title: string;
+  href: string;
+  icon: React.ReactNode;
+  variant: 'default' | 'ghost';
+  badge?: string;
+};
 
 interface SellerSidebarProps {
   user: {
@@ -26,77 +35,124 @@ interface SellerSidebarProps {
   };
 }
 
-const SellerSidebar = ({ user }: SellerSidebarProps) => {
+const SellerSidebar: React.FC<SellerSidebarProps> = ({ user }) => {
   const location = useLocation();
-  const getPath = () => location.pathname.split('/').pop() || 'overview';
-  const path = getPath();
+  const currentPath = location.pathname;
 
-  const links = [
-    { name: 'Overview', path: 'overview', icon: <BarChart3 className="h-4 w-4 mr-2" /> },
-    { name: 'Products', path: 'products', icon: <Package className="h-4 w-4 mr-2" /> },
-    { name: 'Inventory', path: 'inventory', icon: <ClipboardList className="h-4 w-4 mr-2" /> },
-    { name: 'Orders', path: 'orders', icon: <ShoppingCart className="h-4 w-4 mr-2" /> },
-    { name: 'Customers', path: 'customers', icon: <Users className="h-4 w-4 mr-2" /> },
-    { name: 'Promotions', path: 'promotions', icon: <TagsIcon className="h-4 w-4 mr-2" /> },
-    { name: 'Reviews', path: 'reviews', icon: <Star className="h-4 w-4 mr-2" /> },
-    { name: 'Store Settings', path: 'settings', icon: <Settings className="h-4 w-4 mr-2" /> },
-    { name: 'Profile', path: 'profile', icon: <UserCircle className="h-4 w-4 mr-2" /> },
+  const navItems: NavItem[] = [
+    {
+      title: 'Overview',
+      href: '/seller/overview',
+      icon: <BarChart2 className="h-5 w-5" />,
+      variant: currentPath === '/seller/overview' ? 'default' : 'ghost'
+    },
+    {
+      title: 'Products',
+      href: '/seller/products',
+      icon: <Package className="h-5 w-5" />,
+      variant: currentPath === '/seller/products' ? 'default' : 'ghost'
+    },
+    {
+      title: 'Inventory',
+      href: '/seller/inventory',
+      icon: <Boxes className="h-5 w-5" />,
+      variant: currentPath === '/seller/inventory' ? 'default' : 'ghost'
+    },
+    {
+      title: 'Orders',
+      href: '/seller/orders',
+      icon: <ShoppingCart className="h-5 w-5" />,
+      variant: currentPath === '/seller/orders' ? 'default' : 'ghost',
+      badge: '3'
+    },
+    {
+      title: 'Customers',
+      href: '/seller/customers',
+      icon: <Users className="h-5 w-5" />,
+      variant: currentPath === '/seller/customers' ? 'default' : 'ghost'
+    },
+    {
+      title: 'Promotions',
+      href: '/seller/promotions',
+      icon: <Tag className="h-5 w-5" />,
+      variant: currentPath === '/seller/promotions' ? 'default' : 'ghost'
+    },
+    {
+      title: 'Logistics',
+      href: '/seller/logistics',
+      icon: <Truck className="h-5 w-5" />,
+      variant: currentPath === '/seller/logistics' ? 'default' : 'ghost'
+    },
+    {
+      title: 'Reviews',
+      href: '/seller/reviews',
+      icon: <Star className="h-5 w-5" />,
+      variant: currentPath === '/seller/reviews' ? 'default' : 'ghost'
+    },
+    {
+      title: 'Settings',
+      href: '/seller/settings',
+      icon: <Settings className="h-5 w-5" />,
+      variant: currentPath === '/seller/settings' ? 'default' : 'ghost'
+    }
   ];
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-4">
-        <div className="flex items-center gap-3 mb-6">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={user.avatar} alt={user.name} />
-            <AvatarFallback>{user.name[0]}</AvatarFallback>
-          </Avatar>
-          <div>
-            <div className="font-medium flex items-center gap-1">
-              {user.name}
-              {user.verified && (
-                <span className="text-xs bg-blue-100 text-blue-800 rounded-full px-1.5 py-0.5 ml-1">
-                  Verified
-                </span>
-              )}
+    <div className="pb-12 border rounded-lg">
+      <div className="space-y-4 py-4">
+        <div className="px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={user.avatar} alt={user.name} />
+              <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div>
+              <h2 className="text-sm font-semibold">{user.name}</h2>
+              <div className="flex items-center">
+                {user.verified ? (
+                  <Badge className="text-xs bg-green-100 text-green-800 border-green-300 hover:bg-green-200">
+                    Verified
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-xs text-yellow-800 bg-yellow-100 border-yellow-300 hover:bg-yellow-200">
+                    Unverified
+                  </Badge>
+                )}
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground">Seller Account</div>
           </div>
-        </div>
-
-        <div className="space-y-1">
-          {links.map((link) => (
-            <Button
-              key={link.path}
-              variant={path === link.path ? 'default' : 'ghost'}
-              className={cn(
-                'w-full justify-start',
-                path === link.path ? '' : 'text-muted-foreground'
-              )}
-              asChild
-            >
-              <Link to={`/seller/${link.path}`}>
-                {link.icon}
-                {link.name}
-              </Link>
-            </Button>
-          ))}
-        </div>
-      </div>
-      
-      <div className="mt-auto">
-        <Separator />
-        <div className="p-4">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full"
-            asChild
-          >
-            <Link to="/">
-              Visit Store
-            </Link>
+          <Button variant="ghost" size="icon" className="lg:hidden">
+            <Menu className="h-5 w-5" />
           </Button>
+        </div>
+        <div className="px-4">
+          <p className="text-xs text-muted-foreground mb-1">
+            Store Dashboard
+          </p>
+        </div>
+        <div className="px-2">
+          <nav className="flex flex-col space-y-1">
+            {navItems.map((item, i) => (
+              <Link key={i} to={item.href}>
+                <Button
+                  variant={item.variant}
+                  className={cn(
+                    "w-full justify-start",
+                    item.variant === 'default' &&
+                    "bg-muted hover:bg-muted text-primary hover:text-primary"
+                  )}
+                >
+                  {item.icon}
+                  <span className="ml-2">{item.title}</span>
+                  {item.badge && (
+                    <Badge className="ml-auto" variant="default">
+                      {item.badge}
+                    </Badge>
+                  )}
+                </Button>
+              </Link>
+            ))}
+          </nav>
         </div>
       </div>
     </div>
