@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -81,13 +80,20 @@ const OrderManagement = () => {
         return;
       }
 
+      console.log('Session user ID:', session.user.id);
+
       // First, fetch all products for this seller
       const { data: sellerProducts, error: productsError } = await supabase
         .from('products')
         .select('id')
         .eq('seller_id', session.user.id);
         
-      if (productsError) throw productsError;
+      if (productsError) {
+        console.error('Error fetching seller products:', productsError);
+        throw productsError;
+      }
+      
+      console.log('Seller products found:', sellerProducts?.length || 0);
       
       if (!sellerProducts || sellerProducts.length === 0) {
         setOrders([]);
@@ -111,7 +117,12 @@ const OrderManagement = () => {
         `)
         .in('product_id', productIds);
         
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error('Error fetching order items:', itemsError);
+        throw itemsError;
+      }
+      
+      console.log('Order items found:', orderItems?.length || 0);
       
       if (!orderItems || orderItems.length === 0) {
         setOrders([]);
@@ -138,63 +149,84 @@ const OrderManagement = () => {
         `)
         .in('id', orderIds);
         
-      if (ordersError) throw ordersError;
+      if (ordersError) {
+        console.error('Error fetching order details:', ordersError);
+        throw ordersError;
+      }
       
-      // Prepare product images fetch promises
-      const imagePromises = orderItems.map(async (item) => {
-        const { data: images } = await supabase
-          .from('product_images')
-          .select('url')
-          .eq('product_id', item.product_id)
-          .eq('is_primary', true)
-          .limit(1);
-          
-        return { 
-          item_id: item.id, 
-          image_url: images && images.length > 0 ? images[0].url : undefined 
-        };
-      });
+      console.log('Order details found:', orderDetails?.length || 0);
       
-      // Execute all image fetch promises
-      const itemImages = await Promise.all(imagePromises);
-      
-      // Build complete orders with items
-      const completeOrders = orderDetails.map(order => {
-        // Find all items for this order
-        const items = orderItems
-          .filter(item => item.order_id === order.id)
-          .map(item => {
-            // Find image for this item
-            const imageData = itemImages.find(img => img.item_id === item.id);
-            return {
-              id: item.id,
-              product_id: item.product_id,
-              product_name: item.products?.name || 'Unknown Product',
-              quantity: item.quantity,
-              unit_price: item.unit_price,
-              total_price: item.total_price,
-              image: imageData?.image_url
+      try {
+        // Prepare product images fetch promises
+        const imagePromises = orderItems.map(async (item) => {
+          try {
+            const { data: images, error: imageError } = await supabase
+              .from('product_images')
+              .select('url')
+              .eq('product_id', item.product_id)
+              .eq('is_primary', true)
+              .limit(1);
+              
+            if (imageError) {
+              console.error('Error fetching image for product:', item.product_id, imageError);
+              return { item_id: item.id, image_url: undefined };
+            }
+            
+            return { 
+              item_id: item.id, 
+              image_url: images && images.length > 0 ? images[0].url : undefined 
             };
-          });
-          
-        return {
-          id: order.id,
-          date: order.created_at,
-          buyer_id: order.buyer_id,
-          buyer_name: order.profiles?.full_name || 'Customer',
-          items,
-          total: order.total_amount,
-          status: order.status,
-          payment_status: order.payment_status,
-          payment_method: order.payment_method,
-          shipping_address: order.shipping_address
-        };
-      });
-      
-      setOrders(completeOrders);
+          } catch (imageErr) {
+            console.error('Exception in image fetch:', imageErr);
+            return { item_id: item.id, image_url: undefined };
+          }
+        });
+        
+        // Execute all image fetch promises
+        const itemImages = await Promise.all(imagePromises);
+        
+        // Build complete orders with items
+        const completeOrders = orderDetails.map(order => {
+          // Find all items for this order
+          const items = orderItems
+            .filter(item => item.order_id === order.id)
+            .map(item => {
+              // Find image for this item
+              const imageData = itemImages.find(img => img.item_id === item.id);
+              return {
+                id: item.id,
+                product_id: item.product_id,
+                product_name: item.products?.name || 'Unknown Product',
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                total_price: item.total_price,
+                image: imageData?.image_url
+              };
+            });
+            
+          return {
+            id: order.id,
+            date: order.created_at,
+            buyer_id: order.buyer_id,
+            buyer_name: order.profiles?.full_name || 'Customer',
+            items,
+            total: order.total_amount,
+            status: order.status,
+            payment_status: order.payment_status,
+            payment_method: order.payment_method,
+            shipping_address: order.shipping_address
+          };
+        });
+        
+        setOrders(completeOrders);
+      } catch (processingError) {
+        console.error('Error processing order data:', processingError);
+        throw processingError;
+      }
     } catch (error) {
       console.error('Error fetching orders:', error);
-      toast.error('Failed to load orders');
+      toast.error('Failed to load orders: ' + (error.message || 'Unknown error'));
+      setOrders([]);
     } finally {
       setLoading(false);
     }
