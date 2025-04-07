@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -42,58 +41,58 @@ const SellerSidebar: React.FC<SellerSidebarProps> = ({ user }) => {
   const navItems: NavItem[] = [
     {
       title: 'Overview',
-      href: '/seller/overview',
+      href: '/seller/dashboard/overview',
       icon: <BarChart2 className="h-5 w-5" />,
-      variant: currentPath === '/seller/overview' ? 'default' : 'ghost'
+      variant: currentPath === '/seller/dashboard/overview' ? 'default' : 'ghost'
     },
     {
       title: 'Products',
-      href: '/seller/products',
+      href: '/seller/dashboard/products',
       icon: <Package className="h-5 w-5" />,
-      variant: currentPath === '/seller/products' ? 'default' : 'ghost'
+      variant: currentPath === '/seller/dashboard/products' ? 'default' : 'ghost'
     },
     {
       title: 'Inventory',
-      href: '/seller/inventory',
+      href: '/seller/dashboard/inventory',
       icon: <Boxes className="h-5 w-5" />,
-      variant: currentPath === '/seller/inventory' ? 'default' : 'ghost'
+      variant: currentPath === '/seller/dashboard/inventory' ? 'default' : 'ghost'
     },
     {
       title: 'Orders',
-      href: '/seller/orders',
+      href: '/seller/dashboard/orders',
       icon: <ShoppingCart className="h-5 w-5" />,
-      variant: currentPath === '/seller/orders' ? 'default' : 'ghost',
+      variant: currentPath === '/seller/dashboard/orders' ? 'default' : 'ghost',
       badge: '3'
     },
     {
       title: 'Customers',
-      href: '/seller/customers',
+      href: '/seller/dashboard/customers',
       icon: <Users className="h-5 w-5" />,
-      variant: currentPath === '/seller/customers' ? 'default' : 'ghost'
+      variant: currentPath === '/seller/dashboard/customers' ? 'default' : 'ghost'
     },
     {
       title: 'Promotions',
-      href: '/seller/promotions',
+      href: '/seller/dashboard/promotions',
       icon: <Tag className="h-5 w-5" />,
-      variant: currentPath === '/seller/promotions' ? 'default' : 'ghost'
+      variant: currentPath === '/seller/dashboard/promotions' ? 'default' : 'ghost'
     },
     {
       title: 'Logistics',
-      href: '/seller/logistics',
+      href: '/seller/dashboard/logistics',
       icon: <Truck className="h-5 w-5" />,
-      variant: currentPath === '/seller/logistics' ? 'default' : 'ghost'
+      variant: currentPath === '/seller/dashboard/logistics' ? 'default' : 'ghost'
     },
     {
       title: 'Reviews',
-      href: '/seller/reviews',
+      href: '/seller/dashboard/reviews',
       icon: <Star className="h-5 w-5" />,
-      variant: currentPath === '/seller/reviews' ? 'default' : 'ghost'
+      variant: currentPath === '/seller/dashboard/reviews' ? 'default' : 'ghost'
     },
     {
       title: 'Settings',
-      href: '/seller/settings',
+      href: '/seller/dashboard/settings',
       icon: <Settings className="h-5 w-5" />,
-      variant: currentPath === '/seller/settings' ? 'default' : 'ghost'
+      variant: currentPath === '/seller/dashboard/settings' ? 'default' : 'ghost'
     }
   ];
 

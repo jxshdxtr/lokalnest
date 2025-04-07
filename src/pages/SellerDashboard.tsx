@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -82,7 +81,9 @@ const SellerDashboard = () => {
 
   // Get current active tab from path
   const getActiveTab = () => {
-    const path = location.pathname.split('/').pop();
+    const pathSegments = location.pathname.split('/');
+    const path = pathSegments[pathSegments.length - 1];
+    
     if (path === 'products') return 'products';
     if (path === 'orders') return 'orders';
     if (path === 'promotions') return 'promotions';
@@ -92,6 +93,7 @@ const SellerDashboard = () => {
     if (path === 'settings') return 'settings';
     if (path === 'profile') return 'profile';
     if (path === 'logistics') return 'logistics';
+    if (path === 'overview') return 'overview';
     return 'overview';
   };
 
