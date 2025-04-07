@@ -12,6 +12,11 @@ import BuyerDashboard from './pages/BuyerDashboard';
 import Checkout from './pages/Checkout';
 import ProductDetail from './pages/ProductDetail';
 import { CartProvider } from './components/buyer/shopping/Cart';
+import BuyerHome from './pages/BuyerHome';
+import BuyerOrders from './components/buyer/BuyerOrders';
+import BuyerPayments from './components/buyer/BuyerPayments';
+import BuyerReviews from './components/buyer/BuyerReviews';
+import BuyerSupport from './components/buyer/BuyerSupport';
 
 function App() {
   return (
@@ -33,7 +38,16 @@ function App() {
           </Route>
           
           {/* Buyer Routes */}
-          <Route path="/buyer/*" element={<BuyerDashboard />} />
+          <Route path="/buyer" element={<BuyerDashboard />}>
+            <Route index element={<Navigate to="/buyer/dashboard" replace />} />
+            <Route path="dashboard" element={<div>Dashboard</div>} />
+            <Route path="home" element={<BuyerHome />} />
+            <Route path="orders" element={<BuyerOrders />} />
+            <Route path="payments" element={<BuyerPayments />} />
+            <Route path="reviews" element={<BuyerReviews />} />
+            <Route path="support" element={<BuyerSupport />} />
+          </Route>
+          
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           
