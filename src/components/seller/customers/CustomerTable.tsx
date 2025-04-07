@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { formatDistance } from 'date-fns';
 import { Customer } from './types';
+import { toast } from 'sonner';
 
 interface CustomerTableProps {
   customers: Customer[];
@@ -47,6 +48,26 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, loading, onUpd
     } catch (e) {
       return 'Invalid date';
     }
+  };
+  
+  const handleSendEmail = (customer: Customer) => {
+    // This would typically integrate with an email API
+    toast.success(`Email dialog opened for ${customer.full_name}`);
+  };
+  
+  const handleSendMessage = (customer: Customer) => {
+    // This would open the messaging interface
+    toast.success(`Message dialog opened for ${customer.full_name}`);
+  };
+  
+  const handleEditDetails = (customer: Customer) => {
+    // This would open the customer edit form
+    toast.success(`Edit form opened for ${customer.full_name}`);
+  };
+  
+  const handleAddTag = (customer: Customer) => {
+    // This would open a tag selection interface
+    toast.success(`Tag dialog opened for ${customer.full_name}`);
   };
   
   if (loading) {
@@ -131,19 +152,19 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, loading, onUpd
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleEditDetails(customer)}>
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Details
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleSendEmail(customer)}>
                       <Mail className="h-4 w-4 mr-2" />
                       Send Email
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleSendMessage(customer)}>
                       <MessagesSquare className="h-4 w-4 mr-2" />
                       Message
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleAddTag(customer)}>
                       <Tag className="h-4 w-4 mr-2" />
                       Add Tags
                     </DropdownMenuItem>

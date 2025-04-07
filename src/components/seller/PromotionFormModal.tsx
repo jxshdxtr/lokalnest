@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Dialog, 
@@ -21,6 +20,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Info, Tag, Percent } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface PromotionFormModalProps {
   isOpen: boolean;
@@ -51,6 +51,7 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
   });
 
   const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -109,24 +110,33 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate form
-    if (!formData.title || !formData.discount_value || !formData.coupon_code || !formData.start_date || !formData.end_date) {
-      alert('Please fill in all required fields');
+    if (!formData.title || !formData.discount_value || !formData.start_date || !formData.end_date) {
+      toast.error('Please fill in all required fields');
       return;
     }
     
-    // Parse numeric values
-    const promoData = {
-      ...formData,
-      discount_value: parseFloat(formData.discount_value),
-      minimum_purchase: formData.minimum_purchase ? parseFloat(formData.minimum_purchase) : 0,
-      usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null
-    };
-    
-    onSave(promoData);
+    setIsSubmitting(true);
+    try {
+      // Parse numeric values
+      const promoData = {
+        ...formData,
+        discount_value: parseFloat(formData.discount_value),
+        minimum_purchase: formData.minimum_purchase ? parseFloat(formData.minimum_purchase) : 0,
+        usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null
+      };
+      
+      await onSave(promoData);
+      onClose();
+    } catch (error) {
+      console.error('Error saving promotion:', error);
+      toast.error('Failed to save promotion');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -225,7 +235,7 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="coupon_code">Promotion Code <span className="text-red-500">*</span></Label>
+                <Label htmlFor="coupon_code">Promotion Code</Label>
                 <Input
                   id="coupon_code"
                   name="coupon_code"
@@ -233,7 +243,6 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
                   onChange={handleChange}
                   placeholder="SUMMER2023"
                   className="uppercase"
-                  required
                 />
               </div>
             </div>
@@ -371,8 +380,10 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
         </form>
         
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit}>{promotion ? 'Update Promotion' : 'Create Promotion'}</Button>
+          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting ? 'Saving...' : promotion ? 'Update Promotion' : 'Create Promotion'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
