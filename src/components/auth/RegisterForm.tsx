@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -93,11 +92,15 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
     }
   };
 
-  const handleGoogleSignUp = async () => {
+  const handleGoogleSignUp = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default button behavior
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
       });
       
       if (error) throw error;

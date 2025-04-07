@@ -17,6 +17,8 @@ import BuyerOrders from './components/buyer/BuyerOrders';
 import BuyerPayments from './components/buyer/BuyerPayments';
 import BuyerReviews from './components/buyer/BuyerReviews';
 import BuyerSupport from './components/buyer/BuyerSupport';
+import Auth from './pages/Auth';
+import VerifyOTP from './pages/VerifyOTP';
 
 function App() {
   return (
@@ -24,6 +26,8 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/verify" element={<VerifyOTP />} />
           
           {/* Seller Dashboard Routes */}
           <Route path="/seller" element={<SellerDashboard />}>
