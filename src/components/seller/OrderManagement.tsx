@@ -33,6 +33,14 @@ import { toast } from 'sonner';
 import { formatDistance } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface OrderItem {
   id: string;
@@ -372,118 +380,116 @@ const OrderManagement = () => {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : sortedOrders.length > 0 ? (
-            <div className="space-y-4">
-              {sortedOrders.map((order) => (
-                <Card key={order.id} className="overflow-hidden">
-                  <div className="p-4 bg-muted/20">
-                    <div className="flex flex-col sm:flex-row justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-semibold">Order #{order.id.split('-')[0]}</h3>
-                          {getStatusBadge(order.status)}
-                        </div>
-                        <div className="flex items-center text-muted-foreground text-xs gap-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>{formatOrderDate(order.date)}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-row justify-between sm:justify-end gap-4">
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground">Customer</p>
-                          <p className="text-sm font-medium">{order.buyer_name || 'Customer'}</p>
-                        </div>
-                        
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground">Payment</p>
-                          <div className="flex items-center gap-1 justify-end">
-                            <span className="text-sm font-medium">{order.payment_method}</span>
-                            {getPaymentStatusBadge(order.payment_status)}
+            <div className="overflow-x-auto">
+              <Table className="border-collapse w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[200px]">Order Info</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead>Payment</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedOrders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">
+                        <div>
+                          <p>Order #{order.id.split('-')[0]}</p>
+                          <div className="flex items-center text-muted-foreground text-xs gap-1 mt-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>{formatOrderDate(order.date)}</span>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="p-4">
-                    <div className="space-y-4">
-                      {order.items.map((item) => (
-                        <div key={item.id} className="flex items-center gap-3">
-                          <div className="h-12 w-12 rounded overflow-hidden bg-muted flex-shrink-0">
-                            {item.image ? (
-                              <img 
-                                src={item.image} 
-                                alt={item.product_name} 
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="h-full w-full bg-muted flex items-center justify-center">
-                                <Package className="h-6 w-6 text-muted-foreground" />
+                      </TableCell>
+                      <TableCell>{order.buyer_name}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1 max-w-[250px]">
+                          {order.items.map((item) => (
+                            <div key={item.id} className="flex items-center gap-2">
+                              <div className="h-8 w-8 rounded overflow-hidden bg-muted flex-shrink-0">
+                                {item.image ? (
+                                  <img 
+                                    src={item.image} 
+                                    alt={item.product_name} 
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full bg-muted flex items-center justify-center">
+                                    <Package className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                          <div className="flex-grow min-w-0">
-                            <p className="font-medium truncate">{item.product_name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {item.quantity} × ₱{item.unit_price.toFixed(2)}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">₱{item.total_price.toFixed(2)}</p>
-                          </div>
+                              <div className="truncate">
+                                <p className="text-xs font-medium truncate">{item.product_name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {item.quantity} × ₱{item.unit_price.toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="p-4 border-t flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Shipping Address</p>
-                      <p className="text-sm">{order.shipping_address}</p>
-                    </div>
-                    
-                    <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                      <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Total Amount</p>
-                        <p className="text-lg font-semibold">₱{order.total.toFixed(2)}</p>
-                      </div>
-                      
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-[200px]">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          
-                          {order.status === 'processing' && (
-                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'shipped')}>
-                              <Truck className="mr-2 h-4 w-4" />
-                              Mark as Shipped
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="text-xs">{order.payment_method}</p>
+                          {getPaymentStatusBadge(order.payment_status)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="font-medium">₱{order.total.toFixed(2)}</p>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(order.status)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-[200px]">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            
+                            {order.status === 'processing' && (
+                              <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'shipped')}>
+                                <Truck className="mr-2 h-4 w-4" />
+                                Mark as Shipped
+                              </DropdownMenuItem>
+                            )}
+                            
+                            {order.status === 'shipped' && (
+                              <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'delivered')}>
+                                <ClipboardCheck className="mr-2 h-4 w-4" />
+                                Mark as Delivered
+                              </DropdownMenuItem>
+                            )}
+                            
+                            {(order.status === 'processing' || order.status === 'shipped') && (
+                              <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'cancelled')}>
+                                <Tag className="mr-2 h-4 w-4" />
+                                Cancel Order
+                              </DropdownMenuItem>
+                            )}
+                            
+                            {/* View Details option - could be implemented in a future version */}
+                            <DropdownMenuItem>
+                              <Package className="mr-2 h-4 w-4" />
+                              View Order Details
                             </DropdownMenuItem>
-                          )}
-                          
-                          {order.status === 'shipped' && (
-                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'delivered')}>
-                              <ClipboardCheck className="mr-2 h-4 w-4" />
-                              Mark as Delivered
-                            </DropdownMenuItem>
-                          )}
-                          
-                          {(order.status === 'processing' || order.status === 'shipped') && (
-                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'cancelled')}>
-                              <Tag className="mr-2 h-4 w-4" />
-                              Cancel Order
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           ) : (
             <div className="text-center py-12">
