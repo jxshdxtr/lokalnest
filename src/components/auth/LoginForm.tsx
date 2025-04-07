@@ -16,7 +16,7 @@ import {
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 // Form schema
 const loginSchema = z.object({
@@ -60,7 +60,7 @@ const LoginForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVisibi
       // Redirect based on user role
       const userType = authData.user?.user_metadata?.account_type;
       if (userType === 'seller') {
-        navigate('/seller/dashboard');
+        navigate('/seller/overview');
       } else {
         navigate('/');
       }
@@ -72,11 +72,15 @@ const LoginForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVisibi
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default button behavior
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
       });
       
       if (error) throw error;
@@ -150,9 +154,9 @@ const LoginForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVisibi
         />
 
         <div className="text-right">
-          <a href="#" className="text-sm text-blue-light hover:underline">
+          <Link to="/forgot-password" className="text-sm text-blue-light hover:underline">
             Forgot password?
-          </a>
+          </Link>
         </div>
 
         <Button type="submit" className="w-full" disabled={isLoading}>

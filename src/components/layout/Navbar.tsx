@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -68,7 +67,6 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Check for existing session
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
@@ -85,7 +83,8 @@ const Navbar = () => {
     };
   }, []);
 
-  const handleSignOut = async () => {
+  const handleSignOut = async (e: React.MouseEvent) => {
+    e.preventDefault();
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
@@ -116,7 +115,6 @@ const Navbar = () => {
       )}
     >
       <div className="container mx-auto px-4 flex items-center justify-between">
-        {/* Logo */}
         <Link 
           to="/" 
           className="text-xl md:text-2xl font-medium tracking-tight"
@@ -124,7 +122,6 @@ const Navbar = () => {
           <span className="text-gradient">LokalNest</span>
         </Link>
 
-        {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-8">
           <NavigationMenu>
             <NavigationMenuList>
@@ -165,7 +162,6 @@ const Navbar = () => {
           </NavigationMenu>
         </div>
 
-        {/* Action buttons */}
         <div className="flex items-center space-x-3">
           <Link to="/buyer/home">
             <Button variant="ghost" size="icon" aria-label="Search">
@@ -226,7 +222,6 @@ const Navbar = () => {
             </Link>
           )}
 
-          {/* Mobile menu */}
           <div className="md:hidden">
             <Sheet>
               <SheetTrigger asChild>

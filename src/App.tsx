@@ -16,9 +16,6 @@ import BuyerOrders from './components/buyer/BuyerOrders';
 import BuyerPayments from './components/buyer/BuyerPayments';
 import BuyerReviews from './components/buyer/BuyerReviews';
 import BuyerSupport from './components/buyer/BuyerSupport';
-import ProductDetail from './pages/ProductDetail';
-import AuthForm from './components/auth/AuthForm';
-import { CartProvider } from './components/buyer/shopping/Cart';
 
 function App() {
   return (
@@ -26,7 +23,6 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<AuthForm />} />
           
           {/* Seller Dashboard Routes */}
           <Route path="/seller">

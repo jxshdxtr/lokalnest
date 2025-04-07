@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
+import { Link } from 'react-router-dom';
 
 const AuthForm = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -46,13 +47,13 @@ const AuthForm = () => {
 
       <div className="text-xs text-center text-muted-foreground">
         By continuing, you agree to LocalNook's{' '}
-        <a href="/terms" className="text-blue-light hover:underline">
+        <Link to="/terms" className="text-blue-light hover:underline">
           Terms of Service
-        </a>{' '}
+        </Link>{' '}
         and{' '}
-        <a href="/privacy" className="text-blue-light hover:underline">
+        <Link to="/privacy" className="text-blue-light hover:underline">
           Privacy Policy
-        </a>
+        </Link>
         .
       </div>
     </div>
