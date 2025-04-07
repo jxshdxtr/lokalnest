@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { XCircle, Upload, Plus, Trash2, Info, Loader2 } from 'lucide-react';  
+import { XCircle, Upload, Plus, Trash2, Info, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
