@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Table,
@@ -176,7 +177,7 @@ const InventoryManagement: React.FC = () => {
     try {
       // Try to use the RPC function first
       const { data: rpcData, error: rpcError } = await supabase.rpc('get_inventory_logs', {
-        seller_id: 'current_seller_id' // Replace with actual seller ID in production
+        p_seller_id: 'current_seller_id' // Fixed parameter name
       });
       
       if (!rpcError && rpcData) {

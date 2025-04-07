@@ -22,7 +22,7 @@ export const useCustomers = () => {
     try {
       // Try to use the RPC function first
       const { data: rpcData, error: rpcError } = await supabase.rpc('get_seller_customers', {
-        seller_id: 'current_seller_id' // Replace with actual seller ID in production
+        p_seller_id: 'current_seller_id' // Fixed parameter name
       });
       
       if (!rpcError && rpcData) {

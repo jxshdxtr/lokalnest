@@ -81,7 +81,6 @@ const PromotionManagement: React.FC = () => {
     new Date(new Date().setDate(new Date().getDate() + 14))
   );
 
-  // Form state for new/edit promotion
   const [formData, setFormData] = useState<Omit<Promotion, "id" | "usage_count">>({
     title: "",
     description: "",
@@ -96,13 +95,11 @@ const PromotionManagement: React.FC = () => {
     products: [],
   });
 
-  // Fetch promotions
   const fetchPromotions = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Try to use RPC function if available
       const { data: rpcData, error: rpcError } = await supabase.rpc('get_promotions', {
-        p_seller_id: 'current_seller_id' // Replace with actual seller ID in production
+        p_seller_id: 'current_seller_id'
       });
       
       if (!rpcError && rpcData) {
@@ -110,7 +107,6 @@ const PromotionManagement: React.FC = () => {
       } else {
         console.error('RPC error:', rpcError);
         
-        // Use mock data if RPC fails
         const mockPromotions: Promotion[] = [
           {
             id: "1",
@@ -181,12 +177,10 @@ const PromotionManagement: React.FC = () => {
 
   const handleToggleActive = async (id: string, currentState: boolean) => {
     try {
-      // Update locally first for immediate feedback
       setPromotions(promotions.map(promo => 
         promo.id === id ? {...promo, is_active: !currentState} : promo
       ));
       
-      // Update in database
       await supabase.rpc('update_promotion_status', {
         p_promotion_id: id,
         p_new_status: !currentState
@@ -197,7 +191,6 @@ const PromotionManagement: React.FC = () => {
       console.error("Error updating promotion status:", error);
       toast.error("Failed to update promotion");
       
-      // Revert local state if API call failed
       setPromotions(promotions.map(promo => 
         promo.id === id ? {...promo, is_active: currentState} : promo
       ));
@@ -213,12 +206,10 @@ const PromotionManagement: React.FC = () => {
     if (!currentPromotion) return;
     
     try {
-      // Delete from database
       await supabase.rpc('delete_promotion', {
         p_promotion_id: currentPromotion.id
       });
       
-      // Update local state
       setPromotions(promotions.filter(promo => promo.id !== currentPromotion.id));
       setIsDeleteDialogOpen(false);
       setCurrentPromotion(null);
@@ -271,7 +262,6 @@ const PromotionManagement: React.FC = () => {
 
   const handleSavePromotion = async () => {
     try {
-      // Update dates from calendar state
       const updatedFormData = {
         ...formData,
         start_date: startDate?.toISOString() || new Date().toISOString(),
@@ -280,13 +270,11 @@ const PromotionManagement: React.FC = () => {
       };
       
       if (currentPromotion) {
-        // Update existing promotion
         await supabase.rpc('update_promotion', {
           p_promotion_id: currentPromotion.id,
           p_promotion_data: updatedFormData
         });
         
-        // Update local state
         setPromotions(promotions.map(promo => 
           promo.id === currentPromotion.id 
             ? { ...promo, ...updatedFormData } 
@@ -295,22 +283,18 @@ const PromotionManagement: React.FC = () => {
         
         toast.success("Promotion updated successfully");
       } else {
-        // Create new promotion
         const newId = Date.now().toString();
         
-        // In a real app, we'd use the returned ID from the database
         const newPromotion = {
           id: newId,
           ...updatedFormData,
           usage_count: 0
         };
         
-        // Add to database
         await supabase.rpc('create_promotion', {
           p_promotion_data: newPromotion
         });
         
-        // Update local state
         setPromotions([newPromotion, ...promotions]);
         toast.success("Promotion created successfully");
       }
@@ -344,15 +328,12 @@ const PromotionManagement: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: checked }));
   };
 
-  // Filter promotions based on search and tab
   const filteredPromotions = promotions.filter(promotion => {
-    // Search filter
     const matchesSearch = promotion.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          promotion.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (promotion.coupon_code && 
                           promotion.coupon_code.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    // Tab filter
     let matchesTab = true;
     if (activeTab === "active") {
       matchesTab = promotion.is_active;
@@ -367,19 +348,16 @@ const PromotionManagement: React.FC = () => {
     return matchesSearch && matchesTab;
   });
 
-  // Format date for display
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), "MMM d, yyyy");
   };
 
-  // Check if a promotion is scheduled for the future
   const isScheduled = (startDate: string) => {
     const now = new Date();
     const start = new Date(startDate);
     return start > now;
   };
 
-  // Check if a promotion has expired
   const isExpired = (endDate: string) => {
     const now = new Date();
     const end = new Date(endDate);
@@ -544,7 +522,6 @@ const PromotionManagement: React.FC = () => {
         </Table>
       </div>
       
-      {/* Create/Edit Promotion Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -742,7 +719,6 @@ const PromotionManagement: React.FC = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
