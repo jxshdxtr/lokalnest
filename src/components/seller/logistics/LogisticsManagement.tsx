@@ -1,179 +1,231 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
-import { Truck, Package, MapPin, Map, Plus } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { 
+  Truck, 
+  Package, 
+  Calendar as CalendarIcon, 
+  Clock, 
+  Map, 
+  FileText, 
+  MoreVertical, 
+  Eye, 
+  Download, 
+  Printer
+} from 'lucide-react';
 
-const mockDeliveries = [
-  {
-    id: '1',
-    orderId: 'ORD-001',
-    customer: 'John Doe',
-    address: 'Unit 1234, Building A, Metro Manila',
-    status: 'scheduled',
-    carrier: 'J&T Express',
-    scheduledDate: '2025-04-15T10:00:00',
-    trackingNumber: 'JT12345678PH'
-  },
-  {
-    id: '2',
-    orderId: 'ORD-003',
-    customer: 'Maria Santos',
-    address: '123 Main Street, Cebu City',
-    status: 'in_transit',
-    carrier: 'LBC Express',
-    scheduledDate: '2025-04-08T14:30:00',
-    trackingNumber: 'LBC87654321PH'
-  },
-  {
-    id: '3',
-    orderId: 'ORD-007',
-    customer: 'Roberto Garcia',
-    address: '456 Park Avenue, Davao City',
-    status: 'delivered',
-    carrier: 'Ninja Van',
-    scheduledDate: '2025-04-02T09:15:00',
-    trackingNumber: 'NV13579086PH'
-  }
-];
+const LogisticsManagement = () => {
+  const [date, setDate] = useState<Date | undefined>(new Date());
 
-const carriers = [
-  { id: 'jt', name: 'J&T Express', baseRate: 100, perKgRate: 20 },
-  { id: 'lbc', name: 'LBC Express', baseRate: 120, perKgRate: 25 },
-  { id: 'ninja', name: 'Ninja Van', baseRate: 110, perKgRate: 22 },
-  { id: 'grab', name: 'Grab Express', baseRate: 150, perKgRate: 30 }
-];
-
-const LogisticsManagement: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('deliveries');
-  const [selectedCarrier, setSelectedCarrier] = useState('');
-  const [packageWeight, setPackageWeight] = useState('');
-  const [distance, setDistance] = useState('');
-  const [shippingFee, setShippingFee] = useState<number | null>(null);
+  const deliveries = [
+    {
+      id: "DEL-001",
+      order_id: "ORD-5436",
+      customer: "Juan Dela Cruz",
+      address: "123 Main St, Manila, Philippines",
+      status: "scheduled",
+      date: "2025-04-09T10:00:00Z",
+      courier: "FastTrack Delivery"
+    },
+    {
+      id: "DEL-002",
+      order_id: "ORD-5442",
+      customer: "Maria Santos",
+      address: "456 Oak Ave, Quezon City, Philippines",
+      status: "in_transit",
+      date: "2025-04-08T14:30:00Z",
+      courier: "SpeedShip"
+    },
+    {
+      id: "DEL-003",
+      order_id: "ORD-5448",
+      customer: "Antonio Reyes",
+      address: "789 Pine St, Cebu City, Philippines",
+      status: "delivered",
+      date: "2025-04-07T11:15:00Z",
+      courier: "FastTrack Delivery"
+    },
+    {
+      id: "DEL-004",
+      order_id: "ORD-5453",
+      customer: "Elena Moreno",
+      address: "234 Cedar Rd, Davao City, Philippines",
+      status: "failed",
+      date: "2025-04-06T16:00:00Z",
+      courier: "SpeedShip"
+    }
+  ];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'scheduled':
-        return <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">Scheduled</span>;
+        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">Scheduled</Badge>;
       case 'in_transit':
-        return <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">In Transit</span>;
+        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">In Transit</Badge>;
       case 'delivered':
-        return <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Delivered</span>;
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Delivered</Badge>;
+      case 'failed':
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-200">Failed</Badge>;
       default:
-        return <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">{status}</span>;
+        return <Badge variant="outline">Unknown</Badge>;
     }
-  };
-  
-  const calculateShippingFee = () => {
-    if (!selectedCarrier || !packageWeight || !distance) {
-      toast.error('Please fill in all fields to calculate shipping fee');
-      return;
-    }
-    
-    const carrier = carriers.find(c => c.id === selectedCarrier);
-    if (!carrier) return;
-    
-    const weight = parseFloat(packageWeight);
-    const distanceKm = parseFloat(distance);
-    
-    // Simple formula: base rate + (weight * per kg rate) + (0.5 * distance)
-    const fee = carrier.baseRate + (weight * carrier.perKgRate) + (0.5 * distanceKm);
-    setShippingFee(fee);
-    
-    toast.success('Shipping fee calculated successfully');
-  };
-  
-  const scheduleDelivery = () => {
-    toast.success('Delivery scheduled successfully');
-    setActiveTab('deliveries');
-  };
-  
-  const handleTrackingUpdate = (deliveryId: string) => {
-    toast.success('Tracking information updated and notification sent to customer');
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Logistics & Delivery</h1>
+      <div>
+        <h1 className="text-2xl font-bold">Logistics & Delivery</h1>
+        <p className="text-muted-foreground">Manage your shipping, tracking, and delivery options</p>
       </div>
-      
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-3 w-full md:w-auto">
-          <TabsTrigger value="deliveries">
-            <Truck className="h-4 w-4 mr-2" />
-            Deliveries
-          </TabsTrigger>
-          <TabsTrigger value="schedule">
-            <Calendar className="h-4 w-4 mr-2" />
-            Schedule
-          </TabsTrigger>
-          <TabsTrigger value="shipping">
-            <Package className="h-4 w-4 mr-2" />
-            Shipping Fees
-          </TabsTrigger>
+
+      <Tabs defaultValue="deliveries" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="deliveries">Deliveries</TabsTrigger>
+          <TabsTrigger value="shipping">Shipping Rates</TabsTrigger>
+          <TabsTrigger value="couriers">Courier Services</TabsTrigger>
+          <TabsTrigger value="settings">Logistics Settings</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="deliveries" className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full sm:w-auto justify-start">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? format(date, 'PPP') : 'Select date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={setDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Select>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="All Couriers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Couriers</SelectItem>
+                  <SelectItem value="fasttrack">FastTrack Delivery</SelectItem>
+                  <SelectItem value="speedship">SpeedShip</SelectItem>
+                  <SelectItem value="expressdeliver">Express Deliver</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="in_transit">In Transit</SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button className="w-full sm:w-auto">
+              <Truck className="mr-2 h-4 w-4" />
+              Schedule Delivery
+            </Button>
+          </div>
+
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>Scheduled Deliveries</CardTitle>
-              <CardDescription>
-                View and manage all scheduled and in-progress deliveries.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Delivery ID</TableHead>
                     <TableHead>Order</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead className="hidden md:table-cell">Carrier</TableHead>
-                    <TableHead className="hidden md:table-cell">Scheduled</TableHead>
+                    <TableHead className="hidden md:table-cell">Customer</TableHead>
+                    <TableHead className="hidden md:table-cell">Date & Time</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="hidden md:table-cell">Courier</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockDeliveries.map((delivery) => (
+                  {deliveries.map((delivery) => (
                     <TableRow key={delivery.id}>
-                      <TableCell className="font-medium">{delivery.orderId}</TableCell>
-                      <TableCell>
-                        <div>
-                          <div>{delivery.customer}</div>
-                          <div className="text-xs text-muted-foreground truncate max-w-[150px]">
-                            {delivery.address}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">{delivery.carrier}</TableCell>
+                      <TableCell className="font-medium">{delivery.id}</TableCell>
+                      <TableCell>{delivery.order_id}</TableCell>
+                      <TableCell className="hidden md:table-cell">{delivery.customer}</TableCell>
                       <TableCell className="hidden md:table-cell">
-                        {new Date(delivery.scheduledDate).toLocaleDateString()}
+                        {format(new Date(delivery.date), 'MMM d, yyyy h:mm a')}
                       </TableCell>
                       <TableCell>{getStatusBadge(delivery.status)}</TableCell>
+                      <TableCell className="hidden md:table-cell">{delivery.courier}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => handleTrackingUpdate(delivery.id)}>
-                          Update
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>
+                              <Eye className="mr-2 h-4 w-4" />View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Map className="mr-2 h-4 w-4" />Track Delivery
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <Download className="mr-2 h-4 w-4" />Download Label
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem>
+                              <Printer className="mr-2 h-4 w-4" />Print Manifest
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -182,150 +234,179 @@ const LogisticsManagement: React.FC = () => {
             </CardContent>
           </Card>
         </TabsContent>
-        
-        <TabsContent value="schedule">
+
+        <TabsContent value="shipping" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Schedule Delivery</CardTitle>
+              <CardTitle>Shipping Rates</CardTitle>
               <CardDescription>
-                Set up delivery for orders through our integrated courier partners.
+                Configure your shipping rates based on weight, distance, and delivery options
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="order_id">Order ID</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select an order" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ord001">Order #001</SelectItem>
-                      <SelectItem value="ord002">Order #002</SelectItem>
-                      <SelectItem value="ord003">Order #003</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="base-rate">Base Shipping Rate (₱)</Label>
+                  <Input id="base-rate" type="number" defaultValue="100" />
+                  <p className="text-sm text-muted-foreground">
+                    Starting rate for all deliveries
+                  </p>
                 </div>
-                
                 <div className="space-y-2">
-                  <Label htmlFor="carrier">Courier Service</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select courier" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {carriers.map(carrier => (
-                        <SelectItem key={carrier.id} value={carrier.id}>
-                          {carrier.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="pickup_date">Pickup Date</Label>
-                  <Input type="date" id="pickup_date" min={new Date().toISOString().split('T')[0]} />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="pickup_time">Pickup Time</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select time" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="morning">Morning (9am-12pm)</SelectItem>
-                      <SelectItem value="afternoon">Afternoon (1pm-5pm)</SelectItem>
-                      <SelectItem value="evening">Evening (6pm-8pm)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="weight-rate">Per Kg Rate (₱)</Label>
+                  <Input id="weight-rate" type="number" defaultValue="20" />
+                  <p className="text-sm text-muted-foreground">
+                    Additional cost per kilogram
+                  </p>
                 </div>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="notes">Special Instructions</Label>
-                <Input id="notes" placeholder="Any special instructions for the courier" />
+                <Label>Regional Shipping Rates</Label>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Region</TableHead>
+                      <TableHead>Base Rate (₱)</TableHead>
+                      <TableHead>Additional Per Kg (₱)</TableHead>
+                      <TableHead>Estimated Delivery</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>Metro Manila</TableCell>
+                      <TableCell>80</TableCell>
+                      <TableCell>15</TableCell>
+                      <TableCell>1-2 days</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Luzon (Other)</TableCell>
+                      <TableCell>120</TableCell>
+                      <TableCell>25</TableCell>
+                      <TableCell>2-4 days</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Visayas</TableCell>
+                      <TableCell>150</TableCell>
+                      <TableCell>30</TableCell>
+                      <TableCell>3-5 days</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>Mindanao</TableCell>
+                      <TableCell>180</TableCell>
+                      <TableCell>35</TableCell>
+                      <TableCell>4-7 days</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               </div>
-              
-              <div className="flex justify-end">
-                <Button type="button" onClick={scheduleDelivery}>
-                  <Truck className="h-4 w-4 mr-2" />
-                  Schedule Delivery
-                </Button>
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <Button variant="outline">Reset to Defaults</Button>
+              <Button>Save Changes</Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="couriers" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Connected Courier Services</CardTitle>
+              <CardDescription>
+                Manage your connected delivery services and APIs
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center p-4 border rounded-lg gap-4 justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-slate-100 p-2 rounded-md">
+                      <Truck className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">FastTrack Delivery</h3>
+                      <p className="text-sm text-muted-foreground">National coverage with same-day options</p>
+                    </div>
+                  </div>
+                  <Badge>Connected</Badge>
+                </div>
+                
+                <div className="flex items-center p-4 border rounded-lg gap-4 justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-slate-100 p-2 rounded-md">
+                      <Package className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">SpeedShip</h3>
+                      <p className="text-sm text-muted-foreground">Affordable delivery for small packages</p>
+                    </div>
+                  </div>
+                  <Badge>Connected</Badge>
+                </div>
+                
+                <div className="flex items-center p-4 border rounded-lg gap-4 justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-slate-100 p-2 rounded-md">
+                      <FileText className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Express Deliver</h3>
+                      <p className="text-sm text-muted-foreground">Premium service with real-time tracking</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm">Connect</Button>
+                </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
-        
-        <TabsContent value="shipping">
+
+        <TabsContent value="settings" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Calculate Shipping Fees</CardTitle>
+              <CardTitle>Logistics Settings</CardTitle>
               <CardDescription>
-                Estimate shipping costs based on weight, distance, and courier.
+                Configure delivery preferences and packaging options
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="carrier_calc">Courier Service</Label>
-                  <Select value={selectedCarrier} onValueChange={setSelectedCarrier}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select courier" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {carriers.map(carrier => (
-                        <SelectItem key={carrier.id} value={carrier.id}>
-                          {carrier.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="weight">Package Weight (kg)</Label>
-                  <Input 
-                    id="weight" 
-                    type="number" 
-                    placeholder="Enter weight" 
-                    min="0.1" 
-                    step="0.1"
-                    value={packageWeight}
-                    onChange={(e) => setPackageWeight(e.target.value)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="distance">Distance (km)</Label>
-                  <Input 
-                    id="distance" 
-                    type="number" 
-                    placeholder="Enter distance" 
-                    min="1" 
-                    step="1"
-                    value={distance}
-                    onChange={(e) => setDistance(e.target.value)}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="default-courier">Default Courier Service</Label>
+                <Select defaultValue="fasttrack">
+                  <SelectTrigger id="default-courier">
+                    <SelectValue placeholder="Select courier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fasttrack">FastTrack Delivery</SelectItem>
+                    <SelectItem value="speedship">SpeedShip</SelectItem>
+                    <SelectItem value="expressdeliver">Express Deliver</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
-              <div className="flex justify-between items-center pt-4">
-                <Button onClick={calculateShippingFee}>
-                  Calculate Fee
-                </Button>
-                
-                {shippingFee !== null && (
-                  <div className="text-right">
-                    <div className="text-sm text-muted-foreground">Estimated Shipping Fee:</div>
-                    <div className="text-2xl font-bold">₱{shippingFee.toFixed(2)}</div>
-                  </div>
-                )}
+              <div className="space-y-2">
+                <Label htmlFor="pickup-address">Pickup Address</Label>
+                <Textarea 
+                  id="pickup-address" 
+                  rows={3}
+                  defaultValue="123 Business Street, Sample City, 1000 Philippines"
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="contact-person">Contact Person</Label>
+                  <Input id="contact-person" defaultValue="Juan Seller" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contact-number">Contact Number</Label>
+                  <Input id="contact-number" defaultValue="+63 912 345 6789" />
+                </div>
               </div>
             </CardContent>
+            <CardFooter>
+              <Button>Save Settings</Button>
+            </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>

@@ -1,11 +1,11 @@
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import HomePage from './pages/HomePage';
+import Index from './pages/Index';
 import SellerDashboard from './pages/SellerDashboard';
 import ProductManagement from './components/seller/ProductManagement';
 import OrderManagement from './components/seller/OrderManagement';
 import PromotionManagement from './components/seller/PromotionManagement';
-import CustomerManagement from './components/seller/customers/CustomerManagement';
+import CustomerManagement from './components/seller/CustomerManagement';
 import SellerSettings from './components/seller/SellerSettings';
 import LogisticsManagement from './components/seller/logistics/LogisticsManagement';
 
@@ -13,7 +13,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<Index />} />
         
         {/* Seller Dashboard Routes */}
         <Route path="/seller" element={<SellerDashboard />}>

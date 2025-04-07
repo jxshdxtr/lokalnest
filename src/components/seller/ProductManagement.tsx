@@ -132,6 +132,10 @@ const ProductManagement = () => {
     setSearchTerm(e.target.value);
   };
 
+  const toggleFilter = () => {
+    setIsFilterOpen(!isFilterOpen);
+  };
+
   const applyFilters = (product: Product) => {
     const matchesSearch = 
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -222,7 +226,7 @@ const ProductManagement = () => {
             handleSearch={handleSearch}
             handleAddProduct={handleAddProduct}
             isFilterOpen={isFilterOpen}
-            setIsFilterOpen={setIsFilterOpen}
+            toggleFilter={toggleFilter}
             filterPrice={filterPrice}
             setFilterPrice={setFilterPrice}
             filterStock={filterStock}

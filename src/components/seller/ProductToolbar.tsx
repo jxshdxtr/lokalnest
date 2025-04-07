@@ -32,6 +32,7 @@ interface ProductToolbarProps {
   handleSearch: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleAddProduct: () => void;
   isFilterOpen: boolean;
+  setIsFilterOpen?: (isOpen: boolean) => void;
   toggleFilter?: () => void;
   filterPrice?: { min: string; max: string };
   setFilterPrice?: (price: { min: string; max: string }) => void;
@@ -48,6 +49,7 @@ const ProductToolbar: React.FC<ProductToolbarProps> = ({
   handleSearch,
   handleAddProduct,
   isFilterOpen,
+  setIsFilterOpen,
   toggleFilter,
   filterPrice = { min: '', max: '' },
   setFilterPrice = () => {},
@@ -65,6 +67,14 @@ const ProductToolbar: React.FC<ProductToolbarProps> = ({
     setFilterPrice({ min: minPrice, max: maxPrice });
   };
 
+  const handleToggleFilter = () => {
+    if (toggleFilter) {
+      toggleFilter();
+    } else if (setIsFilterOpen) {
+      setIsFilterOpen(!isFilterOpen);
+    }
+  };
+
   return (
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
       <div className="relative w-full sm:w-auto">
@@ -80,7 +90,7 @@ const ProductToolbar: React.FC<ProductToolbarProps> = ({
       <div className="flex items-center gap-3 w-full sm:w-auto">
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button variant="outline" className="flex items-center gap-2" onClick={handleToggleFilter}>
               <Filter className="h-4 w-4" />
               <span className="hidden sm:inline">Filter</span>
               {isFilterOpen && <X className="h-4 w-4" />}
