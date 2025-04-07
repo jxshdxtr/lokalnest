@@ -7,17 +7,31 @@ import { useCustomers } from './customers/useCustomers';
 import { toast } from 'sonner';
 
 const CustomerManagement = () => {
-  const { customers, loading, setCustomers } = useCustomers();
+  // Fix: use correct property names from the useCustomers hook
+  const { 
+    customers, 
+    isLoading, // Changed from 'loading' to 'isLoading'
+    search,
+    statusFilter,
+    addTag,
+    removeTag,
+    refreshCustomers
+  } = useCustomers();
 
   const handleUpdateStatus = async (customerId: string, status: string) => {
     try {
       // In a real app, you would call an API here
+      // Since we can't setCustomers directly, we'll refresh the customer list after update
       const updatedCustomers = customers.map(customer => 
         customer.id === customerId ? { ...customer, status } : customer
       );
       
-      setCustomers(updatedCustomers);
-      toast.success(`Customer status updated to ${status}`);
+      // Simulate API update (in a real app, this would be an API call)
+      // Then refresh the customers list
+      setTimeout(() => {
+        refreshCustomers();
+        toast.success(`Customer status updated to ${status}`);
+      }, 300);
     } catch (error) {
       console.error('Error updating customer status:', error);
       toast.error('Failed to update customer status');
@@ -28,12 +42,15 @@ const CustomerManagement = () => {
     <div className="space-y-6">
       <Card>
         <CardContent className="p-6">
-          {customers.length === 0 && !loading ? (
-            <EmptyState />
+          {customers.length === 0 && !isLoading ? (
+            <EmptyState 
+              searchTerm={search} // Fix: Pass the required searchTerm prop
+              statusFilter={statusFilter} // Fix: Pass the required statusFilter prop
+            />
           ) : (
             <CustomerTable 
               customers={customers} 
-              loading={loading} 
+              loading={isLoading} // Changed from 'loading' to 'isLoading'
               onUpdateStatus={handleUpdateStatus}
             />
           )}
