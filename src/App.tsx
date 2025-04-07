@@ -8,9 +8,16 @@ import CustomerManagement from './components/seller/CustomerManagement';
 import SellerSettings from './components/seller/SellerSettings';
 import LogisticsManagement from './components/seller/logistics/LogisticsManagement';
 import InventoryManagement from './components/seller/InventoryManagement';
+import ReviewManagement from './components/seller/ReviewManagement';
 import BuyerDashboard from './pages/BuyerDashboard';
 import Checkout from './pages/Checkout';
+import BuyerHome from './pages/BuyerHome';
+import BuyerOrders from './components/buyer/BuyerOrders';
+import BuyerPayments from './components/buyer/BuyerPayments';
+import BuyerReviews from './components/buyer/BuyerReviews';
+import BuyerSupport from './components/buyer/BuyerSupport';
 import ProductDetail from './pages/ProductDetail';
+import AuthForm from './components/auth/AuthForm';
 import { CartProvider } from './components/buyer/shopping/Cart';
 
 function App() {
@@ -33,6 +40,7 @@ function App() {
               <Route path="customers" element={<CustomerManagement />} />
               <Route path="promotions" element={<PromotionManagement />} />
               <Route path="logistics" element={<LogisticsManagement />} />
+              <Route path="reviews" element={<ReviewManagement />} />
               <Route path="settings" element={<SellerSettings />} />
             </Route>
           </Route>

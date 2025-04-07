@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { XCircle, Upload, Plus, Trash2, Info, Loader2 } from 'lucide-react';
+import { XCircle, Upload, Plus, Trash2, Info, Loader2 } from 'lucide-react';  
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -35,6 +35,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   onSave, 
   product 
 }) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -390,6 +392,26 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       toast.error('Failed to save product');
     }
   };
+
+  if (isLoading) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[675px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Loading...</DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
