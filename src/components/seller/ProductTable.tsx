@@ -23,6 +23,7 @@ interface Product {
   status: string;
   description?: string;
   created_at?: string;
+  categories?: { name: string };
 }
 
 interface ProductTableProps {
@@ -52,6 +53,20 @@ const ProductTable: React.FC<ProductTableProps> = ({
     } else {
       return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">In Stock</Badge>;
     }
+  };
+
+  // Helper function to get category name
+  const getCategoryName = (product: Product): string => {
+    if (product.categories?.name) {
+      return product.categories.name;
+    }
+    if (product.category_name) {
+      return product.category_name;
+    }
+    if (product.category) {
+      return product.category;
+    }
+    return 'Uncategorized';
   };
 
   return (
@@ -98,7 +113,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
                     </div>
                   </div>
                 </td>
-                <td className="p-3 text-sm">{product.categories?.name || 'Uncategorized'}</td>
+                <td className="p-3 text-sm">{getCategoryName(product)}</td>
                 <td className="p-3 text-sm">₱{product.price.toFixed(2)}</td>
                 <td className="p-3 text-sm">{product.stock}</td>
                 <td className="p-3 text-sm">

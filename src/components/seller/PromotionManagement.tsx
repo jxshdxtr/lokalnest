@@ -102,7 +102,7 @@ const PromotionManagement: React.FC = () => {
     try {
       // Try to use RPC function if available
       const { data: rpcData, error: rpcError } = await supabase.rpc('get_promotions', {
-        seller_id: 'current_seller_id' // Replace with actual seller ID in production
+        p_seller_id: 'current_seller_id' // Replace with actual seller ID in production
       });
       
       if (!rpcError && rpcData) {
@@ -333,7 +333,11 @@ const PromotionManagement: React.FC = () => {
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'discount_type') {
+      setFormData(prev => ({ ...prev, [name]: value as "percentage" | "fixed" }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSwitchChange = (name: string, checked: boolean) => {
