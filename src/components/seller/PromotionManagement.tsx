@@ -66,6 +66,7 @@ interface Promotion {
   usage_count: number;
   minimum_purchase?: number;
   products?: string[];
+  seller_id?: string;
 }
 
 const PromotionManagement: React.FC = () => {
@@ -103,7 +104,24 @@ const PromotionManagement: React.FC = () => {
         .select('*');
       
       if (!queryError && data) {
-        setPromotions(data as Promotion[]);
+        const mappedPromotions: Promotion[] = data.map((promo: any) => ({
+          id: promo.id,
+          title: promo.title,
+          description: promo.description || '',
+          discount_type: promo.discount_type as "percentage" | "fixed",
+          discount_value: promo.discount_value,
+          coupon_code: promo.coupon_code,
+          start_date: promo.start_date,
+          end_date: promo.end_date,
+          is_active: promo.is_active !== null ? promo.is_active : true,
+          usage_limit: promo.usage_limit,
+          usage_count: promo.usage_count || 0,
+          minimum_purchase: promo.minimum_purchase,
+          products: promo.applies_to === 'specific' ? [] : undefined,
+          seller_id: promo.seller_id
+        }));
+        
+        setPromotions(mappedPromotions);
       } else {
         console.error('Query error:', queryError);
         
@@ -270,7 +288,8 @@ const PromotionManagement: React.FC = () => {
         ...formData,
         start_date: startDate?.toISOString() || new Date().toISOString(),
         end_date: endDate?.toISOString() || 
-                 new Date(new Date().setDate(new Date().getDate() + 14)).toISOString()
+                 new Date(new Date().setDate(new Date().getDate() + 14)).toISOString(),
+        seller_id: "00000000-0000-0000-0000-000000000000"
       };
       
       if (currentPromotion) {
@@ -294,7 +313,8 @@ const PromotionManagement: React.FC = () => {
         const newPromotion = {
           id: newId,
           ...updatedFormData,
-          usage_count: 0
+          usage_count: 0,
+          seller_id: "00000000-0000-0000-0000-000000000000"
         };
         
         const { error } = await supabase

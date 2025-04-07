@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Table,
@@ -178,10 +177,23 @@ const InventoryManagement: React.FC = () => {
       // Use regular query instead of RPC to avoid TypeScript errors
       const { data, error: queryError } = await supabase
         .from('inventory_logs')
-        .select('*');
+        .select('*, products:product_id(name)');
       
       if (!queryError && data) {
-        setLogs(data as InventoryLog[]);
+        // Map the database results to our InventoryLog interface
+        const mappedLogs: InventoryLog[] = data.map((log: any) => ({
+          id: log.id,
+          product_id: log.product_id || '',
+          product_name: log.products?.name || 'Unknown Product',
+          previous_quantity: log.previous_quantity,
+          new_quantity: log.new_quantity,
+          change_quantity: log.change_quantity,
+          reason: log.reason || '',
+          timestamp: log.created_at || new Date().toISOString(),
+          staff_name: 'Staff Member' // We don't have this in the raw data
+        }));
+        
+        setLogs(mappedLogs);
       } else {
         console.error('Query error:', queryError);
         

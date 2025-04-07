@@ -23,10 +23,25 @@ export const useCustomers = () => {
       // Use the generic query instead of RPC to avoid TypeScript errors
       const { data, error: queryError } = await supabase
         .from('seller_customers')
-        .select('*');
+        .select('*, profiles:customer_id(full_name, email, phone, avatar_url)');
       
       if (!queryError && data) {
-        setCustomers(data as Customer[]);
+        // Map the database results to our Customer interface
+        const mappedCustomers: Customer[] = data.map((item: any) => ({
+          id: item.id,
+          full_name: item.profiles?.full_name || 'Unknown',
+          email: item.profiles?.email || '',
+          phone: item.profiles?.phone || '',
+          location: item.location || '',
+          avatar_url: item.profiles?.avatar_url,
+          total_orders: item.total_orders || 0,
+          total_spent: item.total_spent || 0,
+          last_purchase_date: item.last_purchase_date || '',
+          status: item.status || 'inactive',
+          tags: item.tags || []
+        }));
+        
+        setCustomers(mappedCustomers);
       } else {
         console.error('Query error:', queryError);
         
