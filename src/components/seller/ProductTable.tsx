@@ -98,7 +98,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
                     </div>
                   </div>
                 </td>
-                <td className="p-3 text-sm">{product.category_name || 'Uncategorized'}</td>
+                <td className="p-3 text-sm">{product.categories?.name || 'Uncategorized'}</td>
                 <td className="p-3 text-sm">₱{product.price.toFixed(2)}</td>
                 <td className="p-3 text-sm">{product.stock}</td>
                 <td className="p-3 text-sm">

@@ -1,33 +1,48 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ProductGrid from '../product/ProductGrid';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  seller: string;
-  category: string;
-  location: string;
-}
+import { getFeaturedProducts, ProductWithSeller } from '@/services/productService';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface FeaturedProductsProps {
   title: string;
   subtitle?: string;
-  products: Product[];
+  staticProducts?: ProductWithSeller[];
   viewAllLink?: string;
 }
 
 const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
   title,
   subtitle,
-  products,
+  staticProducts,
   viewAllLink = '/products',
 }) => {
+  const [products, setProducts] = useState<ProductWithSeller[]>([]);
+  const [loading, setLoading] = useState(!staticProducts);
+
+  useEffect(() => {
+    if (staticProducts) {
+      setProducts(staticProducts);
+      return;
+    }
+
+    const loadProducts = async () => {
+      try {
+        const fetchedProducts = await getFeaturedProducts();
+        setProducts(fetchedProducts);
+      } catch (error) {
+        console.error('Error loading featured products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProducts();
+  }, [staticProducts]);
+
   return (
     <section id="featured-products" className="py-16">
       <div className="container mx-auto px-4">
@@ -46,7 +61,22 @@ const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
           )}
         </div>
 
-        <ProductGrid products={products} columns={4} />
+        {loading ? (
+          <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="border rounded-lg overflow-hidden">
+                <Skeleton className="aspect-square w-full" />
+                <div className="p-4 space-y-3">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-6 w-1/3" />
+                  <Skeleton className="h-10 w-full mt-4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <ProductGrid products={products} columns={4} />
+        )}
       </div>
     </section>
   );

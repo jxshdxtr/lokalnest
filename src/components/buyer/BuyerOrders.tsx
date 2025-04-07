@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Tabs,
@@ -7,12 +7,30 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { mockOrders } from './orders/mockData';
 import OrderList from './orders/OrderList';
 import { Order } from './orders/types';
+import { getOrders } from '@/services/orderService';
+import { toast } from 'sonner';
 
 const BuyerOrders = () => {
-  const [orders, setOrders] = useState<Order[]>(mockOrders);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const fetchedOrders = await getOrders();
+        setOrders(fetchedOrders);
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+        toast.error('Failed to load your orders');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -33,19 +51,19 @@ const BuyerOrders = () => {
         </TabsList>
         
         <TabsContent value="all">
-          <OrderList orders={orders} />
+          <OrderList orders={orders} loading={loading} />
         </TabsContent>
         
         <TabsContent value="processing">
-          <OrderList orders={orders} filterStatus="processing" />
+          <OrderList orders={orders} filterStatus="processing" loading={loading} />
         </TabsContent>
         
         <TabsContent value="shipped">
-          <OrderList orders={orders} filterStatus="shipped" />
+          <OrderList orders={orders} filterStatus="shipped" loading={loading} />
         </TabsContent>
         
         <TabsContent value="delivered">
-          <OrderList orders={orders} filterStatus="delivered" />
+          <OrderList orders={orders} filterStatus="delivered" loading={loading} />
         </TabsContent>
       </Tabs>
     </div>

@@ -16,6 +16,9 @@ interface Product {
   price: number;
   image?: string;
   category?: string;
+  categories?: {
+    name: string;
+  };
   category_name?: string;
   stock: number;
   status: string;
@@ -82,7 +85,7 @@ const ProductManagement = () => {
           stock_quantity,
           created_at,
           category_id,
-          categories:category_id(name)
+          categories(name)
         `)
         .eq('seller_id', session.user.id)
         .order('created_at', { ascending: false });
@@ -106,7 +109,7 @@ const ProductManagement = () => {
             description: product.description,
             image: images && images.length > 0 ? images[0].url : undefined,
             category: product.category_id,
-            category_name: product.categories?.name,
+            categories: product.categories,
             stock: product.stock_quantity,
             status: product.stock_quantity > 0 
               ? (product.stock_quantity < 10 ? 'low_stock' : 'active') 
@@ -132,8 +135,7 @@ const ProductManagement = () => {
   const applyFilters = (product: Product) => {
     const matchesSearch = 
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      '';
+      (product.categories?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     
     const matchesPrice = 
       (filterPrice.min === '' || product.price >= parseFloat(filterPrice.min)) &&

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import Layout from '@/components/layout/Layout';
 import Hero from '@/components/home/Hero';
@@ -6,82 +5,6 @@ import FeaturedProducts from '@/components/home/FeaturedProducts';
 import CategorySection from '@/components/home/CategorySection';
 import ProducerSpotlight from '@/components/home/ProducerSpotlight';
 import Features from '@/components/home/Features';
-
-// Sample data for demonstration
-const featuredProducts = [
-  {
-    id: "1",
-    name: "Handwoven Cotton Tote Bag",
-    price: 850,
-    image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
-    seller: "Bahay Hablon",
-    category: "Textiles & Clothing",
-    location: "Iloilo"
-  },
-  {
-    id: "2",
-    name: "Handcrafted Wooden Serving Bowl",
-    price: 1200,
-    image: "https://images.unsplash.com/photo-1635995158887-316c704fa35d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
-    seller: "Kalinga Woodcraft",
-    category: "Wooden Crafts",
-    location: "Baguio"
-  },
-  {
-    id: "3",
-    name: "Hand-painted Ceramic Mug",
-    price: 450,
-    image: "https://images.unsplash.com/photo-1493106641515-6b5631de4bb9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
-    seller: "Binhi Pottery",
-    category: "Pottery & Ceramics",
-    location: "Laguna"
-  },
-  {
-    id: "4",
-    name: "Handcrafted Silver Earrings",
-    price: 1800,
-    image: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
-    seller: "Isla Silver",
-    category: "Jewelry & Accessories",
-    location: "Davao"
-  },
-  {
-    id: "5",
-    name: "Handwoven Bamboo Wall Hanging",
-    price: 1650,
-    image: "https://images.unsplash.com/photo-1615529182904-14819c35db37?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
-    seller: "Anahaw Home",
-    category: "Home Decor",
-    location: "Cebu"
-  },
-  {
-    id: "6",
-    name: "Artisanal Coconut Jam Set",
-    price: 420,
-    image: "https://images.unsplash.com/photo-1612200482741-3ad34fcd2eb6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2532&q=80",
-    seller: "Langkay Foods",
-    category: "Food & Beverages",
-    location: "Quezon"
-  },
-  {
-    id: "7",
-    name: "Hand-Painted Philippine Landscape",
-    price: 3800,
-    image: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
-    seller: "Sining Art Studio",
-    category: "Art & Paintings",
-    location: "Manila"
-  },
-  {
-    id: "8",
-    name: "Handmade Organic Soap Collection",
-    price: 550,
-    image: "https://images.unsplash.com/photo-1600857544200-b2f468e64d7e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2670&q=80",
-    seller: "Luntian Organics",
-    category: "Soaps & Cosmetics",
-    location: "Batangas"
-  }
-];
 
 const categories = [
   {
@@ -163,7 +86,6 @@ const Index = () => {
         <FeaturedProducts 
           title="Featured Crafts" 
           subtitle="Discover our curated selection of handcrafted products from talented local artisans"
-          products={featuredProducts}
         />
         <CategorySection 
           title="Shop by Category"
