@@ -31,6 +31,19 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [currentSellerId, setCurrentSellerId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Get the current seller ID when component mounts
+    const getCurrentSeller = async () => {
+      const { data: session } = await supabase.auth.getSession();
+      if (session.session?.user) {
+        setCurrentSellerId(session.session.user.id);
+      }
+    };
+    
+    getCurrentSeller();
+  }, []);
 
   useEffect(() => {
     if (isOpen && customer) {
@@ -49,7 +62,7 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
         return;
       }
       
-      // Using raw query instead of typed query since the types don't include customer_messages yet
+      // Using raw query to fetch customer messages
       const { data, error } = await supabase
         .from('customer_messages')
         .select('*')
@@ -59,7 +72,7 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
       if (error) throw error;
       
       if (data) {
-        // Explicitly cast the data to our Message interface
+        // Map the data to our Message interface
         const typedMessages = data.map(item => ({
           id: item.id,
           message: item.message,
@@ -97,7 +110,7 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
         is_read: false
       };
       
-      // Using raw query since the types don't include customer_messages yet
+      // Insert the new message
       const { data, error } = await supabase
         .from('customer_messages')
         .insert(newMessage)
@@ -106,7 +119,7 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
       if (error) throw error;
       
       if (data) {
-        // Explicitly cast the new message to our Message interface
+        // Map the new message to our Message interface
         const typedNewMessage = {
           id: data[0].id,
           message: data[0].message,
@@ -179,11 +192,11 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex ${msg.customer_id === customer?.id && msg.seller_id !== customer?.id ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${msg.seller_id === currentSellerId ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
                     className={`max-w-[80%] p-3 rounded-lg ${
-                      msg.customer_id === customer?.id && msg.seller_id !== customer?.id
+                      msg.seller_id === currentSellerId
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted text-foreground'
                     }`}
