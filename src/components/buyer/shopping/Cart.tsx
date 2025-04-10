@@ -2,7 +2,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
 
 export type CartItem = {
   id: string;
@@ -25,6 +24,7 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+// Fix: Properly define the CartProvider as a React functional component
 export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>(() => {
     // Load cart from localStorage on initial render

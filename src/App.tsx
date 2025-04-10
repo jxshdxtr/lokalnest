@@ -25,6 +25,7 @@ import { CartProvider } from './components/buyer/shopping/Cart';
 
 function App() {
   return (
+    // Fix: Properly use CartProvider as a component
     <CartProvider>
       <Router>
         <Routes>
