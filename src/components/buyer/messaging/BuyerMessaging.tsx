@@ -36,6 +36,19 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Get the current user ID when component mounts
+    const getCurrentUser = async () => {
+      const { data: session } = await supabase.auth.getSession();
+      if (session.session?.user) {
+        setCurrentUserId(session.session.user.id);
+      }
+    };
+    
+    getCurrentUser();
+  }, []);
 
   useEffect(() => {
     if (isOpen && seller) {
@@ -184,11 +197,11 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex ${msg.customer_id === session?.user?.id ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${msg.customer_id === currentUserId ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
                     className={`max-w-[80%] p-3 rounded-lg ${
-                      msg.customer_id === session?.user?.id
+                      msg.customer_id === currentUserId
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted text-foreground'
                     }`}
