@@ -41,29 +41,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-
-interface OrderItem {
-  id: string;
-  product_id: string;
-  product_name: string;
-  quantity: number;
-  unit_price: number;
-  total_price: number;
-  image?: string;
-}
-
-interface Order {
-  id: string;
-  date: string;
-  buyer_id: string;
-  buyer_name?: string;
-  items: OrderItem[];
-  total: number;
-  status: string;
-  payment_status: string;
-  payment_method: string;
-  shipping_address: string;
-}
+import { fetchSellerOrders, updateOrderStatus } from './orders/orderService';
+import { OrderItem, Order } from './orders/types';
+import EmptyOrdersState from './orders/EmptyOrdersState';
+import OrderFilters from './orders/OrderFilters';
+import OrderItemList from './orders/OrderItemList';
+import OrderStatus from './orders/OrderStatus';
+import PaymentStatus from './orders/PaymentStatus';
 
 const OrderManagement = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -76,162 +60,14 @@ const OrderManagement = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchOrders();
+    loadOrders();
   }, []);
 
-  const fetchOrders = async () => {
+  const loadOrders = async () => {
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('You must be logged in to view orders');
-        navigate('/auth');
-        return;
-      }
-
-      console.log('Session user ID:', session.user.id);
-
-      // First, fetch all products for this seller
-      const { data: sellerProducts, error: productsError } = await supabase
-        .from('products')
-        .select('id')
-        .eq('seller_id', session.user.id);
-        
-      if (productsError) {
-        console.error('Error fetching seller products:', productsError);
-        throw productsError;
-      }
-      
-      console.log('Seller products found:', sellerProducts?.length || 0);
-      
-      if (!sellerProducts || sellerProducts.length === 0) {
-        setOrders([]);
-        setLoading(false);
-        return;
-      }
-      
-      const productIds = sellerProducts.map(p => p.id);
-      
-      // Get all order items for these products - fully qualify column names
-      const { data: orderItems, error: itemsError } = await supabase
-        .from('order_items')
-        .select(`
-          order_items.id,
-          order_items.order_id,
-          order_items.product_id,
-          order_items.quantity,
-          order_items.unit_price,
-          order_items.total_price,
-          products:order_items.product_id(name)
-        `)
-        .in('order_items.product_id', productIds);
-        
-      if (itemsError) {
-        console.error('Error fetching order items:', itemsError);
-        throw itemsError;
-      }
-      
-      console.log('Order items found:', orderItems?.length || 0);
-      
-      if (!orderItems || orderItems.length === 0) {
-        setOrders([]);
-        setLoading(false);
-        return;
-      }
-      
-      // Get unique order IDs
-      const orderIds = [...new Set(orderItems.map(item => item.order_id))];
-      
-      // Get order details
-      const { data: orderDetails, error: ordersError } = await supabase
-        .from('orders')
-        .select(`
-          orders.id,
-          orders.created_at,
-          orders.buyer_id,
-          orders.total_amount,
-          orders.status,
-          orders.payment_status,
-          orders.payment_method,
-          orders.shipping_address,
-          profiles:orders.buyer_id(full_name)
-        `)
-        .in('orders.id', orderIds);
-        
-      if (ordersError) {
-        console.error('Error fetching order details:', ordersError);
-        throw ordersError;
-      }
-      
-      console.log('Order details found:', orderDetails?.length || 0);
-      
-      try {
-        // Prepare product images fetch promises
-        const imagePromises = orderItems.map(async (item) => {
-          try {
-            const { data: images, error: imageError } = await supabase
-              .from('product_images')
-              .select('url')
-              .eq('product_id', item.product_id)
-              .eq('is_primary', true)
-              .limit(1);
-              
-            if (imageError) {
-              console.error('Error fetching image for product:', item.product_id, imageError);
-              return { item_id: item.id, image_url: undefined };
-            }
-            
-            return { 
-              item_id: item.id, 
-              image_url: images && images.length > 0 ? images[0].url : undefined 
-            };
-          } catch (imageErr) {
-            console.error('Exception in image fetch:', imageErr);
-            return { item_id: item.id, image_url: undefined };
-          }
-        });
-        
-        // Execute all image fetch promises
-        const itemImages = await Promise.all(imagePromises);
-        
-        // Build complete orders with items
-        const completeOrders = orderDetails.map(order => {
-          // Find all items for this order
-          const items = orderItems
-            .filter(item => item.order_id === order.id)
-            .map(item => {
-              // Find image for this item
-              const imageData = itemImages.find(img => img.item_id === item.id);
-              return {
-                id: item.id,
-                product_id: item.product_id,
-                product_name: item.products?.name || 'Unknown Product',
-                quantity: item.quantity,
-                unit_price: item.unit_price,
-                total_price: item.total_price,
-                image: imageData?.image_url
-              };
-            });
-            
-          return {
-            id: order.id,
-            date: order.created_at,
-            buyer_id: order.buyer_id,
-            buyer_name: order.profiles?.full_name || 'Customer',
-            items,
-            total: order.total_amount,
-            status: order.status,
-            payment_status: order.payment_status,
-            payment_method: order.payment_method,
-            shipping_address: order.shipping_address
-          };
-        });
-        
-        setOrders(completeOrders);
-      } catch (processingError) {
-        console.error('Error processing order data:', processingError);
-        throw processingError;
-      }
+      const fetchedOrders = await fetchSellerOrders();
+      setOrders(fetchedOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error('Failed to load orders: ' + (error.message || 'Unknown error'));
@@ -245,14 +81,9 @@ const OrderManagement = () => {
     setSearchTerm(e.target.value);
   };
 
-  const updateOrderStatus = async (orderId: string, status: string) => {
+  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status })
-        .eq('id', orderId);
-        
-      if (error) throw error;
+      await updateOrderStatus(orderId, status);
       
       // Update local state
       setOrders(orders.map(order => 
@@ -315,36 +146,6 @@ const OrderManagement = () => {
     }
   });
 
-  const getStatusBadge = (status: string) => {
-    switch(status.toLowerCase()) {
-      case 'processing':
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Processing</Badge>;
-      case 'shipped':
-        return <Badge className="bg-purple-100 text-purple-800 border-purple-200">Shipped</Badge>;
-      case 'delivered':
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Delivered</Badge>;
-      case 'cancelled':
-        return <Badge className="bg-red-100 text-red-800 border-red-200">Cancelled</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
-  };
-
-  const getPaymentStatusBadge = (status: string) => {
-    switch(status.toLowerCase()) {
-      case 'paid':
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Paid</Badge>;
-      case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pending</Badge>;
-      case 'refunded':
-        return <Badge className="bg-gray-100 text-gray-800 border-gray-200">Refunded</Badge>;
-      case 'failed':
-        return <Badge className="bg-red-100 text-red-800 border-red-200">Failed</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
-  };
-
   const formatOrderDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -358,55 +159,16 @@ const OrderManagement = () => {
     <div className="space-y-6">
       <Card>
         <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <div className="relative w-full sm:w-auto">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search orders..."
-                value={searchTerm}
-                onChange={handleSearch}
-                className="pl-10 w-full sm:w-[300px]"
-              />
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-[140px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="shipped">Shipped</SelectItem>
-                  <SelectItem value="delivered">Delivered</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={timeFilter} onValueChange={setTimeFilter}>
-                <SelectTrigger className="w-full sm:w-[140px]">
-                  <SelectValue placeholder="Time Period" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Time</SelectItem>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="this_week">This Week</SelectItem>
-                  <SelectItem value="this_month">This Month</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-full sm:w-[140px]">
-                  <SelectValue placeholder="Sort By" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date_desc">Newest First</SelectItem>
-                  <SelectItem value="date_asc">Oldest First</SelectItem>
-                  <SelectItem value="total_desc">Highest Amount</SelectItem>
-                  <SelectItem value="total_asc">Lowest Amount</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <OrderFilters 
+            searchTerm={searchTerm}
+            onSearchChange={handleSearch}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            timeFilter={timeFilter}
+            onTimeFilterChange={setTimeFilter}
+            sortBy={sortBy}
+            onSortByChange={setSortBy}
+          />
 
           {loading ? (
             <div className="flex justify-center items-center py-12">
@@ -440,43 +202,19 @@ const OrderManagement = () => {
                       </TableCell>
                       <TableCell>{order.buyer_name}</TableCell>
                       <TableCell>
-                        <div className="space-y-1 max-w-[250px]">
-                          {order.items.map((item) => (
-                            <div key={item.id} className="flex items-center gap-2">
-                              <div className="h-8 w-8 rounded overflow-hidden bg-muted flex-shrink-0">
-                                {item.image ? (
-                                  <img 
-                                    src={item.image} 
-                                    alt={item.product_name} 
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="h-full w-full bg-muted flex items-center justify-center">
-                                    <Package className="h-4 w-4 text-muted-foreground" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="truncate">
-                                <p className="text-xs font-medium truncate">{item.product_name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {item.quantity} × ₱{item.unit_price.toFixed(2)}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                        <OrderItemList items={order.items} />
                       </TableCell>
                       <TableCell>
                         <div>
                           <p className="text-xs">{order.payment_method}</p>
-                          {getPaymentStatusBadge(order.payment_status)}
+                          <PaymentStatus status={order.payment_status} />
                         </div>
                       </TableCell>
                       <TableCell>
                         <p className="font-medium">₱{order.total.toFixed(2)}</p>
                       </TableCell>
                       <TableCell>
-                        {getStatusBadge(order.status)}
+                        <OrderStatus status={order.status} />
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
@@ -491,27 +229,26 @@ const OrderManagement = () => {
                             <DropdownMenuSeparator />
                             
                             {order.status === 'processing' && (
-                              <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'shipped')}>
+                              <DropdownMenuItem onClick={() => handleUpdateOrderStatus(order.id, 'shipped')}>
                                 <Truck className="mr-2 h-4 w-4" />
                                 Mark as Shipped
                               </DropdownMenuItem>
                             )}
                             
                             {order.status === 'shipped' && (
-                              <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'delivered')}>
+                              <DropdownMenuItem onClick={() => handleUpdateOrderStatus(order.id, 'delivered')}>
                                 <ClipboardCheck className="mr-2 h-4 w-4" />
                                 Mark as Delivered
                               </DropdownMenuItem>
                             )}
                             
                             {(order.status === 'processing' || order.status === 'shipped') && (
-                              <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'cancelled')}>
+                              <DropdownMenuItem onClick={() => handleUpdateOrderStatus(order.id, 'cancelled')}>
                                 <Tag className="mr-2 h-4 w-4" />
                                 Cancel Order
                               </DropdownMenuItem>
                             )}
                             
-                            {/* View Details option - could be implemented in a future version */}
                             <DropdownMenuItem>
                               <Package className="mr-2 h-4 w-4" />
                               View Order Details
@@ -525,15 +262,9 @@ const OrderManagement = () => {
               </Table>
             </div>
           ) : (
-            <div className="text-center py-12">
-              <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No orders found</h3>
-              <p className="text-muted-foreground">
-                {searchTerm || statusFilter !== 'all' || timeFilter !== 'all'
-                  ? 'Try adjusting your search filters.'
-                  : "You haven't received any orders yet."}
-              </p>
-            </div>
+            <EmptyOrdersState 
+              hasFilters={searchTerm || statusFilter !== 'all' || timeFilter !== 'all'} 
+            />
           )}
         </CardContent>
       </Card>

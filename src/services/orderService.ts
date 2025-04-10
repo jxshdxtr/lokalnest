@@ -68,50 +68,65 @@ export async function getOrders(): Promise<Order[]> {
       throw new Error('You must be signed in to view orders');
     }
     
+    // First, get orders
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select(`
-        orders.id, 
-        date:orders.created_at, 
-        total:orders.total_amount, 
-        orders.status,
-        orders.tracking_number,
-        orders.tracking_url,
-        orders.estimated_delivery,
-        order_items!inner (
-          product:order_items.product_id (
-            name,
-            products:id (
-              images:product_images (
-                url
-              )
-            )
-          ),
-          order_items.quantity,
-          order_items.unit_price
-        )
-      `)
-      .eq('orders.buyer_id', user.id)
+      .select('*')
+      .eq('buyer_id', user.id)
       .order('created_at', { ascending: false });
     
     if (ordersError) {
       throw new Error(`Failed to fetch orders: ${ordersError.message}`);
     }
+
+    if (!orders || orders.length === 0) {
+      return [];
+    }
+
+    const orderIds = orders.map(order => order.id);
+    
+    // Then, get order items with product info
+    const { data: orderItems, error: itemsError } = await supabase
+      .from('order_items')
+      .select('*, products:product_id(*)')
+      .in('order_id', orderIds);
+      
+    if (itemsError) {
+      throw new Error(`Failed to fetch order items: ${itemsError.message}`);
+    }
+    
+    // Get product images for the ordered products
+    const productIds = orderItems.map(item => item.product_id);
+    const { data: productImages, error: imagesError } = await supabase
+      .from('product_images')
+      .select('*')
+      .in('product_id', productIds)
+      .eq('is_primary', true);
+      
+    if (imagesError) {
+      console.error('Failed to fetch product images:', imagesError);
+      // Continue without images rather than failing completely
+    }
     
     // Transform the data to match the Order type
-    return (orders || []).map((order: any) => {
-      const items = order.order_items.map((item: any) => ({
-        name: item.product.name,
-        quantity: item.quantity,
-        price: item.unit_price,
-        image: item.product.products.images[0]?.url || ''
-      }));
+    return orders.map(order => {
+      const items = orderItems
+        .filter(item => item.order_id === order.id)
+        .map(item => {
+          const image = productImages?.find(img => img.product_id === item.product_id)?.url || '';
+          return {
+            name: item.products?.name || 'Unknown Product',
+            quantity: item.quantity,
+            price: item.unit_price,
+            image: image
+          };
+        });
       
       return {
         id: order.id,
-        date: order.date,
+        date: order.created_at,
         items: items,
-        total: order.total,
+        total: order.total_amount,
         status: order.status,
         tracking: order.tracking_number ? {
           id: order.tracking_number,
