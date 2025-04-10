@@ -1,7 +1,4 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { DollarSign, ShoppingBag, Star, Users } from 'lucide-react';
-import React from 'react';
 import { SellerStats } from './types';
 
 export async function fetchSellerStats(sellerId: string): Promise<SellerStats> {
@@ -109,28 +106,32 @@ export async function fetchSellerStats(sellerId: string): Promise<SellerStats> {
         value: formattedSales, 
         description: salesTrendString, 
         trend: salesTrend >= 0 ? "up" : "down",
-        icon: <DollarSign className="h-5 w-5 text-blue-500" /> 
+        iconName: "DollarSign",
+        iconColor: "text-blue-500"
       },
       orders: { 
         title: "Orders", 
         value: orderCount.toString(), 
         description: "From all time",
         trend: "neutral", 
-        icon: <ShoppingBag className="h-5 w-5 text-orange-500" /> 
+        iconName: "ShoppingBag",
+        iconColor: "text-orange-500"
       },
       rating: { 
         title: "Rating", 
         value: `${avgRating.toFixed(1)}/5`, 
         description: `Based on ${reviewCount.toString()} reviews`, 
         trend: "neutral",
-        icon: <Star className="h-5 w-5 text-yellow-500" /> 
+        iconName: "Star",
+        iconColor: "text-yellow-500"
       },
       customers: { 
         title: "Customers", 
         value: customerCount.toString(), 
         description: "Unique buyers",
         trend: "neutral", 
-        icon: <Users className="h-5 w-5 text-green-500" /> 
+        iconName: "Users",
+        iconColor: "text-green-500"
       }
     };
     

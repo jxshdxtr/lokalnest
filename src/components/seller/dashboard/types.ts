@@ -6,7 +6,8 @@ export interface StatData {
   value: string;
   description: string;
   trend: 'up' | 'down' | 'neutral';
-  icon: ReactNode;
+  iconName: string;
+  iconColor: string;
 }
 
 export interface SellerStats {
