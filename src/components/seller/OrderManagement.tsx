@@ -112,19 +112,19 @@ const OrderManagement = () => {
       
       const productIds = sellerProducts.map(p => p.id);
       
-      // Get all order items for these products - FIX: Specify table alias for order_id
+      // Get all order items for these products - fully qualify column names
       const { data: orderItems, error: itemsError } = await supabase
         .from('order_items')
         .select(`
-          id,
+          order_items.id,
           order_items.order_id,
-          product_id,
-          quantity,
-          unit_price,
-          total_price,
-          products:product_id(name)
+          order_items.product_id,
+          order_items.quantity,
+          order_items.unit_price,
+          order_items.total_price,
+          products:order_items.product_id(name)
         `)
-        .in('product_id', productIds);
+        .in('order_items.product_id', productIds);
         
       if (itemsError) {
         console.error('Error fetching order items:', itemsError);
@@ -146,17 +146,17 @@ const OrderManagement = () => {
       const { data: orderDetails, error: ordersError } = await supabase
         .from('orders')
         .select(`
-          id,
-          created_at,
-          buyer_id,
-          total_amount,
-          status,
-          payment_status,
-          payment_method,
-          shipping_address,
-          profiles:buyer_id(full_name)
+          orders.id,
+          orders.created_at,
+          orders.buyer_id,
+          orders.total_amount,
+          orders.status,
+          orders.payment_status,
+          orders.payment_method,
+          orders.shipping_address,
+          profiles:orders.buyer_id(full_name)
         `)
-        .in('id', orderIds);
+        .in('orders.id', orderIds);
         
       if (ordersError) {
         console.error('Error fetching order details:', ordersError);

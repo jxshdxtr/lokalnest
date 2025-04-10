@@ -71,15 +71,15 @@ export async function getOrders(): Promise<Order[]> {
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select(`
-        id, 
-        date:created_at, 
-        total:total_amount, 
-        status,
-        tracking_number,
-        tracking_url,
-        estimated_delivery,
+        orders.id, 
+        date:orders.created_at, 
+        total:orders.total_amount, 
+        orders.status,
+        orders.tracking_number,
+        orders.tracking_url,
+        orders.estimated_delivery,
         order_items!inner (
-          product:product_id (
+          product:order_items.product_id (
             name,
             products:id (
               images:product_images (
@@ -87,11 +87,11 @@ export async function getOrders(): Promise<Order[]> {
               )
             )
           ),
-          quantity,
-          unit_price
+          order_items.quantity,
+          order_items.unit_price
         )
       `)
-      .eq('buyer_id', user.id)
+      .eq('orders.buyer_id', user.id)
       .order('created_at', { ascending: false });
     
     if (ordersError) {

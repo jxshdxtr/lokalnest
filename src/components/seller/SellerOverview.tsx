@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { 
   ShoppingBag, 
@@ -133,7 +134,7 @@ const SellerOverview = () => {
       // Fetch total sales
       const { data: salesData, error: salesError } = await supabase
         .from('order_items')
-        .select('total_price, product_id, products:product_id(seller_id)')
+        .select('order_items.total_price, order_items.product_id, products:order_items.product_id(seller_id)')
         .eq('products.seller_id', sellerId);
       
       if (salesError) throw salesError;
@@ -144,7 +145,7 @@ const SellerOverview = () => {
       // Fetch order count
       const { data: orders, error: ordersError } = await supabase
         .from('order_items')
-        .select('order_id, product_id, products:product_id(seller_id)')
+        .select('order_items.order_id, order_items.product_id, products:order_items.product_id(seller_id)')
         .eq('products.seller_id', sellerId);
       
       if (ordersError) throw ordersError;
@@ -156,7 +157,7 @@ const SellerOverview = () => {
       // Fetch average rating
       const { data: ratingData, error: ratingError } = await supabase
         .from('reviews')
-        .select('rating, product_id, products:product_id(seller_id)')
+        .select('reviews.rating, reviews.product_id, products:reviews.product_id(seller_id)')
         .eq('products.seller_id', sellerId);
       
       if (ratingError) throw ratingError;
@@ -188,7 +189,7 @@ const SellerOverview = () => {
       // Previous month sales
       const { data: prevSalesData, error: prevSalesError } = await supabase
         .from('order_items')
-        .select('total_price, product_id, products:product_id(seller_id), orders:order_id(created_at)')
+        .select('order_items.total_price, order_items.product_id, products:order_items.product_id(seller_id), orders:order_items.order_id(created_at)')
         .eq('products.seller_id', sellerId)
         .lt('orders.created_at', oneMonthAgoStr);
       
@@ -260,7 +261,7 @@ const SellerOverview = () => {
       for (const month of months) {
         const { data: monthRevenue, error } = await supabase
           .from('order_items')
-          .select('total_price, product_id, products:product_id(seller_id), orders:order_id(created_at)')
+          .select('order_items.total_price, order_items.product_id, products:order_items.product_id(seller_id), orders:order_items.order_id(created_at)')
           .eq('products.seller_id', sellerId)
           .gte('orders.created_at', month.startDate)
           .lte('orders.created_at', month.endDate);
@@ -325,14 +326,14 @@ const SellerOverview = () => {
       const { data: orderItems, error } = await supabase
         .from('order_items')
         .select(`
-          id,
+          order_items.id,
           order_items.order_id,
-          product_id,
-          quantity,
-          unit_price,
-          total_price,
-          products:product_id(name, seller_id),
-          orders:order_id(created_at, buyer_id, status, profiles:buyer_id(full_name))
+          order_items.product_id,
+          order_items.quantity,
+          order_items.unit_price,
+          order_items.total_price,
+          products:order_items.product_id(name, seller_id),
+          orders:order_items.order_id(created_at, buyer_id, status, profiles:buyer_id(full_name))
         `)
         .eq('products.seller_id', sellerId)
         .order('id', { ascending: false })
