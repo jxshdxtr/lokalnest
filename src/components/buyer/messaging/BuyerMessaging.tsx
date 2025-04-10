@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,12 +30,23 @@ interface Message {
   customer_id: string;
 }
 
+interface TypingIndicator {
+  userId: string;
+  name: string;
+  isTyping: boolean;
+}
+
 const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose }) => {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isSellerTyping, setIsSellerTyping] = useState(false);
+  const subscriptionRef = useRef<any>(null);
+  const presenceChannelRef = useRef<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Get the current user ID when component mounts
@@ -51,10 +61,84 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
   }, []);
 
   useEffect(() => {
-    if (isOpen && seller) {
+    if (isOpen && seller && currentUserId) {
       fetchMessages();
+      setupMessagesSubscription();
+      setupPresenceChannel();
     }
-  }, [isOpen, seller]);
+
+    return () => {
+      // Cleanup subscriptions when component unmounts or dialog closes
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+      }
+      if (presenceChannelRef.current) {
+        presenceChannelRef.current.unsubscribe();
+      }
+    };
+  }, [isOpen, seller, currentUserId]);
+
+  useEffect(() => {
+    // Scroll to bottom when messages change
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const setupMessagesSubscription = async () => {
+    if (!seller || !currentUserId) return;
+
+    try {
+      // Use seller ID directly, assuming it's already a valid reference
+      const sellerId = seller.id;
+
+      // Create a channel for real-time updates
+      const channel = supabase
+        .channel('buyer-messages')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'customer_messages',
+            filter: `customer_id=eq.${currentUserId}`,
+          },
+          (payload) => {
+            // Only add messages that aren't already in our state
+            const newMessage = payload.new as Message;
+            // Verify the message is from the selected seller
+            if (newMessage.seller_id === sellerId) {
+              // Check if the message already exists in our state
+              const messageExists = messages.some((msg) => msg.id === newMessage.id);
+              if (!messageExists) {
+                setMessages((prevMessages) => [...prevMessages, newMessage]);
+                
+                // Mark message as read since we're currently viewing it
+                markMessageAsRead(newMessage.id);
+              }
+            }
+          }
+        )
+        .subscribe();
+
+      subscriptionRef.current = channel;
+    } catch (error) {
+      console.error('Error setting up message subscription:', error);
+    }
+  };
+
+  const markMessageAsRead = async (messageId: string) => {
+    try {
+      await supabase
+        .from('customer_messages')
+        .update({ is_read: true })
+        .eq('id', messageId);
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+    }
+  };
 
   const fetchMessages = async () => {
     if (!seller) return;
@@ -108,8 +192,11 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
         return;
       }
       
+      // Use the seller ID directly - assuming it's already a valid reference
+      const sellerId = seller.id;
+      
       const newMessage = {
-        seller_id: seller.id,
+        seller_id: sellerId,
         customer_id: session.session.user.id,
         message: message.trim(),
         is_read: false
@@ -163,6 +250,104 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
     }
   };
 
+  const setupPresenceChannel = async () => {
+    if (!seller || !currentUserId) return;
+
+    try {
+      const channelName = `chat:${currentUserId}:${seller.id}`;
+
+      const channel = supabase.channel(channelName, {
+        config: {
+          presence: {
+            key: currentUserId,
+          },
+        },
+      });
+
+      channel
+        .on('presence', { event: 'sync' }, () => {
+          // Handle presence sync (users joining/leaving)
+          const state = channel.presenceState();
+          const sellerPresence = state[seller.id];
+          
+          if (sellerPresence) {
+            const sellerTypingState = sellerPresence[0] as unknown as TypingIndicator;
+            setIsSellerTyping(sellerTypingState.isTyping);
+          } else {
+            setIsSellerTyping(false);
+          }
+        })
+        .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+          // Handle join events
+          if (key === seller.id) {
+            const sellerTypingState = newPresences[0] as unknown as TypingIndicator;
+            setIsSellerTyping(sellerTypingState.isTyping);
+          }
+        })
+        .on('presence', { event: 'leave' }, ({ key }) => {
+          // Handle leave events
+          if (key === seller.id) {
+            setIsSellerTyping(false);
+          }
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            // Track the customer's presence
+            await channel.track({
+              userId: currentUserId,
+              name: 'Customer',
+              isTyping: false
+            });
+          }
+        });
+
+      presenceChannelRef.current = channel;
+    } catch (error) {
+      console.error('Error setting up presence channel:', error);
+    }
+  };
+
+  const handleTypingStatus = async (isTyping: boolean) => {
+    if (!presenceChannelRef.current) return;
+
+    try {
+      await presenceChannelRef.current.track({
+        userId: currentUserId,
+        name: 'Customer',
+        isTyping
+      });
+
+      // Auto-clear typing status after 3 seconds
+      if (isTyping && typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      if (isTyping) {
+        typingTimeoutRef.current = setTimeout(async () => {
+          await presenceChannelRef.current.track({
+            userId: currentUserId,
+            name: 'Customer',
+            isTyping: false
+          });
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error updating typing status:', error);
+    }
+  };
+
+  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value;
+    setMessage(newValue);
+    
+    // Update typing status
+    if (newValue.trim().length > 0) {
+      handleTypingStatus(true);
+    } else {
+      handleTypingStatus(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px] max-h-[80vh] flex flex-col">
@@ -211,6 +396,18 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
                   </div>
                 </div>
               ))}
+              {isSellerTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-muted p-2 rounded-lg">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 rounded-full bg-foreground/60 animate-pulse"></div>
+                      <div className="w-2 h-2 rounded-full bg-foreground/60 animate-pulse delay-100"></div>
+                      <div className="w-2 h-2 rounded-full bg-foreground/60 animate-pulse delay-200"></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
           )}
         </ScrollArea>
@@ -218,7 +415,7 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
         <div className="flex gap-2">
           <Textarea
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleMessageChange}
             placeholder="Type your message..."
             className="resize-none"
             onKeyDown={(e) => {

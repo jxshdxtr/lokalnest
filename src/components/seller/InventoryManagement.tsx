@@ -51,6 +51,7 @@ interface InventoryLog {
   id: string;
   product_id: string;
   product_name: string;
+  product_category: string;
   previous_quantity: number;
   new_quantity: number;
   change_quantity: number;
@@ -93,7 +94,7 @@ const InventoryManagement: React.FC = () => {
       // Try to use the database
       const { data: dbProducts, error: dbError } = await supabase
         .from('products')
-        .select('*');
+        .select('*, categories:category_id(id, name)');
 
       if (!dbError && dbProducts && dbProducts.length > 0) {
         // Map database results to our product interface
@@ -102,7 +103,7 @@ const InventoryManagement: React.FC = () => {
           name: product.name,
           stock_quantity: product.stock_quantity || 0,
           low_stock_threshold: product.low_stock_threshold || 5,
-          category_name: product.category_name || 'Uncategorized',
+          category_name: product.categories?.name || 'Uncategorized',
           sku: product.sku || `SKU-${product.id.substring(0, 6)}`,
           status: product.stock_quantity <= 0 
             ? "out_of_stock" 
@@ -177,7 +178,7 @@ const InventoryManagement: React.FC = () => {
       // Use regular query instead of RPC to avoid TypeScript errors
       const { data, error: queryError } = await supabase
         .from('inventory_logs')
-        .select('*, products:product_id(name)');
+        .select('*, products:product_id(name, category_id, categories:category_id(name))');
       
       if (!queryError && data) {
         // Map the database results to our InventoryLog interface
@@ -185,6 +186,7 @@ const InventoryManagement: React.FC = () => {
           id: log.id,
           product_id: log.product_id || '',
           product_name: log.products?.name || 'Unknown Product',
+          product_category: log.products?.categories?.name || 'Uncategorized',
           previous_quantity: log.previous_quantity,
           new_quantity: log.new_quantity,
           change_quantity: log.change_quantity,
@@ -203,6 +205,7 @@ const InventoryManagement: React.FC = () => {
             id: "1",
             product_id: "1",
             product_name: "Handwoven Cotton Tote Bag",
+            product_category: "Textiles",
             previous_quantity: 20,
             new_quantity: 26,
             change_quantity: 6,
@@ -214,6 +217,7 @@ const InventoryManagement: React.FC = () => {
             id: "2",
             product_id: "2",
             product_name: "Wooden Serving Bowl",
+            product_category: "Wooden Crafts",
             previous_quantity: 10,
             new_quantity: 8,
             change_quantity: -2,
@@ -225,6 +229,7 @@ const InventoryManagement: React.FC = () => {
             id: "3",
             product_id: "3",
             product_name: "Ceramic Coffee Mug",
+            product_category: "Pottery",
             previous_quantity: 5,
             new_quantity: 0,
             change_quantity: -5,
@@ -272,6 +277,7 @@ const InventoryManagement: React.FC = () => {
         id: Date.now().toString(),
         product_id: selectedProduct.id,
         product_name: selectedProduct.name,
+        product_category: selectedProduct.category_name || 'Uncategorized',
         previous_quantity: previousQuantity,
         new_quantity: newQuantity,
         change_quantity: restockQuantity,
@@ -551,6 +557,7 @@ const InventoryManagement: React.FC = () => {
                   <TableHead>Date</TableHead>
                   <TableHead>Change</TableHead>
                   <TableHead>New Stock</TableHead>
+                  <TableHead>Category</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead>By</TableHead>
                 </TableRow>
@@ -558,7 +565,7 @@ const InventoryManagement: React.FC = () => {
               <TableBody>
                 {productLogs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={6} className="h-24 text-center">
                       No history available for this product
                     </TableCell>
                   </TableRow>
@@ -574,6 +581,7 @@ const InventoryManagement: React.FC = () => {
                         </span>
                       </TableCell>
                       <TableCell>{log.new_quantity}</TableCell>
+                      <TableCell>{log.product_category}</TableCell>
                       <TableCell>{log.reason}</TableCell>
                       <TableCell>{log.staff_name}</TableCell>
                     </TableRow>
