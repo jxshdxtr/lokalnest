@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -111,12 +112,12 @@ const OrderManagement = () => {
       
       const productIds = sellerProducts.map(p => p.id);
       
-      // Get all order items for these products
+      // Get all order items for these products - FIX: Specify table alias for order_id
       const { data: orderItems, error: itemsError } = await supabase
         .from('order_items')
         .select(`
           id,
-          order_id,
+          order_items.order_id,
           product_id,
           quantity,
           unit_price,

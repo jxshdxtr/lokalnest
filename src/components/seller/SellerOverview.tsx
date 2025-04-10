@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { 
   ShoppingBag, 
@@ -327,7 +326,7 @@ const SellerOverview = () => {
         .from('order_items')
         .select(`
           id,
-          order_id,
+          order_items.order_id,
           product_id,
           quantity,
           unit_price,
