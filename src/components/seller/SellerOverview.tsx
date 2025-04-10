@@ -220,7 +220,7 @@ const SellerOverview = () => {
         { 
           title: "Rating", 
           value: `${avgRating.toFixed(1)}/5`, 
-          description: `Based on ${reviewCount} reviews`, 
+          description: `Based on ${reviewCount.toString()} reviews`, 
           trend: "neutral",
           icon: <Star className="h-5 w-5 text-yellow-500" /> 
         },
