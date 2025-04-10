@@ -21,7 +21,9 @@ import BuyerMessages from './components/buyer/messaging/BuyerMessages';
 import ProductDetail from './pages/ProductDetail';
 import Auth from './pages/Auth';
 import VerifyOTP from './pages/VerifyOTP';
+import SellerVerification from './pages/SellerVerification';
 import { CartProvider } from './components/buyer/shopping/Cart';
+import SellerVerificationManagement from './components/admin/SellerVerificationManagement';
 
 function App() {
   return (
@@ -32,6 +34,7 @@ function App() {
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/verify" element={<VerifyOTP />} />
+          <Route path="/seller/verification" element={<SellerVerification />} />
           
           {/* Seller Dashboard Routes */}
           <Route path="/seller">
@@ -48,6 +51,11 @@ function App() {
               <Route path="reviews" element={<ReviewManagement />} />
               <Route path="settings" element={<SellerSettings />} />
             </Route>
+          </Route>
+          
+          {/* Admin Routes */}
+          <Route path="/admin">
+            <Route path="seller-verifications" element={<SellerVerificationManagement />} />
           </Route>
           
           {/* Buyer Routes */}

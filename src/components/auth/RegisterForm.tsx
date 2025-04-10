@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -94,14 +93,14 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
             if (sellerError) {
               console.error('Failed to create seller profile:', sellerError);
             }
+            
+            // Redirect to seller verification page instead of dashboard
+            navigate('/seller/verification');
+            return;
           }
           
-          // Redirect based on account type
-          if (data.accountType === 'seller') {
-            navigate('/seller/dashboard');
-          } else {
-            navigate('/');
-          }
+          // Redirect buyer to home page
+          navigate('/');
           return;
         } else {
           throw error;
@@ -121,6 +120,9 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
           console.error('Failed to create seller profile:', sellerError);
           // Continue anyway since the user account was created
         }
+        
+        // After creating seller profile, tell user they need to verify
+        toast.info('After email verification, you will need to submit DTI documents for seller verification.');
       }
       
       toast.success('Account created! Please check your email for verification code.');
@@ -269,6 +271,11 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
                   Seller
                 </Button>
               </div>
+              {field.value === 'seller' && (
+                <p className="text-xs text-amber-600 mt-1">
+                  Note: Seller accounts require DTI document verification after registration
+                </p>
+              )}
               <FormMessage />
             </FormItem>
           )}
