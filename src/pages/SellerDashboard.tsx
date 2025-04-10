@@ -97,6 +97,11 @@ const SellerDashboard = () => {
     return 'overview';
   };
 
+  // Handle tab change and navigation
+  const handleTabChange = (value: string) => {
+    navigate(`/seller/dashboard/${value}`);
+  };
+
   return (
     <Layout>
       <div className="container mx-auto py-6 px-4 lg:px-8">
@@ -116,7 +121,7 @@ const SellerDashboard = () => {
 
             {/* Content Area */}
             <div className="col-span-1 lg:col-span-9">
-              <Tabs defaultValue={getActiveTab()} className="w-full">
+              <Tabs value={getActiveTab()} className="w-full" onValueChange={handleTabChange}>
                 <TabsList className="w-full mb-6 overflow-x-auto flex sm:grid sm:grid-cols-9">
                   <TabsTrigger value="overview" className="flex-1">Overview</TabsTrigger>
                   <TabsTrigger value="products" className="flex-1">Products</TabsTrigger>

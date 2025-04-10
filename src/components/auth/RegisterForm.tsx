@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -65,7 +64,18 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
         },
       });
       
-      if (error) throw error;
+      if (error) {
+        // Check if it's specifically an email sending error
+        if (error.message?.includes('Error sending confirmation email')) {
+          // Continue with account creation despite email error
+          toast.warning('Your account was created, but there was an issue sending the verification email. Please contact support or try signing in.');
+          
+          // Redirect to login page
+          navigate('/auth');
+          return;
+        }
+        throw error;
+      }
       
       // If the user is a seller, create a seller profile
       if (data.accountType === 'seller' && authData.user) {
@@ -87,8 +97,14 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
       // Redirect to OTP verification page
       navigate(`/verify?email=${encodeURIComponent(data.email)}`);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create account. Please try again.');
       console.error('Register error:', error);
+      
+      // Check if it's a 500 Internal Server Error
+      if (error.status === 500 || (error.message && error.message.includes('500'))) {
+        toast.error('Registration failed due to a server issue. Please try again later or contact support.');
+      } else {
+        toast.error(error.message || 'Failed to create account. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

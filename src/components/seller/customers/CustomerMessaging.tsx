@@ -225,14 +225,15 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
       if (!customerId && customer.email) {
         try {
           // Try to look up a user by email in the auth.users table
-          const { data: userData, error } = await supabase.auth.admin.listUsers({
-            filters: {
-              email: customer.email
-            }
-          });
+          const { data: userData, error } = await supabase.auth.admin.listUsers();
           
-          if (!error && userData.users && userData.users.length > 0) {
-            customerId = userData.users[0].id;
+          if (!error && userData?.users) {
+            const userWithMatchingEmail = userData.users.find(user => 
+              (user as any).email === customer.email
+            );
+            if (userWithMatchingEmail) {
+              customerId = userWithMatchingEmail.id;
+            }
           }
         } catch (error) {
           console.error('Error looking up user by email:', error);

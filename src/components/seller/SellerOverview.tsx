@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { 
   ShoppingBag, 
@@ -139,7 +138,7 @@ const SellerOverview = () => {
       
       if (salesError) throw salesError;
       
-      const totalSales = salesData?.reduce((sum, item) => sum + (parseFloat(item.total_price) || 0), 0) || 0;
+      const totalSales = salesData?.reduce((sum, item) => sum + (item.total_price || 0), 0) || 0;
       const formattedSales = `₱${totalSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       
       // Fetch order count
@@ -195,7 +194,7 @@ const SellerOverview = () => {
       
       if (prevSalesError) throw prevSalesError;
       
-      const prevMonthSales = prevSalesData?.reduce((sum, item) => sum + (parseFloat(item.total_price) || 0), 0) || 0;
+      const prevMonthSales = prevSalesData?.reduce((sum, item) => sum + (item.total_price || 0), 0) || 0;
       
       // Calculate sales trend
       const salesTrend = prevMonthSales > 0 ? (totalSales - prevMonthSales) / prevMonthSales * 100 : 0;
@@ -268,7 +267,7 @@ const SellerOverview = () => {
           
         if (error) throw error;
         
-        const totalMonthRevenue = monthRevenue?.reduce((sum, item) => sum + (parseFloat(item.total_price) || 0), 0) || 0;
+        const totalMonthRevenue = monthRevenue?.reduce((sum, item) => sum + (item.total_price || 0), 0) || 0;
         
         revenueByMonth.push({
           name: month.name,
@@ -346,7 +345,7 @@ const SellerOverview = () => {
         id: item.order_id,
         customer: item.orders?.profiles?.full_name || 'Anonymous',
         product: item.products?.name || 'Unknown Product',
-        amount: `₱${parseFloat(item.total_price).toLocaleString('en-PH', {
+        amount: `₱${(item.total_price).toLocaleString('en-PH', {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2
         })}`,

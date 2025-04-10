@@ -88,153 +88,138 @@ const OrderManagement = () => {
         return;
       }
 
-      console.log('Session user ID:', session.user.id);
-
-      // First, fetch all products for this seller
-      const { data: sellerProducts, error: productsError } = await supabase
+      // SIMPLEST APPROACH: Manual fetching of each component
+      // 1. Get seller's products
+      let { data: products } = await supabase
         .from('products')
-        .select('id')
+        .select('id, name')
         .eq('seller_id', session.user.id);
-        
-      if (productsError) {
-        console.error('Error fetching seller products:', productsError);
-        throw productsError;
-      }
       
-      console.log('Seller products found:', sellerProducts?.length || 0);
-      
-      if (!sellerProducts || sellerProducts.length === 0) {
+      if (!products || products.length === 0) {
         setOrders([]);
         setLoading(false);
         return;
       }
       
-      const productIds = sellerProducts.map(p => p.id);
+      const productIds = products.map(p => p.id);
       
-      // Get all order items for these products
-      const { data: orderItems, error: itemsError } = await supabase
-        .from('order_items')
-        .select(`
-          id,
-          order_id,
-          product_id,
-          quantity,
-          unit_price,
-          total_price,
-          products:product_id(name)
-        `)
-        .in('product_id', productIds);
-        
-      if (itemsError) {
-        console.error('Error fetching order items:', itemsError);
-        throw itemsError;
+      // 2. Get order items referencing these products
+      const orderItemIdsByProduct = {};
+      for (const productId of productIds) {
+        const { data: items } = await supabase
+          .from('order_items')
+          .select('id')
+          .eq('product_id', productId);
+          
+        if (items && items.length > 0) {
+          orderItemIdsByProduct[productId] = items.map(item => item.id);
+        }
       }
       
-      console.log('Order items found:', orderItems?.length || 0);
+      // 3. Get full order item details and references
+      const orderItems = [];
+      const orderIdList = [];
       
-      if (!orderItems || orderItems.length === 0) {
-        setOrders([]);
-        setLoading(false);
-        return;
-      }
-      
-      // Get unique order IDs
-      const orderIds = [...new Set(orderItems.map(item => item.order_id))];
-      
-      // Get order details
-      const { data: orderDetails, error: ordersError } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          created_at,
-          buyer_id,
-          total_amount,
-          status,
-          payment_status,
-          payment_method,
-          shipping_address,
-          profiles:buyer_id(full_name)
-        `)
-        .in('id', orderIds);
-        
-      if (ordersError) {
-        console.error('Error fetching order details:', ordersError);
-        throw ordersError;
-      }
-      
-      console.log('Order details found:', orderDetails?.length || 0);
-      
-      try {
-        // Prepare product images fetch promises
-        const imagePromises = orderItems.map(async (item) => {
-          try {
-            const { data: images, error: imageError } = await supabase
-              .from('product_images')
-              .select('url')
-              .eq('product_id', item.product_id)
-              .eq('is_primary', true)
-              .limit(1);
-              
-            if (imageError) {
-              console.error('Error fetching image for product:', item.product_id, imageError);
-              return { item_id: item.id, image_url: undefined };
+      for (const productId in orderItemIdsByProduct) {
+        for (const itemId of orderItemIdsByProduct[productId]) {
+          const { data: item } = await supabase
+            .from('order_items')
+            .select('id, order_id, product_id, quantity, unit_price, total_price')
+            .eq('id', itemId)
+            .single();
+            
+          if (item) {
+            orderItems.push(item);
+            if (!orderIdList.includes(item.order_id)) {
+              orderIdList.push(item.order_id);
             }
-            
-            return { 
-              item_id: item.id, 
-              image_url: images && images.length > 0 ? images[0].url : undefined 
-            };
-          } catch (imageErr) {
-            console.error('Exception in image fetch:', imageErr);
-            return { item_id: item.id, image_url: undefined };
           }
-        });
-        
-        // Execute all image fetch promises
-        const itemImages = await Promise.all(imagePromises);
-        
-        // Build complete orders with items
-        const completeOrders = orderDetails.map(order => {
-          // Find all items for this order
-          const items = orderItems
-            .filter(item => item.order_id === order.id)
-            .map(item => {
-              // Find image for this item
-              const imageData = itemImages.find(img => img.item_id === item.id);
-              return {
-                id: item.id,
-                product_id: item.product_id,
-                product_name: item.products?.name || 'Unknown Product',
-                quantity: item.quantity,
-                unit_price: item.unit_price,
-                total_price: item.total_price,
-                image: imageData?.image_url
-              };
-            });
-            
-          return {
-            id: order.id,
-            date: order.created_at,
-            buyer_id: order.buyer_id,
-            buyer_name: order.profiles?.full_name || 'Customer',
-            items,
-            total: order.total_amount,
-            status: order.status,
-            payment_status: order.payment_status,
-            payment_method: order.payment_method,
-            shipping_address: order.shipping_address
-          };
-        });
-        
-        setOrders(completeOrders);
-      } catch (processingError) {
-        console.error('Error processing order data:', processingError);
-        throw processingError;
+        }
       }
+      
+      if (orderItems.length === 0) {
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
+      
+      // 4. Get order details
+      const orderDetails = [];
+      for (const orderId of orderIdList) {
+        const { data: order } = await supabase
+          .from('orders')
+          .select('id, created_at, buyer_id, total_amount, status, payment_status, payment_method, shipping_address')
+          .eq('id', orderId)
+          .single();
+          
+        if (order) {
+          orderDetails.push(order);
+        }
+      }
+      
+      // 5. Get buyer profiles
+      const buyerProfiles = {};
+      for (const order of orderDetails) {
+        if (!buyerProfiles[order.buyer_id]) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .eq('id', order.buyer_id)
+            .single();
+            
+          buyerProfiles[order.buyer_id] = profile?.full_name || 'Customer';
+        }
+      }
+      
+      // 6. Get product images
+      const productImages = {};
+      for (const productId of productIds) {
+        const { data: images } = await supabase
+          .from('product_images')
+          .select('url')
+          .eq('product_id', productId)
+          .eq('is_primary', true)
+          .limit(1);
+          
+        productImages[productId] = images && images.length > 0 ? images[0].url : undefined;
+      }
+      
+      // 7. Build the complete orders
+      const completeOrders = orderDetails.map(order => {
+        // Find items for this order
+        const items = orderItems
+          .filter(item => item.order_id === order.id)
+          .map(item => {
+            const product = products.find(p => p.id === item.product_id);
+            return {
+              id: item.id,
+              product_id: item.product_id,
+              product_name: product?.name || 'Unknown Product',
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              total_price: item.total_price,
+              image: productImages[item.product_id]
+            };
+          });
+          
+        return {
+          id: order.id,
+          date: order.created_at,
+          buyer_id: order.buyer_id,
+          buyer_name: buyerProfiles[order.buyer_id],
+          items,
+          total: order.total_amount,
+          status: order.status,
+          payment_status: order.payment_status,
+          payment_method: order.payment_method,
+          shipping_address: order.shipping_address
+        };
+      });
+      
+      setOrders(completeOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
-      toast.error('Failed to load orders: ' + (error.message || 'Unknown error'));
-      setOrders([]);
+      toast.error('Failed to load orders');
     } finally {
       setLoading(false);
     }
@@ -413,7 +398,7 @@ const OrderManagement = () => {
             </div>
           ) : sortedOrders.length > 0 ? (
             <div className="overflow-x-auto">
-              <Table className="w-full">
+              <Table className="border-collapse w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[200px]">Order Info</TableHead>
