@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Dialog, 
@@ -25,7 +26,7 @@ import { toast } from 'sonner';
 interface PromotionFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (promoData: any) => void;
+  onSave: () => void;
   promotion?: any;
 }
 
@@ -121,15 +122,49 @@ const PromotionFormModal: React.FC<PromotionFormModalProps> = ({
     
     setIsSubmitting(true);
     try {
+      // Get current user
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('You must be logged in to create promotions');
+        return;
+      }
+      
       // Parse numeric values
       const promoData = {
-        ...formData,
+        title: formData.title,
+        description: formData.description,
+        discount_type: formData.discount_type,
         discount_value: parseFloat(formData.discount_value),
+        coupon_code: formData.coupon_code,
+        start_date: new Date(formData.start_date).toISOString(),
+        end_date: new Date(formData.end_date).toISOString(),
+        applies_to: formData.applies_to,
+        seller_id: session.user.id,
         minimum_purchase: formData.minimum_purchase ? parseFloat(formData.minimum_purchase) : 0,
-        usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null
+        usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null,
+        is_active: formData.is_active
       };
       
-      await onSave(promoData);
+      if (promotion) {
+        // Update existing promotion
+        const { error } = await supabase
+          .from('promotions')
+          .update(promoData)
+          .eq('id', promotion.id);
+          
+        if (error) throw error;
+        toast.success('Promotion updated successfully');
+      } else {
+        // Create new promotion
+        const { error } = await supabase
+          .from('promotions')
+          .insert(promoData);
+          
+        if (error) throw error;
+        toast.success('Promotion created successfully');
+      }
+      
+      onSave();
       onClose();
     } catch (error) {
       console.error('Error saving promotion:', error);

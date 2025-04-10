@@ -1,15 +1,11 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Table,
@@ -43,14 +39,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Check, Copy, Edit, MoreHorizontal, Plus, Search, Trash, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Copy, Edit, MoreHorizontal, Plus, Search, Trash } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import PromotionFormModal from "./PromotionFormModal";
 
 interface Promotion {
   id: string;
@@ -74,36 +67,27 @@ const PromotionManagement: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [currentPromotion, setCurrentPromotion] = useState<Promotion | null>(null);
-  const [startDate, setStartDate] = useState<Date | undefined>(new Date());
-  const [endDate, setEndDate] = useState<Date | undefined>(
-    new Date(new Date().setDate(new Date().getDate() + 14))
-  );
-
-  const [formData, setFormData] = useState<Omit<Promotion, "id" | "usage_count">>({
-    title: "",
-    description: "",
-    discount_type: "percentage",
-    discount_value: 10,
-    coupon_code: "",
-    start_date: new Date().toISOString(),
-    end_date: new Date(new Date().setDate(new Date().getDate() + 14)).toISOString(),
-    is_active: true,
-    usage_limit: undefined,
-    minimum_purchase: undefined,
-    products: [],
-  });
 
   const fetchPromotions = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error: queryError } = await supabase
-        .from('promotions')
-        .select('*');
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast.error('You must be logged in to view promotions');
+        return;
+      }
       
-      if (!queryError && data) {
+      const { data, error } = await supabase
+        .from('promotions')
+        .select('*')
+        .eq('seller_id', sessionData.session.user.id);
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
         const mappedPromotions: Promotion[] = data.map((promo: any) => ({
           id: promo.id,
           title: promo.title,
@@ -123,8 +107,7 @@ const PromotionManagement: React.FC = () => {
         
         setPromotions(mappedPromotions);
       } else {
-        console.error('Query error:', queryError);
-        
+        // Use mock data only if no data from database
         const mockPromotions: Promotion[] = [
           {
             id: "1",
@@ -179,7 +162,7 @@ const PromotionManagement: React.FC = () => {
             minimum_purchase: 800
           }
         ];
-        setPromotions(mockPromotions);
+        setPromotions(data && data.length === 0 ? [] : mockPromotions);
       }
     } catch (error) {
       console.error("Error fetching promotions:", error);
@@ -244,116 +227,24 @@ const PromotionManagement: React.FC = () => {
 
   const handleEditPromotion = (promotion: Promotion) => {
     setCurrentPromotion(promotion);
-    setFormData({
-      title: promotion.title,
-      description: promotion.description,
-      discount_type: promotion.discount_type,
-      discount_value: promotion.discount_value,
-      coupon_code: promotion.coupon_code || "",
-      start_date: promotion.start_date,
-      end_date: promotion.end_date,
-      is_active: promotion.is_active,
-      usage_limit: promotion.usage_limit,
-      minimum_purchase: promotion.minimum_purchase,
-      products: promotion.products || [],
-    });
-    setStartDate(new Date(promotion.start_date));
-    setEndDate(new Date(promotion.end_date));
-    setIsDialogOpen(true);
+    setIsFormModalOpen(true);
   };
 
   const handleCreateNewPromotion = () => {
     setCurrentPromotion(null);
-    setFormData({
-      title: "",
-      description: "",
-      discount_type: "percentage",
-      discount_value: 10,
-      coupon_code: "",
-      start_date: new Date().toISOString(),
-      end_date: new Date(new Date().setDate(new Date().getDate() + 14)).toISOString(),
-      is_active: true,
-      usage_limit: undefined,
-      minimum_purchase: undefined,
-      products: [],
-    });
-    setStartDate(new Date());
-    setEndDate(new Date(new Date().setDate(new Date().getDate() + 14)));
-    setIsDialogOpen(true);
+    setIsFormModalOpen(true);
   };
 
-  const handleSavePromotion = async () => {
-    try {
-      const updatedFormData = {
-        ...formData,
-        start_date: startDate?.toISOString() || new Date().toISOString(),
-        end_date: endDate?.toISOString() || 
-                 new Date(new Date().setDate(new Date().getDate() + 14)).toISOString(),
-        seller_id: "00000000-0000-0000-0000-000000000000"
-      };
-      
-      if (currentPromotion) {
-        const { error } = await supabase
-          .from('promotions')
-          .update(updatedFormData)
-          .eq('id', currentPromotion.id);
-          
-        if (error) throw error;
-        
-        setPromotions(promotions.map(promo => 
-          promo.id === currentPromotion.id 
-            ? { ...promo, ...updatedFormData } 
-            : promo
-        ));
-        
-        toast.success("Promotion updated successfully");
-      } else {
-        const newId = Date.now().toString();
-        
-        const newPromotion = {
-          id: newId,
-          ...updatedFormData,
-          usage_count: 0,
-          seller_id: "00000000-0000-0000-0000-000000000000"
-        };
-        
-        const { error } = await supabase
-          .from('promotions')
-          .insert(newPromotion);
-          
-        if (error) throw error;
-        
-        setPromotions([newPromotion, ...promotions]);
-        toast.success("Promotion created successfully");
-      }
-      
-      setIsDialogOpen(false);
-    } catch (error) {
-      console.error("Error saving promotion:", error);
-      toast.error("Failed to save promotion");
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleNumberInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value === "" ? undefined : Number(value) }));
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    if (name === 'discount_type') {
-      setFormData(prev => ({ ...prev, [name]: value as "percentage" | "fixed" }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
-  };
-
-  const handleSwitchChange = (name: string, checked: boolean) => {
-    setFormData(prev => ({ ...prev, [name]: checked }));
+  const handleDuplicatePromotion = (promotion: Promotion) => {
+    const duplicatedPromotion = {
+      ...promotion,
+      id: undefined, // Remove ID so a new one is generated
+      title: `${promotion.title} (Copy)`,
+      usage_count: 0 // Reset usage count
+    };
+    
+    setCurrentPromotion(duplicatedPromotion as Promotion);
+    setIsFormModalOpen(true);
   };
 
   const filteredPromotions = promotions.filter(promotion => {
@@ -525,7 +416,7 @@ const PromotionManagement: React.FC = () => {
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDuplicatePromotion(promotion)}>
                           <Copy className="mr-2 h-4 w-4" />
                           Duplicate
                         </DropdownMenuItem>
@@ -550,202 +441,14 @@ const PromotionManagement: React.FC = () => {
         </Table>
       </div>
       
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>
-              {currentPromotion ? "Edit Promotion" : "Create Promotion"}
-            </DialogTitle>
-            <DialogDescription>
-              {currentPromotion 
-                ? "Make changes to your existing promotion here" 
-                : "Create a new promotion or discount offer"
-              }
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="title">Promotion Title</Label>
-              <Input
-                id="title"
-                name="title"
-                value={formData.title}
-                onChange={handleInputChange}
-                placeholder="e.g. Summer Sale"
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                placeholder="Describe your promotion"
-                className="resize-none"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="discount_type">Discount Type</Label>
-                <Select
-                  value={formData.discount_type}
-                  onValueChange={(value) => 
-                    handleSelectChange("discount_type", value as "percentage" | "fixed")
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="percentage">Percentage (%)</SelectItem>
-                    <SelectItem value="fixed">Fixed Amount (₱)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="discount_value">Discount Value</Label>
-                <Input
-                  id="discount_value"
-                  name="discount_value"
-                  type="number"
-                  value={formData.discount_value}
-                  onChange={handleNumberInputChange}
-                  placeholder={formData.discount_type === "percentage" ? "10" : "500"}
-                />
-                <p className="text-sm text-muted-foreground">
-                  {formData.discount_type === "percentage" 
-                    ? "Enter percentage (1-100)" 
-                    : "Enter amount in Philippine Peso"
-                  }
-                </p>
-              </div>
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="coupon_code">Coupon Code (Optional)</Label>
-              <Input
-                id="coupon_code"
-                name="coupon_code"
-                value={formData.coupon_code}
-                onChange={handleInputChange}
-                placeholder="e.g. SUMMER20"
-              />
-              <p className="text-sm text-muted-foreground">
-                Leave empty if no code is required
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>Start Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "justify-start text-left font-normal",
-                        !startDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {startDate ? format(startDate, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={startDate}
-                      onSelect={setStartDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              
-              <div className="grid gap-2">
-                <Label>End Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "justify-start text-left font-normal",
-                        !endDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {endDate ? format(endDate, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={endDate}
-                      onSelect={setEndDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="minimum_purchase">Minimum Purchase (Optional)</Label>
-                <Input
-                  id="minimum_purchase"
-                  name="minimum_purchase"
-                  type="number"
-                  value={formData.minimum_purchase || ""}
-                  onChange={handleNumberInputChange}
-                  placeholder="e.g. 500"
-                />
-                <p className="text-sm text-muted-foreground">
-                  Minimum order value required
-                </p>
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="usage_limit">Usage Limit (Optional)</Label>
-                <Input
-                  id="usage_limit"
-                  name="usage_limit"
-                  type="number"
-                  value={formData.usage_limit || ""}
-                  onChange={handleNumberInputChange}
-                  placeholder="e.g. 100"
-                />
-                <p className="text-sm text-muted-foreground">
-                  Maximum number of times this can be used
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2 mt-2">
-              <Switch
-                id="is_active"
-                checked={formData.is_active}
-                onCheckedChange={(checked) => handleSwitchChange("is_active", checked)}
-              />
-              <Label htmlFor="is_active">Activate promotion immediately</Label>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSavePromotion}>
-              {currentPromotion ? "Update Promotion" : "Create Promotion"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {isFormModalOpen && (
+        <PromotionFormModal
+          isOpen={isFormModalOpen}
+          onClose={() => setIsFormModalOpen(false)}
+          onSave={fetchPromotions}
+          promotion={currentPromotion}
+        />
+      )}
       
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
