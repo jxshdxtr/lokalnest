@@ -263,7 +263,7 @@ const OrderManagement = () => {
             </div>
           ) : (
             <EmptyOrdersState 
-              hasFilters={searchTerm || statusFilter !== 'all' || timeFilter !== 'all'} 
+              hasFilters={!!searchTerm || statusFilter !== 'all' || timeFilter !== 'all'} 
             />
           )}
         </CardContent>

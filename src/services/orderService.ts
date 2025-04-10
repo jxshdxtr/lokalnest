@@ -122,12 +122,25 @@ export async function getOrders(): Promise<Order[]> {
           };
         });
       
+      // Ensure status is one of the allowed values in the Order type
+      let typedStatus: "processing" | "shipped" | "delivered" | "cancelled";
+      switch(order.status) {
+        case "processing":
+        case "shipped":
+        case "delivered":
+        case "cancelled":
+          typedStatus = order.status;
+          break;
+        default:
+          typedStatus = "processing"; // Default fallback
+      }
+      
       return {
         id: order.id,
         date: order.created_at,
         items: items,
         total: order.total_amount,
-        status: order.status,
+        status: typedStatus,
         tracking: order.tracking_number ? {
           id: order.tracking_number,
           courier: 'Shipping Partner',

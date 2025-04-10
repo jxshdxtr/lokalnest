@@ -1,29 +1,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { 
-  ShoppingBag, 
-  DollarSign, 
-  Star, 
-  Users,
-  ArrowUpRight,
-  ArrowDownRight
-} from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  PieChart, 
-  Pie, 
-  Cell, 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer 
-} from 'recharts';
-import { supabase } from '@/integrations/supabase/client';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+  Card, CardContent, CardDescription, CardHeader, CardTitle 
+} from '@/components/ui/card';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { SellerStats } from './dashboard/types';
 import { fetchSellerStats } from './dashboard/sellerStatsService';
 import { fetchRevenueData } from './dashboard/revenueService';
@@ -44,28 +25,32 @@ const SellerOverview = () => {
       value: "₱0.00", 
       description: "Loading...", 
       trend: "neutral",
-      icon: <DollarSign className="h-5 w-5 text-blue-500" /> 
+      iconName: "DollarSign",
+      iconColor: "text-blue-500"
     },
     orders: { 
       title: "Orders", 
       value: "0", 
       description: "Loading...",
       trend: "neutral", 
-      icon: <ShoppingBag className="h-5 w-5 text-orange-500" /> 
+      iconName: "ShoppingBag",
+      iconColor: "text-orange-500"
     },
     rating: { 
       title: "Rating", 
       value: "0/5", 
       description: "No reviews yet", 
       trend: "neutral",
-      icon: <Star className="h-5 w-5 text-yellow-500" /> 
+      iconName: "Star",
+      iconColor: "text-yellow-500"
     },
     customers: { 
       title: "Customers", 
       value: "0", 
       description: "Loading...",
       trend: "neutral", 
-      icon: <Users className="h-5 w-5 text-green-500" /> 
+      iconName: "Users",
+      iconColor: "text-green-500"
     }
   });
   const [recentOrders, setRecentOrders] = useState([]);

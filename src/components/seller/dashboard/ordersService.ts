@@ -87,7 +87,7 @@ export async function fetchRecentOrders(sellerId: string): Promise<RecentOrder[]
         id: order.id,
         customer: buyer?.full_name || 'Anonymous',
         product: product.name || 'Unknown Product',
-        amount: `₱${parseFloat(orderItem.total_price).toLocaleString('en-PH', {
+        amount: `₱${parseFloat(orderItem.total_price.toString()).toLocaleString('en-PH', {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2
         })}`,
