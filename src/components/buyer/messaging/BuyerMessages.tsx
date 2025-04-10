@@ -45,7 +45,7 @@ const BuyerMessages = () => {
         return;
       }
 
-      // Get the latest message from each seller
+      // Get all messages for the current customer
       const { data: messages, error: messagesError } = await supabase
         .from('customer_messages')
         .select('*')
