@@ -51,7 +51,7 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
     setIsLoading(true);
 
     try {
-      // Sign up the user
+      // Sign up the user with minimal configuration
       const { data: authData, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -59,37 +59,54 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
           data: {
             full_name: data.name,
             account_type: data.accountType,
-          },
-          emailRedirectTo: `${window.location.origin}/verify`,
-        },
+          }
+        }
       });
       
-      if (error) {
-        // Check if it's specifically an email sending error
-        if (error.message?.includes('Error sending confirmation email')) {
-          // Continue with account creation despite email error
-          toast.warning('Your account was created, but there was an issue sending the verification email. Please contact support or try signing in.');
+      // Log to help with debugging
+      console.log("Signup response:", { data: authData, error });
+      
+      // Check for the specific email sending error
+      if (error && error.message?.includes('Error sending confirmation email')) {
+        // The user is likely created but email failed
+        toast.warning('Your account was created, but there was an issue sending the verification email.');
+        
+        try {
+          // Try to sign in immediately - this might work if the account was created
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: data.email,
+            password: data.password,
+          });
           
-          // Redirect to login page
-          navigate('/auth');
-          return;
+          if (!signInError) {
+            // Sign in successful - account exists and is working
+            toast.success('Account created and signed in successfully!');
+            
+            // Create seller profile if needed
+            if (data.accountType === 'seller' && authData?.user) {
+              await createSellerProfile(authData.user.id, data.name);
+            }
+            
+            // Redirect to dashboard or home
+            navigate('/');
+            return;
+          } else {
+            console.log("Auto sign-in failed:", signInError);
+          }
+        } catch (signInErr) {
+          console.error("Error during auto sign-in:", signInErr);
         }
+        
+        // If auto-signin failed, redirect to login page
+        navigate('/auth');
+        return;
+      } else if (error) {
         throw error;
       }
       
       // If the user is a seller, create a seller profile
       if (data.accountType === 'seller' && authData.user) {
-        const { error: sellerError } = await supabase
-          .from('seller_profiles')
-          .insert({
-            id: authData.user.id,
-            business_name: data.name,
-          });
-        
-        if (sellerError) {
-          console.error('Failed to create seller profile:', sellerError);
-          // Continue anyway since the user account was created
-        }
+        await createSellerProfile(authData.user.id, data.name);
       }
       
       toast.success('Account created! Please check your email for verification code.');
@@ -107,6 +124,21 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Helper function to create seller profile
+  const createSellerProfile = async (userId: string, businessName: string) => {
+    const { error: sellerError } = await supabase
+      .from('seller_profiles')
+      .insert({
+        id: userId,
+        business_name: businessName,
+      });
+    
+    if (sellerError) {
+      console.error('Failed to create seller profile:', sellerError);
+      toast.error('Your account was created but we could not set up your seller profile. Please contact support.');
     }
   };
 

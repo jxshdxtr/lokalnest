@@ -23,11 +23,11 @@ interface BuyerMessagingProps {
 
 interface Message {
   id: string;
-  message: string;
+  message_content: string;
   created_at: string;
-  is_read: boolean;
-  seller_id: string;
-  customer_id: string;
+  read: boolean;
+  sender_id: string;
+  recipient_id: string;
 }
 
 interface TypingIndicator {
@@ -102,14 +102,14 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
           {
             event: 'INSERT',
             schema: 'public',
-            table: 'customer_messages',
-            filter: `customer_id=eq.${currentUserId}`,
+            table: 'messages',
+            filter: `recipient_id=eq.${currentUserId}`,
           },
           (payload) => {
             // Only add messages that aren't already in our state
             const newMessage = payload.new as Message;
             // Verify the message is from the selected seller
-            if (newMessage.seller_id === sellerId) {
+            if (newMessage.sender_id === sellerId) {
               // Check if the message already exists in our state
               const messageExists = messages.some((msg) => msg.id === newMessage.id);
               if (!messageExists) {
@@ -132,8 +132,8 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
   const markMessageAsRead = async (messageId: string) => {
     try {
       await supabase
-        .from('customer_messages')
-        .update({ is_read: true })
+        .from('messages')
+        .update({ read: true })
         .eq('id', messageId);
     } catch (error) {
       console.error('Error marking message as read:', error);
@@ -151,27 +151,23 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
         return;
       }
       
-      // Using raw query since the types don't include customer_messages yet
+      const userId = session.session.user.id;
+      
+      // Query messages where either I am the sender and seller is recipient
+      // OR seller is sender and I am recipient
       const { data, error } = await supabase
-        .from('customer_messages')
+        .from('messages')
         .select('*')
-        .or(`seller_id.eq.${seller.id},customer_id.eq.${session.session.user.id}`)
+        .or(`and(sender_id.eq.${userId},recipient_id.eq.${seller.id}),and(sender_id.eq.${seller.id},recipient_id.eq.${userId})`)
         .order('created_at', { ascending: true });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Fetch error details:', error);
+        throw error;
+      }
       
       if (data) {
-        // Explicitly cast the data to our Message interface
-        const typedMessages = data.map(item => ({
-          id: item.id,
-          message: item.message,
-          created_at: item.created_at,
-          is_read: item.is_read,
-          seller_id: item.seller_id,
-          customer_id: item.customer_id
-        })) as Message[];
-        
-        setMessages(typedMessages);
+        setMessages(data as Message[]);
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -192,36 +188,45 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
         return;
       }
       
+      const userId = session.session.user.id;
+      
+      // Check if this user exists in the profiles table
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .single();
+        
+      if (profileError) {
+        console.error('Profile check error:', profileError);
+        toast.error('Your profile is not properly set up. Please contact support.');
+        return;
+      }
+      
       // Use the seller ID directly - assuming it's already a valid reference
       const sellerId = seller.id;
       
       const newMessage = {
-        seller_id: sellerId,
-        customer_id: session.session.user.id,
-        message: message.trim(),
-        is_read: false
+        sender_id: userId,
+        recipient_id: sellerId,
+        message_content: message.trim(),
+        read: false
       };
       
-      // Using raw query since the types don't include customer_messages yet
+      console.log('Sending message with:', newMessage);
+      
       const { data, error } = await supabase
-        .from('customer_messages')
+        .from('messages')
         .insert(newMessage)
         .select();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Send error details:', error);
+        throw error;
+      }
       
       if (data) {
-        // Explicitly cast the new message to our Message interface
-        const typedNewMessage = {
-          id: data[0].id,
-          message: data[0].message,
-          created_at: data[0].created_at,
-          is_read: data[0].is_read,
-          seller_id: data[0].seller_id,
-          customer_id: data[0].customer_id
-        } as Message;
-        
-        setMessages([...messages, typedNewMessage]);
+        setMessages([...messages, data[0] as Message]);
         setMessage('');
         toast.success('Message sent');
       }
@@ -368,7 +373,7 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
           </DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 p-4 border rounded-md my-4">
+        <ScrollArea className="flex-1 px-4 py-6 border rounded-md my-4 overflow-y-auto">
           {loading ? (
             <div className="flex justify-center items-center h-[300px]">
               <p className="text-sm text-muted-foreground">Loading messages...</p>
@@ -378,31 +383,75 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
               <p className="text-sm text-muted-foreground">No messages yet. Send a message to start the conversation.</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.customer_id === currentUserId ? 'justify-end' : 'justify-start'}`}
-                >
+            <div className="space-y-5">
+              {messages.map((msg) => {
+                // Determine if this message was sent by me (the current user)
+                const isSentByMe = msg.sender_id === currentUserId;
+                return (
                   <div
-                    className={`max-w-[80%] p-3 rounded-lg ${
-                      msg.customer_id === currentUserId
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-foreground'
-                    }`}
+                    key={msg.id}
+                    className={`flex ${isSentByMe ? 'justify-end' : 'justify-start'} items-end gap-2`}
                   >
-                    <p className="text-sm">{msg.message}</p>
-                    <p className="text-xs mt-1 opacity-70">{formatMessageTime(msg.created_at)}</p>
+                    {!isSentByMe && (
+                      <Avatar className="h-8 w-8 flex-shrink-0">
+                        <AvatarImage src={seller?.avatar_url} />
+                        <AvatarFallback className="bg-gray-200 text-gray-700">{seller ? getInitials(seller.name) : 'S'}</AvatarFallback>
+                      </Avatar>
+                    )}
+                    <div
+                      className={`max-w-[75%] p-4 rounded-2xl ${
+                        isSentByMe
+                          ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-br-none shadow-sm'
+                          : 'bg-gray-100 text-gray-800 rounded-bl-none shadow-sm'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-medium">
+                          {isSentByMe ? 'You' : seller?.name || 'Seller'}
+                        </span>
+                      </div>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.message_content}</p>
+                      <p className="text-xs mt-1 opacity-70">{formatMessageTime(msg.created_at)}</p>
+                      
+                      {/* Support for interactive buttons within messages */}
+                      {msg.message_content.includes('Add to Cart') && !isSentByMe && (
+                        <Button 
+                          variant="secondary" 
+                          className="mt-3 w-full bg-white hover:bg-gray-50 text-purple-600 font-medium py-1 h-8"
+                          onClick={() => toast.success('Item added to cart!')}
+                        >
+                          Add to Cart
+                        </Button>
+                      )}
+                      
+                      {msg.message_content.includes('Done') && !isSentByMe && (
+                        <Button 
+                          className="mt-3 ml-auto bg-purple-600 hover:bg-purple-700 text-white font-medium py-1 h-8"
+                          onClick={() => toast.success('Order completed!')}
+                        >
+                          Done
+                        </Button>
+                      )}
+                    </div>
+                    {isSentByMe && (
+                      <Avatar className="h-8 w-8 flex-shrink-0">
+                        <AvatarFallback className="bg-purple-500 text-white">You</AvatarFallback>
+                      </Avatar>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {isSellerTyping && (
-                <div className="flex justify-start">
-                  <div className="bg-muted p-2 rounded-lg">
+                <div className="flex justify-start items-end gap-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={seller?.avatar_url} />
+                    <AvatarFallback className="bg-gray-200 text-gray-700">{seller ? getInitials(seller.name) : 'S'}</AvatarFallback>
+                  </Avatar>
+                  <div className="bg-gray-100 p-3 rounded-2xl rounded-bl-none">
                     <div className="flex gap-1">
-                      <div className="w-2 h-2 rounded-full bg-foreground/60 animate-pulse"></div>
-                      <div className="w-2 h-2 rounded-full bg-foreground/60 animate-pulse delay-100"></div>
-                      <div className="w-2 h-2 rounded-full bg-foreground/60 animate-pulse delay-200"></div>
+                      <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse"></div>
+                      <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse delay-100"></div>
+                      <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse delay-200"></div>
                     </div>
                   </div>
                 </div>
@@ -412,12 +461,21 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
           )}
         </ScrollArea>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 mt-2 items-center">
+          <div className="flex space-x-2 text-gray-500">
+            <button className="p-2 hover:bg-gray-100 rounded-full">
+              <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+            </button>
+          </div>
           <Textarea
             value={message}
             onChange={handleMessageChange}
             placeholder="Type your message..."
-            className="resize-none"
+            className="resize-none rounded-full py-3 px-4 focus-visible:ring-purple-500"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -429,7 +487,7 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
             onClick={sendMessage} 
             size="icon" 
             disabled={sending || !message.trim()}
-            className="h-full aspect-square"
+            className="h-10 w-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
           >
             <Send className="h-4 w-4" />
           </Button>

@@ -26,10 +26,11 @@ import {
   Package, 
   Truck,
   ClipboardCheck,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatDistance } from 'date-fns';
+import { formatDistance, format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -40,6 +41,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface OrderItem {
   id: string;
@@ -71,6 +79,8 @@ const OrderManagement = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [timeFilter, setTimeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date_desc');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   
   const navigate = useNavigate();
 
@@ -338,6 +348,20 @@ const OrderManagement = () => {
     }
   };
 
+  const openOrderDetails = (order: Order) => {
+    setSelectedOrder(order);
+    setIsDetailsModalOpen(true);
+  };
+
+  const formatFullDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return format(date, 'PPP p'); // Format: Jan 1, 2023, 12:00 PM
+    } catch (e) {
+      return 'Invalid Date';
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -495,8 +519,7 @@ const OrderManagement = () => {
                               </DropdownMenuItem>
                             )}
                             
-                            {/* View Details option - could be implemented in a future version */}
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openOrderDetails(order)}>
                               <Package className="mr-2 h-4 w-4" />
                               View Order Details
                             </DropdownMenuItem>
@@ -521,6 +544,98 @@ const OrderManagement = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Order Details Modal */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Order Details</DialogTitle>
+            <DialogDescription>
+              {selectedOrder && `Order ID: ${selectedOrder.id}`}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedOrder && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">Order Information</h3>
+                  <div className="bg-muted/50 p-3 rounded-md">
+                    <p><strong>Date:</strong> {formatFullDate(selectedOrder.date)}</p>
+                    <p><strong>Status:</strong> {selectedOrder.status}</p>
+                    <p><strong>Payment Method:</strong> {selectedOrder.payment_method}</p>
+                    <p><strong>Payment Status:</strong> {selectedOrder.payment_status}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">Customer Information</h3>
+                  <div className="bg-muted/50 p-3 rounded-md">
+                    <p><strong>Name:</strong> {selectedOrder.buyer_name}</p>
+                    <p><strong>Shipping Address:</strong> {selectedOrder.shipping_address}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Order Items</h3>
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Unit Price</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedOrder.items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded overflow-hidden bg-muted flex-shrink-0">
+                                {item.image ? (
+                                  <img 
+                                    src={item.image} 
+                                    alt={item.product_name} 
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full bg-muted flex items-center justify-center">
+                                    <Package className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </div>
+                              <span>{item.product_name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{item.quantity}</TableCell>
+                          <TableCell>₱{item.unit_price.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">₱{item.total_price.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-right font-medium">Order Total</TableCell>
+                        <TableCell className="text-right font-bold">₱{selectedOrder.total.toFixed(2)}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+              
+              <div className="flex justify-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsDetailsModalOpen(false)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

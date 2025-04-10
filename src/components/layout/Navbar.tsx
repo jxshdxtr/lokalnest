@@ -199,9 +199,11 @@ const Navbar = () => {
                   <User className="mr-2 h-4 w-4" />
                   Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/buyer/orders')}>
-                  Orders
-                </DropdownMenuItem>
+                {user.user_metadata?.account_type !== 'seller' && (
+                  <DropdownMenuItem onClick={() => navigate('/buyer/orders')}>
+                    Orders
+                  </DropdownMenuItem>
+                )}
                 {user.user_metadata?.account_type === 'seller' && (
                   <DropdownMenuItem onClick={() => navigate('/seller/dashboard')}>
                     Seller Dashboard
@@ -275,9 +277,11 @@ const Navbar = () => {
                         <Link to="/profile" className="flex items-center py-2 text-base font-medium">
                           My Profile
                         </Link>
-                        <Link to="/buyer/orders" className="flex items-center py-2 text-base font-medium">
-                          My Orders
-                        </Link>
+                        {user.user_metadata?.account_type !== 'seller' && (
+                          <Link to="/buyer/orders" className="flex items-center py-2 text-base font-medium">
+                            My Orders
+                          </Link>
+                        )}
                         {user.user_metadata?.account_type === 'seller' && (
                           <Link to="/seller/dashboard" className="flex items-center py-2 text-base font-medium">
                             Seller Dashboard

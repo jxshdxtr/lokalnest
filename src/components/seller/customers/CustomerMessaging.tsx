@@ -18,11 +18,11 @@ interface CustomerMessagingProps {
 
 interface Message {
   id: string;
-  message: string;
+  message_content: string;
   created_at: string;
-  is_read: boolean;
-  seller_id: string;
-  customer_id: string;
+  read: boolean;
+  sender_id: string;
+  recipient_id: string;
 }
 
 interface TypingIndicator {
@@ -37,10 +37,23 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [isCustomerTyping, setIsCustomerTyping] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const subscriptionRef = useRef<any>(null);
   const presenceChannelRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Get the current user ID when component mounts
+    const getCurrentUser = async () => {
+      const { data: session } = await supabase.auth.getSession();
+      if (session.session?.user) {
+        setCurrentUserId(session.session.user.id);
+      }
+    };
+    
+    getCurrentUser();
+  }, []);
 
   useEffect(() => {
     if (isOpen && customer) {
@@ -83,26 +96,42 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) return;
 
-      // First check if the customer exists in the profiles table
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', customer.id)
-        .single();
+      // Find the actual user_id linked to this customer
+      let customerId;
       
-      // If the customer doesn't exist in profiles table, use the customer id as is
-      let customerId = customer.id;
+      // Check if customer has user_id directly
+      if ('user_id' in customer) {
+        customerId = (customer as any).user_id;
+      }
+      
+      // If not, try to find by email in profiles table
+      if (!customerId && customer.email) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', customer.email)
+          .single();
+          
+        if (!profileError && profileData) {
+          customerId = profileData.id;
+        }
+      }
+      
+      if (!customerId) {
+        console.error("Cannot find this customer in the users table.");
+        return;
+      }
 
       // Create a channel for real-time updates
       const channel = supabase
-        .channel('customer-messages')
+        .channel('seller-messages')
         .on(
           'postgres_changes',
           {
             event: 'INSERT',
             schema: 'public',
-            table: 'customer_messages',
-            filter: `customer_id=eq.${customerId}`,
+            table: 'messages',
+            filter: `sender_id=eq.${customerId}`,
           },
           (payload) => {
             // Only add messages that aren't already in our state
@@ -129,21 +158,21 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
 
       // Find unread messages from the customer
       const unreadMessageIds = messages
-        .filter(msg => !msg.is_read && msg.customer_id === customer?.id)
+        .filter(msg => !msg.read && msg.sender_id === customer?.id)
         .map(msg => msg.id);
 
       if (unreadMessageIds.length === 0) return;
 
       // Update messages in Supabase
       await supabase
-        .from('customer_messages')
-        .update({ is_read: true })
+        .from('messages')
+        .update({ read: true })
         .in('id', unreadMessageIds);
 
       // Update local state
       setMessages(prevMessages => 
         prevMessages.map(msg => 
-          unreadMessageIds.includes(msg.id) ? { ...msg, is_read: true } : msg
+          unreadMessageIds.includes(msg.id) ? { ...msg, read: true } : msg
         )
       );
     } catch (error) {
@@ -162,27 +191,50 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
         return;
       }
       
-      // Using raw query instead of typed query since the types don't include customer_messages yet
+      const sellerId = session.session.user.id;
+      
+      // Find the actual user_id linked to this customer
+      let customerId;
+      
+      // Check if customer has user_id directly
+      if ('user_id' in customer) {
+        customerId = (customer as any).user_id;
+      }
+      
+      // If not, try to find by email in profiles table
+      if (!customerId && customer.email) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', customer.email)
+          .single();
+          
+        if (!profileError && profileData) {
+          customerId = profileData.id;
+        }
+      }
+      
+      if (!customerId) {
+        toast.error("Cannot find this customer in the users table.");
+        setLoading(false);
+        return;
+      }
+      
+      // Query messages where either seller is the sender and customer is recipient
+      // OR customer is sender and seller is recipient
       const { data, error } = await supabase
-        .from('customer_messages')
+        .from('messages')
         .select('*')
-        .or(`seller_id.eq.${session.session.user.id},customer_id.eq.${customer.id}`)
+        .or(`and(sender_id.eq.${sellerId},recipient_id.eq.${customerId}),and(sender_id.eq.${customerId},recipient_id.eq.${sellerId})`)
         .order('created_at', { ascending: true });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Fetch error details:', error);
+        throw error;
+      }
       
       if (data) {
-        // Explicitly cast the data to our Message interface
-        const typedMessages = data.map(item => ({
-          id: item.id,
-          message: item.message,
-          created_at: item.created_at,
-          is_read: item.is_read,
-          seller_id: item.seller_id,
-          customer_id: item.customer_id
-        })) as Message[];
-        
-        setMessages(typedMessages);
+        setMessages(data as Message[]);
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -206,60 +258,61 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
         return;
       }
       
-      // Get current user ID
+      // Get current user ID (seller)
       const sellerId = session.session.user.id;
       
-      // We need to figure out what ID to use for the customer
-      // Since the error says the foreign key constraint is with the 'users' table,
-      // we assume the ID should be from the auth system
+      // Find the actual user_id linked to this customer
+      // Look for user ID in customer object first
+      let customerId;
       
-      // Let's try to get the actual auth user info from customer if available
-      let customerId = null;
-      
-      // Check if there's a user_id property on the customer object
+      // Check if customer has user_id directly
       if ('user_id' in customer) {
         customerId = (customer as any).user_id;
       }
       
-      // Try to locate a user by email if the customer has an email property
+      // If not, try to find by email in profiles table
       if (!customerId && customer.email) {
-        try {
-          // Try to look up a user by email in the auth.users table
-          const { data: userData, error } = await supabase.auth.admin.listUsers();
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', customer.email)
+          .single();
           
-          if (!error && userData?.users) {
-            const userWithMatchingEmail = userData.users.find(user => 
-              (user as any).email === customer.email
-            );
-            if (userWithMatchingEmail) {
-              customerId = userWithMatchingEmail.id;
-            }
-          }
-        } catch (error) {
-          console.error('Error looking up user by email:', error);
-          // Continue with other approaches
+        if (!profileError && profileData) {
+          customerId = profileData.id;
         }
       }
       
-      // If we still don't have a valid user ID, let's try using the current user's ID for testing
+      // If still not found, try looking in auth.users (if you have permission)
+      if (!customerId && customer.email) {
+        try {
+          const { data: userData, error: userError } = await supabase.auth.admin.getUserByEmail(customer.email);
+          if (!userError && userData) {
+            customerId = userData.id;
+          }
+        } catch (error) {
+          console.error("Cannot access auth admin API", error);
+        }
+      }
+      
       if (!customerId) {
-        console.warn("Could not find a valid user_id for the customer, using the current user's ID for testing");
-        customerId = sellerId;
+        toast.error("Cannot identify this customer in the users table.");
+        setSending(false);
+        return;
       }
       
       // For debugging - log the IDs we're using
       console.log('Sending message with:', { sellerId, customerId });
       
       const newMessage = {
-        seller_id: sellerId,
-        customer_id: customerId,
-        message: message.trim(),
-        is_read: false
+        sender_id: sellerId,
+        recipient_id: customerId,
+        message_content: message.trim(),
+        read: false
       };
       
-      // Using raw query since the types don't include customer_messages yet
       const { data, error } = await supabase
-        .from('customer_messages')
+        .from('messages')
         .insert(newMessage)
         .select();
       
@@ -269,17 +322,7 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
       }
       
       if (data) {
-        // Explicitly cast the new message to our Message interface
-        const typedNewMessage = {
-          id: data[0].id,
-          message: data[0].message,
-          created_at: data[0].created_at,
-          is_read: data[0].is_read,
-          seller_id: data[0].seller_id,
-          customer_id: data[0].customer_id
-        } as Message;
-        
-        setMessages([...messages, typedNewMessage]);
+        setMessages([...messages, data[0] as Message]);
         setMessage('');
         toast.success('Message sent');
       }
@@ -433,7 +476,7 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
           </DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 p-4 border rounded-md my-4">
+        <ScrollArea className="flex-1 px-4 py-6 border rounded-md my-4 overflow-y-auto">
           {loading ? (
             <div className="flex justify-center items-center h-[300px]">
               <p className="text-sm text-muted-foreground">Loading messages...</p>
@@ -443,31 +486,55 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
               <p className="text-sm text-muted-foreground">No messages yet. Send a message to start the conversation.</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.customer_id === customer?.id && msg.seller_id !== customer?.id ? 'justify-end' : 'justify-start'}`}
-                >
+            <div className="space-y-5">
+              {messages.map((msg) => {
+                // Determine if this message was sent by me (the seller)
+                const isSentByMe = msg.sender_id === currentUserId;
+                return (
                   <div
-                    className={`max-w-[80%] p-3 rounded-lg ${
-                      msg.customer_id === customer?.id && msg.seller_id !== customer?.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-foreground'
-                    }`}
+                    key={msg.id}
+                    className={`flex ${isSentByMe ? 'justify-end' : 'justify-start'} items-end gap-2`}
                   >
-                    <p className="text-sm">{msg.message}</p>
-                    <p className="text-xs mt-1 opacity-70">{formatMessageTime(msg.created_at)}</p>
+                    {!isSentByMe && (
+                      <Avatar className="h-8 w-8 flex-shrink-0">
+                        <AvatarImage src={customer?.avatar_url} />
+                        <AvatarFallback className="bg-gray-200 text-gray-700">{customer ? getInitials(customer.full_name) : 'C'}</AvatarFallback>
+                      </Avatar>
+                    )}
+                    <div
+                      className={`max-w-[75%] p-4 rounded-2xl ${
+                        isSentByMe
+                          ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-br-none shadow-sm'
+                          : 'bg-gray-100 text-gray-800 rounded-bl-none shadow-sm'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-medium">
+                          {isSentByMe ? 'You' : customer?.full_name || 'Customer'}
+                        </span>
+                      </div>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.message_content}</p>
+                      <p className="text-xs mt-1 opacity-70">{formatMessageTime(msg.created_at)}</p>
+                    </div>
+                    {isSentByMe && (
+                      <Avatar className="h-8 w-8 flex-shrink-0">
+                        <AvatarFallback className="bg-purple-500 text-white">You</AvatarFallback>
+                      </Avatar>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {isCustomerTyping && (
-                <div className="flex justify-end">
-                  <div className="bg-muted p-2 rounded-lg">
+                <div className="flex justify-start items-end gap-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={customer?.avatar_url} />
+                    <AvatarFallback className="bg-gray-200 text-gray-700">{customer ? getInitials(customer.full_name) : 'C'}</AvatarFallback>
+                  </Avatar>
+                  <div className="bg-gray-100 p-3 rounded-2xl rounded-bl-none">
                     <div className="flex gap-1">
-                      <div className="w-2 h-2 rounded-full bg-foreground/60 animate-pulse"></div>
-                      <div className="w-2 h-2 rounded-full bg-foreground/60 animate-pulse delay-100"></div>
-                      <div className="w-2 h-2 rounded-full bg-foreground/60 animate-pulse delay-200"></div>
+                      <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse"></div>
+                      <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse delay-100"></div>
+                      <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse delay-200"></div>
                     </div>
                   </div>
                 </div>
@@ -477,12 +544,21 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
           )}
         </ScrollArea>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 mt-2 items-center">
+          <div className="flex space-x-2 text-gray-500">
+            <button className="p-2 hover:bg-gray-100 rounded-full">
+              <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+            </button>
+          </div>
           <Textarea
             value={message}
             onChange={handleMessageChange}
             placeholder="Type your message..."
-            className="resize-none"
+            className="resize-none rounded-full py-3 px-4 focus-visible:ring-purple-500"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -494,7 +570,7 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
             onClick={sendMessage} 
             size="icon" 
             disabled={sending || !message.trim()}
-            className="h-full aspect-square"
+            className="h-10 w-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
           >
             <Send className="h-4 w-4" />
           </Button>
