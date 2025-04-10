@@ -36,6 +36,55 @@ const BuyerMessages = () => {
     fetchMessagePreviews();
   }, []);
 
+  // Subscribe to real-time message updates
+  useEffect(() => {
+    const subscribeToMessages = async () => {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) return;
+      
+      const customerId = session.session.user.id;
+      
+      const channel = supabase
+        .channel('buyer-message-updates')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'customer_messages',
+            filter: `customer_id=eq.${customerId}`,
+          },
+          (payload) => {
+            // Refresh message previews when a new message is received
+            if (!isMessagingOpen || payload.new.seller_id !== selectedSeller?.id) {
+              fetchMessagePreviews();
+              toast.info('New message received', {
+                description: 'You have received a new message from a seller',
+                action: {
+                  label: 'View',
+                  onClick: () => {
+                    // Find the seller who sent this message and open the chat
+                    const sellerId = payload.new.seller_id;
+                    const preview = messagePreviews.find(p => p.seller_id === sellerId);
+                    if (preview) {
+                      handleOpenChat(preview);
+                    }
+                  }
+                }
+              });
+            }
+          }
+        )
+        .subscribe();
+      
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    };
+    
+    subscribeToMessages();
+  }, [messagePreviews, isMessagingOpen, selectedSeller]);
+
   const fetchMessagePreviews = async () => {
     setLoading(true);
     try {
@@ -79,7 +128,7 @@ const BuyerMessages = () => {
             seller_avatar: sellerProfile?.logo_url,
             last_message: latestMessage.message,
             last_message_time: latestMessage.created_at,
-            unread_count: sellerMessages.filter(msg => !msg.is_read).length
+            unread_count: sellerMessages.filter(msg => !msg.is_read && msg.seller_id === sellerId).length
           };
         });
         
