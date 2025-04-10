@@ -252,13 +252,6 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "inventory_logs_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products_with_profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       messages: {
@@ -412,13 +405,6 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "order_items_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products_with_profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       orders: {
@@ -472,29 +458,8 @@ export type Database = {
             foreignKeyName: "orders_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
-            referencedRelation: "products_with_profiles"
-            referencedColumns: ["profile_id"]
-          },
-          {
-            foreignKeyName: "orders_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_with_user_id"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_with_user_id"
-            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -541,13 +506,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "product_flags_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products_with_profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "product_flags_reviewed_by_fkey"
             columns: ["reviewed_by"]
             isOneToOne: false
@@ -587,13 +545,6 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_images_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products_with_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -657,13 +608,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "categories"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "products_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "products_with_profiles"
-            referencedColumns: ["seller_profile_id"]
           },
           {
             foreignKeyName: "products_seller_id_fkey"
@@ -844,42 +788,14 @@ export type Database = {
             foreignKeyName: "reviews_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
-            referencedRelation: "products_with_profiles"
-            referencedColumns: ["profile_id"]
-          },
-          {
-            foreignKeyName: "reviews_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reviews_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_with_user_id"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reviews_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_with_user_id"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "reviews_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reviews_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products_with_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -929,29 +845,8 @@ export type Database = {
             foreignKeyName: "seller_customers_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
-            referencedRelation: "products_with_profiles"
-            referencedColumns: ["profile_id"]
-          },
-          {
-            foreignKeyName: "seller_customers_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "seller_customers_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_with_user_id"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "seller_customers_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_with_user_id"
-            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -999,6 +894,8 @@ export type Database = {
           created_at: string
           document_type: string
           document_url: string
+          dti_certification_expiry: string | null
+          dti_certification_number: string | null
           id: string
           notes: string | null
           seller_id: string
@@ -1011,6 +908,8 @@ export type Database = {
           created_at?: string
           document_type: string
           document_url: string
+          dti_certification_expiry?: string | null
+          dti_certification_number?: string | null
           id?: string
           notes?: string | null
           seller_id: string
@@ -1023,6 +922,8 @@ export type Database = {
           created_at?: string
           document_type?: string
           document_url?: string
+          dti_certification_expiry?: string | null
+          dti_certification_number?: string | null
           id?: string
           notes?: string | null
           seller_id?: string
@@ -1032,13 +933,6 @@ export type Database = {
           verified_by?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "seller_verifications_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "products_with_profiles"
-            referencedColumns: ["seller_profile_id"]
-          },
           {
             foreignKeyName: "seller_verifications_seller_id_fkey"
             columns: ["seller_id"]
@@ -1111,42 +1005,14 @@ export type Database = {
             foreignKeyName: "wishlist_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
-            referencedRelation: "products_with_profiles"
-            referencedColumns: ["profile_id"]
-          },
-          {
-            foreignKeyName: "wishlist_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wishlist_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_with_user_id"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wishlist_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_with_user_id"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "wishlist_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wishlist_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products_with_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1186,112 +1052,18 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "product_flags_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products_with_profiles"
-            referencedColumns: ["id"]
-          },
         ]
-      }
-      products_with_profiles: {
-        Row: {
-          category_id: string | null
-          created_at: string | null
-          description: string | null
-          featured: boolean | null
-          full_name: string | null
-          id: string | null
-          is_available: boolean | null
-          name: string | null
-          price: number | null
-          profile_id: string | null
-          rating: number | null
-          review_count: number | null
-          sale_price: number | null
-          seller_id: string | null
-          seller_profile_id: string | null
-          shipping_info: string | null
-          stock_quantity: number | null
-          updated_at: string | null
-          username: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "products_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "products_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "products_with_profiles"
-            referencedColumns: ["seller_profile_id"]
-          },
-          {
-            foreignKeyName: "products_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "seller_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      profiles_with_user_id: {
-        Row: {
-          avatar_url: string | null
-          bio: string | null
-          created_at: string | null
-          email: string | null
-          full_name: string | null
-          id: string | null
-          phone: string | null
-          role: string | null
-          status: string | null
-          store_name: string | null
-          updated_at: string | null
-          user_id: string | null
-          username: string | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string | null
-          email?: string | null
-          full_name?: string | null
-          id?: string | null
-          phone?: string | null
-          role?: string | null
-          status?: string | null
-          store_name?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-          username?: string | null
-        }
-        Update: {
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string | null
-          email?: string | null
-          full_name?: string | null
-          id?: string | null
-          phone?: string | null
-          role?: string | null
-          status?: string | null
-          store_name?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-          username?: string | null
-        }
-        Relationships: []
       }
     }
     Functions: {
-      [_ in never]: never
+      can_access_order: {
+        Args: { order_id: string }
+        Returns: boolean
+      }
+      is_admin: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
