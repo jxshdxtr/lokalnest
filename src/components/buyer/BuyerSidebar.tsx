@@ -27,6 +27,12 @@ const BuyerSidebar = () => {
       current: location.pathname.includes('/buyer/orders')
     },
     { 
+      name: 'Messages', 
+      href: '/buyer/messages', 
+      icon: MessageSquare,
+      current: location.pathname.includes('/buyer/messages')
+    },
+    { 
       name: 'Payments', 
       href: '/buyer/payments', 
       icon: CreditCard,

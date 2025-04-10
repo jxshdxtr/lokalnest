@@ -1,3 +1,4 @@
+
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Index from './pages/Index';
 import SellerDashboard from './pages/SellerDashboard';
@@ -16,6 +17,7 @@ import BuyerOrders from './components/buyer/BuyerOrders';
 import BuyerPayments from './components/buyer/BuyerPayments';
 import BuyerReviews from './components/buyer/BuyerReviews';
 import BuyerSupport from './components/buyer/BuyerSupport';
+import BuyerMessages from './components/buyer/messaging/BuyerMessages';
 import ProductDetail from './pages/ProductDetail';
 import AuthForm from './components/auth/AuthForm';
 import { CartProvider } from './components/buyer/shopping/Cart';
@@ -54,6 +56,7 @@ function App() {
             <Route path="payments" element={<BuyerPayments />} />
             <Route path="reviews" element={<BuyerReviews />} />
             <Route path="support" element={<BuyerSupport />} />
+            <Route path="messages" element={<BuyerMessages />} />
           </Route>
           
           <Route path="/checkout" element={<Checkout />} />

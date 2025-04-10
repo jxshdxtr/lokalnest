@@ -9,10 +9,15 @@ import { Send, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
-import { Customer } from './types';
 
-interface CustomerMessagingProps {
-  customer: Customer | null;
+interface Seller {
+  id: string;
+  name: string;
+  avatar_url?: string;
+}
+
+interface BuyerMessagingProps {
+  seller: Seller | null;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -26,20 +31,20 @@ interface Message {
   customer_id: string;
 }
 
-const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen, onClose }) => {
+const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose }) => {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    if (isOpen && customer) {
+    if (isOpen && seller) {
       fetchMessages();
     }
-  }, [isOpen, customer]);
+  }, [isOpen, seller]);
 
   const fetchMessages = async () => {
-    if (!customer) return;
+    if (!seller) return;
     
     setLoading(true);
     try {
@@ -49,11 +54,11 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
         return;
       }
       
-      // Using raw query instead of typed query since the types don't include customer_messages yet
+      // Using raw query since the types don't include customer_messages yet
       const { data, error } = await supabase
         .from('customer_messages')
         .select('*')
-        .or(`seller_id.eq.${session.session.user.id},customer_id.eq.${customer.id}`)
+        .or(`seller_id.eq.${seller.id},customer_id.eq.${session.session.user.id}`)
         .order('created_at', { ascending: true });
       
       if (error) throw error;
@@ -80,7 +85,7 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
   };
 
   const sendMessage = async () => {
-    if (!message.trim() || !customer) return;
+    if (!message.trim() || !seller) return;
     
     setSending(true);
     try {
@@ -91,8 +96,8 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
       }
       
       const newMessage = {
-        seller_id: session.session.user.id,
-        customer_id: customer.id,
+        seller_id: seller.id,
+        customer_id: session.session.user.id,
         message: message.trim(),
         is_read: false
       };
@@ -153,13 +158,13 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
             <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            {customer && (
+            {seller && (
               <div className="flex items-center gap-3">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={customer.avatar_url} />
-                  <AvatarFallback>{getInitials(customer.full_name)}</AvatarFallback>
+                  <AvatarImage src={seller.avatar_url} />
+                  <AvatarFallback>{getInitials(seller.name)}</AvatarFallback>
                 </Avatar>
-                <span>{customer.full_name}</span>
+                <span>{seller.name}</span>
               </div>
             )}
           </DialogTitle>
@@ -179,11 +184,11 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex ${msg.customer_id === customer?.id && msg.seller_id !== customer?.id ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${msg.customer_id === session?.user?.id ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
                     className={`max-w-[80%] p-3 rounded-lg ${
-                      msg.customer_id === customer?.id && msg.seller_id !== customer?.id
+                      msg.customer_id === session?.user?.id
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted text-foreground'
                     }`}
@@ -224,4 +229,4 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
   );
 };
 
-export default CustomerMessaging;
+export default BuyerMessaging;
