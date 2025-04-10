@@ -56,7 +56,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Load product data if editing
   useEffect(() => {
     if (product) {
       setFormData({
@@ -73,13 +72,11 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         tags: product.tags || []
       });
 
-      // If editing an existing product, fetch all its images
       if (product.id) {
         fetchProductImages(product.id);
       }
     }
     
-    // Fetch categories from Supabase
     fetchCategories();
   }, [product]);
 
@@ -141,7 +138,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         })
       );
       
-      // Filter out any null values (failed uploads)
       const validUrls = uploadedUrls.filter(url => url !== null) as string[];
       
       setFormData(prev => ({
@@ -155,7 +151,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       toast.error('Failed to upload one or more images');
     } finally {
       setUploading(false);
-      // Reset the file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -196,7 +191,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   };
 
   const handleAddImage = () => {
-    // Trigger file input click
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
@@ -244,7 +238,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     try {
       const uploadedUrls = await Promise.all(
         Array.from(droppedFiles).map(async (file) => {
-          // Check if file is an image
           if (!file.type.startsWith('image/')) {
             toast.error(`File "${file.name}" is not an image`);
             return null;
@@ -253,7 +246,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         })
       );
       
-      // Filter out any null values (failed uploads)
       const validUrls = uploadedUrls.filter(url => url !== null) as string[];
       
       setFormData(prev => ({
@@ -279,18 +271,16 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
     if (!formData.name || !formData.price || !formData.category || !formData.stock) {
       toast.error('Please fill in all required fields');
       return;
     }
     
-    // Parse numeric values
     const productData = {
       ...formData,
       price: parseFloat(formData.price),
       stock: parseInt(formData.stock),
-      image: formData.images[0] || '' // Use first image as main image
+      image: formData.images[0] || ''
     };
     
     try {
@@ -301,7 +291,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
       }
       
       if (product && product.id) {
-        // Update existing product
         const { error } = await supabase
           .from('products')
           .update({
@@ -311,26 +300,21 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             category_id: productData.category,
             stock_quantity: productData.stock,
             shipping_info: productData.shipping_note,
-            // Add other fields as needed
             updated_at: new Date().toISOString()
           })
           .eq('id', product.id);
           
         if (error) throw error;
         
-        // Handle product images update
-        // First delete existing images
         if (productData.images.length > 0) {
-          // Keep track of existing images that should remain
           const existingImageUrls = product.images || [];
           const newImageUrls = productData.images.filter(url => !existingImageUrls.includes(url));
           
-          // Add new images
           if (newImageUrls.length > 0) {
             const imagesToInsert = newImageUrls.map((url, index) => ({
               product_id: product.id,
               url,
-              is_primary: index === 0 && existingImageUrls.length === 0, // First new image is primary if no existing images
+              is_primary: index === 0 && existingImageUrls.length === 0,
               alt_text: `${productData.name} image ${index + 1}`
             }));
             
@@ -346,7 +330,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         
         toast.success('Product updated successfully');
       } else {
-        // Create new product
         const { data, error } = await supabase
           .from('products')
           .insert({
@@ -356,21 +339,19 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             category_id: productData.category,
             stock_quantity: productData.stock,
             shipping_info: productData.shipping_note,
-            seller_id: session.user.id,
-            // Add other fields as needed
+            seller_id: session.user.id
           })
           .select();
           
         if (error) throw error;
         
-        // Add product images
         if (data && data.length > 0 && formData.images.length > 0) {
           const productId = data[0].id;
           
           const imagesToInsert = formData.images.map((url, index) => ({
             product_id: productId,
             url,
-            is_primary: index === 0, // First image is primary
+            is_primary: index === 0,
             alt_text: `${productData.name} image ${index + 1}`
           }));
           
@@ -421,7 +402,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6 py-4">
-          {/* Basic Information */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-muted-foreground">Basic Information</h3>
             
@@ -471,7 +451,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           </div>
           
-          {/* Pricing & Inventory */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-muted-foreground">Pricing & Inventory</h3>
             
@@ -507,7 +486,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           </div>
           
-          {/* Product Images */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-medium text-muted-foreground">Product Images</h3>
@@ -583,7 +561,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             )}
           </div>
           
-          {/* Additional Details */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-muted-foreground">Additional Details</h3>
             
@@ -635,7 +612,6 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           </div>
           
-          {/* Tags */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium text-muted-foreground">Tags</h3>
             

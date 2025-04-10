@@ -62,6 +62,8 @@ interface VerificationDocumentType {
   created_at: string;
   business_name: string;
   notes: string;
+  verification_date?: string; // Added missing property
+  verified_by?: string; // Also adding this related field
 }
 
 const SellerVerificationManagement = () => {

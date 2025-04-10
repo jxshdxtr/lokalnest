@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -18,6 +17,17 @@ const ProductManagement = () => {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [isSellerVerified, setIsSellerVerified] = useState(false);
   const [isCheckingVerification, setIsCheckingVerification] = useState(true);
+  
+  // Add state for product management
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterPrice, setFilterPrice] = useState({ min: '', max: '' });
+  const [filterStock, setFilterStock] = useState('all');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
 
   useEffect(() => {
     const checkSellerVerification = async () => {
@@ -81,6 +91,115 @@ const ProductManagement = () => {
     checkSellerVerification();
   }, [navigate]);
 
+  // Add effect to fetch products
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        
+        const { data, error } = await supabase
+          .from('products')
+          .select(`
+            *,
+            categories:category_id (name)
+          `)
+          .eq('seller_id', session.user.id);
+          
+        if (error) throw error;
+        
+        // Also fetch product images
+        const productsWithImages = await Promise.all(
+          (data || []).map(async (product) => {
+            const { data: images } = await supabase
+              .from('product_images')
+              .select('url')
+              .eq('product_id', product.id)
+              .order('is_primary', { ascending: false })
+              .limit(1);
+              
+            return {
+              ...product,
+              image: images && images.length > 0 ? images[0].url : null,
+              category_name: product.categories?.name
+            };
+          })
+        );
+        
+        setProducts(productsWithImages);
+        setFilteredProducts(productsWithImages);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        toast.error('Failed to load products');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProducts();
+  }, [isCreateOpen, isDetailOpen]);
+
+  // Add effect to fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('id, name')
+          .order('name');
+          
+        if (error) throw error;
+        
+        setCategories(data || []);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
+
+  // Add effect to filter products based on search and filters
+  useEffect(() => {
+    let filtered = [...products];
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(product => 
+        product.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Apply price filter
+    if (filterPrice.min && !isNaN(Number(filterPrice.min))) {
+      filtered = filtered.filter(product => product.price >= Number(filterPrice.min));
+    }
+    
+    if (filterPrice.max && !isNaN(Number(filterPrice.max))) {
+      filtered = filtered.filter(product => product.price <= Number(filterPrice.max));
+    }
+    
+    // Apply stock filter
+    if (filterStock !== 'all') {
+      if (filterStock === 'in_stock') {
+        filtered = filtered.filter(product => product.stock_quantity > 0);
+      } else if (filterStock === 'low_stock') {
+        filtered = filtered.filter(product => product.stock_quantity > 0 && product.stock_quantity < 10);
+      } else if (filterStock === 'out_of_stock') {
+        filtered = filtered.filter(product => product.stock_quantity === 0);
+      }
+    }
+    
+    // Apply category filter
+    if (filterCategory) {
+      filtered = filtered.filter(product => product.category_id === filterCategory);
+    }
+    
+    setFilteredProducts(filtered);
+  }, [searchTerm, filterPrice, filterStock, filterCategory, products]);
+
   const handleViewProductDetail = (productId: string) => {
     setSelectedProductId(productId);
     setIsDetailOpen(true);
@@ -92,6 +211,32 @@ const ProductManagement = () => {
       return;
     }
     setIsCreateOpen(true);
+  };
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const resetFilters = () => {
+    setFilterPrice({ min: '', max: '' });
+    setFilterStock('all');
+    setFilterCategory('');
+    setSearchTerm('');
+  };
+
+  const handleEditProduct = (product: any) => {
+    // Implement edit functionality
+    console.log('Edit product:', product);
+  };
+
+  const handleDeleteProduct = (productId: string) => {
+    // Implement delete functionality
+    console.log('Delete product:', productId);
+  };
+
+  const handleDuplicateProduct = (product: any) => {
+    // Implement duplicate functionality
+    console.log('Duplicate product:', product);
   };
 
   if (isCheckingVerification) {
@@ -125,22 +270,53 @@ const ProductManagement = () => {
         </Button>
       </div>
 
-      <ProductToolbar />
-      <ProductFilters />
-      <ProductTable onViewDetail={handleViewProductDetail} />
+      <ProductToolbar 
+        searchTerm={searchTerm}
+        handleSearch={handleSearch}
+        handleAddProduct={handleCreateNew}
+        isFilterOpen={isFilterOpen}
+        setIsFilterOpen={setIsFilterOpen}
+        categories={categories}
+      />
+      
+      <ProductFilters 
+        filterPrice={filterPrice}
+        setFilterPrice={setFilterPrice}
+        filterStock={filterStock}
+        setFilterStock={setFilterStock}
+        filterCategory={filterCategory}
+        setFilterCategory={setFilterCategory}
+        resetFilters={resetFilters}
+        categories={categories}
+      />
+      
+      <ProductTable 
+        products={products}
+        loading={loading}
+        filteredProducts={filteredProducts}
+        handleEditProduct={handleEditProduct}
+        handleViewProduct={(product) => handleViewProductDetail(product.id)}
+        handleDeleteProduct={handleDeleteProduct}
+        handleDuplicateProduct={handleDuplicateProduct}
+      />
 
       {isCreateOpen && (
         <ProductFormModal
-          open={isCreateOpen}
-          onOpenChange={setIsCreateOpen}
+          isOpen={isCreateOpen}
+          onClose={() => setIsCreateOpen(false)}
+          onSave={() => {
+            setIsCreateOpen(false);
+            // Refresh products after save
+            // This will be handled by the useEffect
+          }}
         />
       )}
 
       {isDetailOpen && selectedProductId && (
         <ProductDetailModal
-          open={isDetailOpen}
-          onOpenChange={setIsDetailOpen}
-          productId={selectedProductId}
+          isOpen={isDetailOpen}
+          onClose={() => setIsDetailOpen(false)}
+          product={products.find(p => p.id === selectedProductId) || {}}
         />
       )}
     </div>
