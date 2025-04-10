@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -288,6 +289,7 @@ const ProductManagement = () => {
         setFilterCategory={setFilterCategory}
         resetFilters={resetFilters}
         categories={categories}
+        setIsFilterOpen={setIsFilterOpen}
       />
       
       <ProductTable 
