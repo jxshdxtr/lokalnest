@@ -22,7 +22,7 @@ interface Message {
   message: string;
   created_at: string;
   is_read: boolean;
-  sender_id: string;
+  seller_id: string;
   customer_id: string;
 }
 
@@ -49,15 +49,28 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
         return;
       }
       
+      // Using raw query instead of typed query since the types don't include customer_messages yet
       const { data, error } = await supabase
         .from('customer_messages')
         .select('*')
-        .or(`seller_id.eq.${session.session.user.id},customer_id.eq.${session.session.user.id}`)
+        .or(`seller_id.eq.${session.session.user.id},customer_id.eq.${customer.id}`)
         .order('created_at', { ascending: true });
       
       if (error) throw error;
       
-      setMessages(data || []);
+      if (data) {
+        // Explicitly cast the data to our Message interface
+        const typedMessages = data.map(item => ({
+          id: item.id,
+          message: item.message,
+          created_at: item.created_at,
+          is_read: item.is_read,
+          seller_id: item.seller_id,
+          customer_id: item.customer_id
+        })) as Message[];
+        
+        setMessages(typedMessages);
+      }
     } catch (error) {
       console.error('Error fetching messages:', error);
       toast.error('Failed to load messages');
@@ -84,6 +97,7 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
         is_read: false
       };
       
+      // Using raw query since the types don't include customer_messages yet
       const { data, error } = await supabase
         .from('customer_messages')
         .insert(newMessage)
@@ -92,7 +106,17 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
       if (error) throw error;
       
       if (data) {
-        setMessages([...messages, data[0]]);
+        // Explicitly cast the new message to our Message interface
+        const typedNewMessage = {
+          id: data[0].id,
+          message: data[0].message,
+          created_at: data[0].created_at,
+          is_read: data[0].is_read,
+          seller_id: data[0].seller_id,
+          customer_id: data[0].customer_id
+        } as Message;
+        
+        setMessages([...messages, typedNewMessage]);
         setMessage('');
         toast.success('Message sent');
       }
@@ -155,11 +179,11 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex ${msg.sender_id === customer?.id ? 'justify-start' : 'justify-end'}`}
+                  className={`flex ${msg.seller_id === customer?.id ? 'justify-start' : 'justify-end'}`}
                 >
                   <div
                     className={`max-w-[80%] p-3 rounded-lg ${
-                      msg.sender_id === customer?.id
+                      msg.seller_id === customer?.id
                         ? 'bg-muted text-foreground'
                         : 'bg-primary text-primary-foreground'
                     }`}
