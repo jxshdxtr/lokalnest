@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -60,6 +61,7 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
             full_name: data.name,
             account_type: data.accountType,
           },
+          emailRedirectTo: `${window.location.origin}/verify`,
         },
       });
       

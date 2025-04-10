@@ -29,6 +29,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from '@/components/ui/input-otp';
+import { Shield } from 'lucide-react';
 
 // Form schema
 const otpSchema = z.object({
@@ -108,7 +109,7 @@ const VerifyOTP = () => {
       const { error } = await supabase.auth.verifyOtp({
         email,
         token: data.otp,
-        type: 'email',
+        type: 'signup',
       });
       
       if (error) throw error;
@@ -175,6 +176,9 @@ const VerifyOTP = () => {
       <div className="min-h-screen pt-16 pb-16 flex items-center justify-center bg-gradient-soft">
         <Card className="w-full max-w-md mx-auto animate-scale-in">
           <CardHeader className="space-y-1 text-center">
+            <div className="mx-auto bg-primary/10 p-3 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+              <Shield className="w-8 h-8 text-primary" />
+            </div>
             <CardTitle className="text-2xl font-bold tracking-tight">
               Verify Your Email
             </CardTitle>
@@ -193,12 +197,12 @@ const VerifyOTP = () => {
                       <FormControl>
                         <InputOTP maxLength={6} {...field}>
                           <InputOTPGroup>
-                            <InputOTPSlot index={0} />
-                            <InputOTPSlot index={1} />
-                            <InputOTPSlot index={2} />
-                            <InputOTPSlot index={3} />
-                            <InputOTPSlot index={4} />
-                            <InputOTPSlot index={5} />
+                            <InputOTPSlot index={0} className="rounded-md" />
+                            <InputOTPSlot index={1} className="rounded-md" />
+                            <InputOTPSlot index={2} className="rounded-md" />
+                            <InputOTPSlot index={3} className="rounded-md" />
+                            <InputOTPSlot index={4} className="rounded-md" />
+                            <InputOTPSlot index={5} className="rounded-md" />
                           </InputOTPGroup>
                         </InputOTP>
                       </FormControl>
@@ -230,6 +234,13 @@ const VerifyOTP = () => {
                 </Button>
               )}
             </div>
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/auth')}
+              className="mt-4 w-full"
+            >
+              Back to login
+            </Button>
           </CardFooter>
         </Card>
       </div>

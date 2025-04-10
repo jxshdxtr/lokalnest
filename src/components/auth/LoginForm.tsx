@@ -53,14 +53,23 @@ const LoginForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVisibi
         password: data.password,
       });
       
-      if (error) throw error;
+      if (error) {
+        // If error code indicates email is not confirmed, redirect to verification page
+        if (error.message.includes('Email not confirmed') || 
+            error.message.includes('Email verification')) {
+          toast.info('Please verify your email first');
+          navigate(`/verify?email=${encodeURIComponent(data.email)}`);
+          return;
+        }
+        throw error;
+      }
       
       toast.success('Successfully logged in!');
       
       // Redirect based on user role
       const userType = authData.user?.user_metadata?.account_type;
       if (userType === 'seller') {
-        navigate('/seller/overview');
+        navigate('/seller/dashboard');
       } else {
         navigate('/');
       }

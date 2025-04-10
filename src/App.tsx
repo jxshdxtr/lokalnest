@@ -19,7 +19,8 @@ import BuyerReviews from './components/buyer/BuyerReviews';
 import BuyerSupport from './components/buyer/BuyerSupport';
 import BuyerMessages from './components/buyer/messaging/BuyerMessages';
 import ProductDetail from './pages/ProductDetail';
-import AuthForm from './components/auth/AuthForm';
+import Auth from './pages/Auth';
+import VerifyOTP from './pages/VerifyOTP';
 import { CartProvider } from './components/buyer/shopping/Cart';
 
 function App() {
@@ -28,7 +29,8 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<AuthForm />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/verify" element={<VerifyOTP />} />
           
           {/* Seller Dashboard Routes */}
           <Route path="/seller">
