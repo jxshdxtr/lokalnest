@@ -37,6 +37,7 @@ interface RegisterFormProps {
 
 const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVisibility }: RegisterFormProps) => {
   const navigate = useNavigate();
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -50,6 +51,7 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
 
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
+    setRegistrationError(null);
 
     try {
       // Sign up the user
@@ -65,10 +67,49 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
         },
       });
       
-      if (error) throw error;
+      if (error) {
+        if (error.message === 'Error sending confirmation email') {
+          // Handle email sending error with direct navigation approach
+          toast.warning('Could not send verification email, but your account was created. Proceeding with direct login.');
+          
+          // Try to sign in the user directly
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: data.email,
+            password: data.password,
+          });
+          
+          if (signInError) {
+            throw signInError;
+          }
+          
+          // If the seller profile needs to be created, do it here
+          if (data.accountType === 'seller' && authData?.user) {
+            const { error: sellerError } = await supabase
+              .from('seller_profiles')
+              .insert({
+                id: authData.user.id,
+                business_name: data.name,
+              });
+            
+            if (sellerError) {
+              console.error('Failed to create seller profile:', sellerError);
+            }
+          }
+          
+          // Redirect based on account type
+          if (data.accountType === 'seller') {
+            navigate('/seller/dashboard');
+          } else {
+            navigate('/');
+          }
+          return;
+        } else {
+          throw error;
+        }
+      }
       
       // If the user is a seller, create a seller profile
-      if (data.accountType === 'seller' && authData.user) {
+      if (data.accountType === 'seller' && authData?.user) {
         const { error: sellerError } = await supabase
           .from('seller_profiles')
           .insert({
@@ -87,6 +128,7 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
       // Redirect to OTP verification page
       navigate(`/verify?email=${encodeURIComponent(data.email)}`);
     } catch (error: any) {
+      setRegistrationError(error.message || 'Failed to create account. Please try again.');
       toast.error(error.message || 'Failed to create account. Please try again.');
       console.error('Register error:', error);
     } finally {
@@ -117,6 +159,12 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {registrationError && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-600 text-sm">
+            Error: {registrationError}
+          </div>
+        )}
+        
         <FormField
           control={form.control}
           name="name"
