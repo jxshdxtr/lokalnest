@@ -41,6 +41,7 @@ interface SellerVerificationFormProps {
 const SellerVerificationForm = ({ userId, onComplete }: SellerVerificationFormProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const form = useForm<VerificationFormValues>({
     resolver: zodResolver(verificationSchema),
@@ -53,20 +54,26 @@ const SellerVerificationForm = ({ userId, onComplete }: SellerVerificationFormPr
   const onSubmit = async (data: VerificationFormValues) => {
     setIsUploading(true);
     setUploadError(null);
+    setUploadProgress(0);
 
     try {
-      // Upload the file to Supabase Storage
+      // Create folder with user ID as the name to organize uploads
       const fileExt = data.documentFile.name.split('.').pop();
-      const fileName = `${userId}-dti-cert-${Date.now()}.${fileExt}`;
+      const fileName = `${userId}/${Date.now()}.${fileExt}`;
       
-      // Upload to Storage
+      // Upload to Storage using the seller_documents bucket
       const { error: uploadError, data: fileData } = await supabase.storage
         .from('seller_documents')
-        .upload(fileName, data.documentFile);
+        .upload(fileName, data.documentFile, {
+          cacheControl: '3600',
+          upsert: false,
+          onUploadProgress: (progress) => {
+            const percent = (progress.loaded / progress.total) * 100;
+            setUploadProgress(Math.round(percent));
+          }
+        });
         
       if (uploadError) throw uploadError;
-
-      const fileUrl = fileData.path;
       
       // Save verification details to the database
       const { error: dbError } = await supabase
@@ -74,7 +81,7 @@ const SellerVerificationForm = ({ userId, onComplete }: SellerVerificationFormPr
         .insert({
           seller_id: userId,
           document_type: data.documentType,
-          document_url: fileUrl,
+          document_url: fileName,
           dti_certification_number: data.dtiCertificationNumber,
           dti_certification_expiry: data.dtiCertificationExpiry.toISOString().split('T')[0],
           status: 'pending',
@@ -219,6 +226,18 @@ const SellerVerificationForm = ({ userId, onComplete }: SellerVerificationFormPr
               </FormItem>
             )}
           />
+
+          {isUploading && uploadProgress > 0 && (
+            <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+              <div 
+                className="bg-primary h-2.5 rounded-full transition-all duration-300" 
+                style={{ width: `${uploadProgress}%` }}
+              ></div>
+              <p className="text-xs text-center mt-1 text-muted-foreground">
+                Uploading: {uploadProgress}%
+              </p>
+            </div>
+          )}
 
           <Button 
             type="submit" 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Eye, 
@@ -6,7 +5,8 @@ import {
   XCircle,
   Search, 
   FileText,
-  Filter
+  Filter,
+  ExternalLink
 } from 'lucide-react';
 import { 
   Card, 
@@ -62,8 +62,8 @@ interface VerificationDocumentType {
   created_at: string;
   business_name: string;
   notes: string;
-  verification_date?: string; // Added missing property
-  verified_by?: string; // Also adding this related field
+  verification_date?: string;
+  verified_by?: string;
 }
 
 const SellerVerificationManagement = () => {
@@ -74,6 +74,7 @@ const SellerVerificationManagement = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [rejectionReason, setRejectionReason] = useState('');
+  const [documentPreviewUrl, setDocumentPreviewUrl] = useState<string | null>(null);
 
   const fetchVerifications = async () => {
     setIsLoading(true);
@@ -106,9 +107,26 @@ const SellerVerificationManagement = () => {
     fetchVerifications();
   }, []);
 
-  const handleViewVerification = (verification: VerificationDocumentType) => {
+  const handleViewVerification = async (verification: VerificationDocumentType) => {
     setSelectedVerification(verification);
     setIsVerificationModalOpen(true);
+    
+    try {
+      const { data, error } = await supabase
+        .storage
+        .from('seller_documents')
+        .createSignedUrl(verification.document_url, 60);
+      
+      if (error) {
+        throw error;
+      }
+      
+      setDocumentPreviewUrl(data.signedUrl);
+    } catch (err) {
+      console.error('Error creating signed URL:', err);
+      setDocumentPreviewUrl(null);
+      toast.error('Could not generate document preview link');
+    }
   };
 
   const handleApproveVerification = async () => {
@@ -116,11 +134,9 @@ const SellerVerificationManagement = () => {
     
     setIsLoading(true);
     try {
-      // Get the session to identify admin who is approving
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
       
-      // Update verification status
       const { error: verificationError } = await supabase
         .from('seller_verifications')
         .update({
@@ -133,7 +149,6 @@ const SellerVerificationManagement = () => {
         
       if (verificationError) throw verificationError;
       
-      // Update seller profile is_verified flag
       const { error: profileError } = await supabase
         .from('seller_profiles')
         .update({
@@ -163,11 +178,9 @@ const SellerVerificationManagement = () => {
     
     setIsLoading(true);
     try {
-      // Get the session to identify admin who is rejecting
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
       
-      // Update verification status
       const { error } = await supabase
         .from('seller_verifications')
         .update({
@@ -213,6 +226,16 @@ const SellerVerificationManagement = () => {
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  const getDocumentType = (url: string) => {
+    const extension = url.split('.').pop()?.toLowerCase();
+    if (['jpg', 'jpeg', 'png'].includes(extension || '')) {
+      return 'image';
+    } else if (extension === 'pdf') {
+      return 'pdf';
+    }
+    return 'unknown';
   };
 
   return (
@@ -460,15 +483,32 @@ const SellerVerificationManagement = () => {
                     <div className="bg-gray-50 p-4 border rounded-md flex items-center justify-between">
                       <div className="flex items-center">
                         <FileText className="h-6 w-6 text-blue-500 mr-2" />
-                        <span className="text-sm">DTI-Certificate.pdf</span>
+                        <span className="text-sm">
+                          {selectedVerification.document_url.split('/').pop() || 'Document'}
+                        </span>
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => window.open(`https://hkmceeojnnngqagjbzau.supabase.co/storage/v1/object/public/seller_documents/${selectedVerification.document_url}`, '_blank')}
-                      >
-                        View Document
-                      </Button>
+                      <div className="flex gap-2">
+                        {documentPreviewUrl && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => window.open(documentPreviewUrl, '_blank')}
+                          >
+                            <ExternalLink className="h-4 w-4 mr-1" />
+                            Open
+                          </Button>
+                        )}
+                        {getDocumentType(selectedVerification.document_url) === 'image' && documentPreviewUrl && (
+                          <div className="mt-4">
+                            <img 
+                              src={documentPreviewUrl} 
+                              alt="Verification document" 
+                              className="max-w-full rounded-md border"
+                              style={{ maxHeight: '300px' }}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </TabsContent>

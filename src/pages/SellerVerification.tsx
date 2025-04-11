@@ -17,6 +17,7 @@ const SellerVerification = () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
           // No user logged in, redirect to auth page
+          toast.error('You need to be logged in to verify your seller account');
           navigate('/auth');
           return;
         }
@@ -61,6 +62,7 @@ const SellerVerification = () => {
   }, [navigate]);
 
   const handleVerificationComplete = () => {
+    toast.success('Verification submitted successfully! You will be notified once your account is verified.');
     navigate('/seller/dashboard');
   };
 
@@ -69,7 +71,8 @@ const SellerVerification = () => {
       <Layout>
         <div className="min-h-screen pt-16 pb-16 flex items-center justify-center">
           <div className="text-center">
-            <p>Loading...</p>
+            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p>Loading verification page...</p>
           </div>
         </div>
       </Layout>
