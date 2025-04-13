@@ -891,46 +891,82 @@ export type Database = {
       }
       seller_verifications: {
         Row: {
+          business_name: string | null
           created_at: string
           document_type: string
           document_url: string
           dti_certification_expiry: string | null
           dti_certification_number: string | null
+          first_name: string | null
+          government_id_type: string | null
+          government_id_url: string | null
           id: string
+          last_name: string | null
+          middle_name: string | null
           notes: string | null
+          registered_address: string | null
           seller_id: string
+          seller_type: string | null
           status: string
+          suffix: string | null
+          tin_number: string | null
           updated_at: string
+          vat_status: string | null
           verification_date: string | null
           verified_by: string | null
+          zip_code: string | null
         }
         Insert: {
+          business_name?: string | null
           created_at?: string
           document_type: string
           document_url: string
           dti_certification_expiry?: string | null
           dti_certification_number?: string | null
+          first_name?: string | null
+          government_id_type?: string | null
+          government_id_url?: string | null
           id?: string
+          last_name?: string | null
+          middle_name?: string | null
           notes?: string | null
+          registered_address?: string | null
           seller_id: string
+          seller_type?: string | null
           status: string
+          suffix?: string | null
+          tin_number?: string | null
           updated_at?: string
+          vat_status?: string | null
           verification_date?: string | null
           verified_by?: string | null
+          zip_code?: string | null
         }
         Update: {
+          business_name?: string | null
           created_at?: string
           document_type?: string
           document_url?: string
           dti_certification_expiry?: string | null
           dti_certification_number?: string | null
+          first_name?: string | null
+          government_id_type?: string | null
+          government_id_url?: string | null
           id?: string
+          last_name?: string | null
+          middle_name?: string | null
           notes?: string | null
+          registered_address?: string | null
           seller_id?: string
+          seller_type?: string | null
           status?: string
+          suffix?: string | null
+          tin_number?: string | null
           updated_at?: string
+          vat_status?: string | null
           verification_date?: string | null
           verified_by?: string | null
+          zip_code?: string | null
         }
         Relationships: [
           {

@@ -136,7 +136,7 @@ const SellerVerificationForm = ({ userId, onComplete }: SellerVerificationFormPr
       
       setUploadProgress(80); // Update progress before database operation
       
-      // Save verification details to the database
+      // Save verification details to the database with all the new fields
       const { error: dbError } = await supabase
         .from('seller_verifications')
         .insert({
@@ -147,6 +147,7 @@ const SellerVerificationForm = ({ userId, onComplete }: SellerVerificationFormPr
           dti_certification_expiry: data.dtiCertificationExpiry.toISOString().split('T')[0],
           status: 'pending',
           notes: 'Awaiting verification',
+          // New fields added to the database
           seller_type: data.sellerType,
           first_name: data.firstName,
           middle_name: data.middleName,
