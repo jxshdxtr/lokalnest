@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -312,7 +311,7 @@ const SellerVerificationForm = ({ userId, onComplete }: SellerVerificationFormPr
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
                           <SelectItem value="Jr.">Jr.</SelectItem>
                           <SelectItem value="Sr.">Sr.</SelectItem>
                           <SelectItem value="I">I</SelectItem>
