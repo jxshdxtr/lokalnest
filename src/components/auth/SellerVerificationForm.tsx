@@ -61,19 +61,22 @@ const SellerVerificationForm = ({ userId, onComplete }: SellerVerificationFormPr
       const fileExt = data.documentFile.name.split('.').pop();
       const fileName = `${userId}/${Date.now()}.${fileExt}`;
       
+      // We need to manually track upload progress since onUploadProgress isn't supported
+      setUploadProgress(10); // Start progress indication
+      
       // Upload to Storage using the seller_documents bucket
       const { error: uploadError, data: fileData } = await supabase.storage
         .from('seller_documents')
         .upload(fileName, data.documentFile, {
           cacheControl: '3600',
           upsert: false,
-          onUploadProgress: (progress) => {
-            const percent = (progress.loaded / progress.total) * 100;
-            setUploadProgress(Math.round(percent));
-          }
         });
         
+      setUploadProgress(70); // Update progress after upload
+        
       if (uploadError) throw uploadError;
+      
+      setUploadProgress(80); // Update progress before database operation
       
       // Save verification details to the database
       const { error: dbError } = await supabase
@@ -88,6 +91,8 @@ const SellerVerificationForm = ({ userId, onComplete }: SellerVerificationFormPr
           notes: 'Awaiting verification',
         });
         
+      setUploadProgress(100); // Complete progress
+      
       if (dbError) throw dbError;
       
       toast.success('Verification documents submitted successfully. Your account is pending verification.');
