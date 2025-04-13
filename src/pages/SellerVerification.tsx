@@ -86,7 +86,7 @@ const SellerVerification = () => {
   return (
     <Layout>
       <div className="min-h-screen pt-16 pb-16 flex items-center justify-center bg-gradient-soft">
-        <div className="w-full max-w-md mx-auto px-4 animate-scale-in">
+        <div className="w-full max-w-3xl mx-auto px-4 animate-scale-in">
           <div className="w-full p-6 space-y-6 bg-white rounded-lg shadow-elevation-1 border border-border">
             <SellerVerificationForm 
               userId={userId} 
