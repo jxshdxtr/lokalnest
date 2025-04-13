@@ -9,16 +9,19 @@ export async function fetchSellerOrders(): Promise<Order[]> {
       throw new Error('You must be logged in to view orders');
     }
 
-    // First, fetch all products for this seller
+    const sellerId = session.session.user.id;
+
+    // First, verify if the seller has any products
     const { data: sellerProducts, error: productsError } = await supabase
       .from('products')
       .select('id')
-      .eq('seller_id', session.session.user.id);
+      .eq('seller_id', sellerId);
       
     if (productsError) {
       throw productsError;
     }
     
+    // If seller has no products, return empty array
     if (!sellerProducts || sellerProducts.length === 0) {
       return [];
     }
@@ -35,6 +38,7 @@ export async function fetchSellerOrders(): Promise<Order[]> {
       throw itemsError;
     }
     
+    // If seller has no order items, return empty array
     if (!orderItems || orderItems.length === 0) {
       return [];
     }
@@ -64,6 +68,11 @@ export async function fetchSellerOrders(): Promise<Order[]> {
     // Get unique order IDs
     const orderIds = [...new Set(orderItems.map(item => item.order_id))];
     
+    // If no order IDs, return empty array
+    if (orderIds.length === 0) {
+      return [];
+    }
+    
     // Get order details
     const { data: orderDetails, error: ordersError } = await supabase
       .from('orders')
@@ -72,6 +81,11 @@ export async function fetchSellerOrders(): Promise<Order[]> {
       
     if (ordersError) {
       throw ordersError;
+    }
+    
+    // If no order details, return empty array
+    if (!orderDetails || orderDetails.length === 0) {
+      return [];
     }
     
     // Build complete orders with items

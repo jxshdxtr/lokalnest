@@ -19,6 +19,7 @@ const SellerOverview = () => {
   const [loading, setLoading] = useState(true);
   const [revenueData, setRevenueData] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
+  const [isVerified, setIsVerified] = useState(false);
   const [stats, setStats] = useState<SellerStats>({
     sales: { 
       title: "Total Sales", 
@@ -68,21 +69,42 @@ const SellerOverview = () => {
         
         const sellerId = session.session.user.id;
         
+        // Check seller verification status
+        const { data: sellerProfile, error: profileError } = await supabase
+          .from('seller_profiles')
+          .select('is_verified')
+          .eq('id', sellerId)
+          .single();
+          
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('Error checking seller verification:', profileError);
+        }
+        
+        setIsVerified(sellerProfile?.is_verified || false);
+        
         // Fetch stats: total sales, order count, average rating, customer count
         const statsData = await fetchSellerStats(sellerId);
         setStats(statsData);
         
-        // Fetch revenue data for chart
-        const revenueData = await fetchRevenueData(sellerId);
-        setRevenueData(revenueData);
-        
-        // Fetch category data for pie chart
-        const categoryData = await fetchCategoryData(sellerId);
-        setCategoryData(categoryData);
-        
-        // Fetch recent orders
-        const recentOrders = await fetchRecentOrders(sellerId);
-        setRecentOrders(recentOrders);
+        // Only fetch additional data if seller is verified
+        if (sellerProfile?.is_verified) {
+          // Fetch revenue data for chart
+          const revenueData = await fetchRevenueData(sellerId);
+          setRevenueData(revenueData);
+          
+          // Fetch category data for pie chart
+          const categoryData = await fetchCategoryData(sellerId);
+          setCategoryData(categoryData);
+          
+          // Fetch recent orders
+          const recentOrders = await fetchRecentOrders(sellerId);
+          setRecentOrders(recentOrders);
+        } else {
+          // Set empty data for unverified sellers
+          setRevenueData([]);
+          setCategoryData([]);
+          setRecentOrders([]);
+        }
         
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -108,6 +130,15 @@ const SellerOverview = () => {
 
   return (
     <div className="space-y-6">
+      {!isVerified && (
+        <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mb-4">
+          <h3 className="font-medium text-amber-800">Account Verification Required</h3>
+          <p className="text-amber-700 text-sm mt-1">
+            Your seller account is pending verification. Some dashboard features are limited until your account is verified.
+          </p>
+        </div>
+      )}
+      
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard {...stats.sales} />
