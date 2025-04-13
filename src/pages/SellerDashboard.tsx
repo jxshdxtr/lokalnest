@@ -99,6 +99,15 @@ const SellerDashboard = () => {
 
   // Handle tab change and navigation
   const handleTabChange = (value: string) => {
+    // Only allow unverified sellers to access overview and settings/profile
+    if (!user.verified && 
+        value !== 'overview' && 
+        value !== 'settings' && 
+        value !== 'profile') {
+      toast.error("Your seller account needs verification to access this feature");
+      return;
+    }
+    
     navigate(`/seller/dashboard/${value}`);
   };
 
@@ -124,13 +133,55 @@ const SellerDashboard = () => {
               <Tabs value={getActiveTab()} className="w-full" onValueChange={handleTabChange}>
                 <TabsList className="w-full mb-6 overflow-x-auto flex sm:grid sm:grid-cols-9">
                   <TabsTrigger value="overview" className="flex-1">Overview</TabsTrigger>
-                  <TabsTrigger value="products" className="flex-1">Products</TabsTrigger>
-                  <TabsTrigger value="inventory" className="flex-1">Inventory</TabsTrigger>
-                  <TabsTrigger value="orders" className="flex-1">Orders</TabsTrigger>
-                  <TabsTrigger value="customers" className="flex-1">Customers</TabsTrigger>
-                  <TabsTrigger value="promotions" className="flex-1">Promotions</TabsTrigger>
-                  <TabsTrigger value="logistics" className="flex-1">Logistics</TabsTrigger>
-                  <TabsTrigger value="reviews" className="flex-1">Reviews</TabsTrigger>
+                  <TabsTrigger 
+                    value="products" 
+                    className={`flex-1 ${!user.verified ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!user.verified}
+                  >
+                    Products {!user.verified && <span className="ml-1 text-xs">🔒</span>}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="inventory" 
+                    className={`flex-1 ${!user.verified ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!user.verified}
+                  >
+                    Inventory {!user.verified && <span className="ml-1 text-xs">🔒</span>}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="orders" 
+                    className={`flex-1 ${!user.verified ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!user.verified}
+                  >
+                    Orders {!user.verified && <span className="ml-1 text-xs">🔒</span>}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="customers" 
+                    className={`flex-1 ${!user.verified ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!user.verified}
+                  >
+                    Customers {!user.verified && <span className="ml-1 text-xs">🔒</span>}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="promotions" 
+                    className={`flex-1 ${!user.verified ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!user.verified}
+                  >
+                    Promotions {!user.verified && <span className="ml-1 text-xs">🔒</span>}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="logistics" 
+                    className={`flex-1 ${!user.verified ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!user.verified}
+                  >
+                    Logistics {!user.verified && <span className="ml-1 text-xs">🔒</span>}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="reviews" 
+                    className={`flex-1 ${!user.verified ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!user.verified}
+                  >
+                    Reviews {!user.verified && <span className="ml-1 text-xs">🔒</span>}
+                  </TabsTrigger>
                   <TabsTrigger value="settings" className="flex-1">Settings</TabsTrigger>
                 </TabsList>
                 

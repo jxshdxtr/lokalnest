@@ -85,10 +85,12 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
             // Create seller profile if needed
             if (data.accountType === 'seller' && authData?.user) {
               await createSellerProfile(authData.user.id, data.name);
+              // Redirect sellers to verification page with userId in state
+              navigate('/seller-verification', { state: { userId: authData.user.id } });
+            } else {
+              // Redirect buyers to homepage
+              navigate('/');
             }
-            
-            // Redirect to dashboard or home
-            navigate('/');
             return;
           } else {
             console.log("Auto sign-in failed:", signInError);
@@ -110,6 +112,9 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
       }
       
       toast.success('Account created! Please check your email for verification code.');
+      
+      // Store account type in local storage to guide the user after verification
+      localStorage.setItem('accountType', data.accountType);
       
       // Redirect to OTP verification page
       navigate(`/verify?email=${encodeURIComponent(data.email)}`);
@@ -134,6 +139,7 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
       .insert({
         id: userId,
         business_name: businessName,
+        is_verified: false, // Set to false initially
       });
     
     if (sellerError) {
@@ -269,6 +275,11 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
                   Seller
                 </Button>
               </div>
+              {field.value === 'seller' && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  As a seller, you'll need to verify your account with DTI documents after registration.
+                </p>
+              )}
               <FormMessage />
             </FormItem>
           )}

@@ -1,10 +1,11 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Customer } from './types';
 import { toast } from 'sonner';
+import { useSellerVerification } from '@/hooks/use-seller-verification';
 
 export const useCustomers = () => {
+  const { isVerified, sellerId } = useSellerVerification();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,15 +20,26 @@ export const useCustomers = () => {
     setIsLoading(true);
     setError(null);
     
+    // If seller is not verified or sellerId is not available, return empty array
+    if (!isVerified || !sellerId) {
+      setCustomers([]);
+      setIsLoading(false);
+      return;
+    }
+    
     try {
       // Use the generic query instead of RPC to avoid TypeScript errors
       const { data, error: queryError } = await supabase
         .from('seller_customers')
-        .select('*, profiles:customer_id(full_name, email, phone, avatar_url)');
+        .select('*, profiles:customer_id(full_name, email, phone, avatar_url)')
+        .eq('seller_id', sellerId);
       
       if (!queryError && data) {
+        // Filter to ensure customers belong to this seller
+        const filteredData = data.filter(item => item.seller_id === sellerId);
+        
         // Map the database results to our Customer interface
-        const mappedCustomers: Customer[] = data.map((item: any) => ({
+        const mappedCustomers: Customer[] = filteredData.map((item: any) => ({
           id: item.id,
           full_name: item.profiles?.full_name || 'Unknown',
           email: item.profiles?.email || '',
@@ -44,83 +56,22 @@ export const useCustomers = () => {
         setCustomers(mappedCustomers);
       } else {
         console.error('Query error:', queryError);
-        
-        // Fallback to mock data
-        const mockCustomers: Customer[] = [
-          {
-            id: '1',
-            full_name: 'John Doe',
-            email: 'john@example.com',
-            phone: '+63 912 345 6789',
-            location: 'Manila, Philippines',
-            total_orders: 12,
-            total_spent: 15000,
-            last_purchase_date: '2024-03-15',
-            status: 'active',
-            tags: ['repeat', 'premium']
-          },
-          {
-            id: '2',
-            full_name: 'Maria Santos',
-            email: 'maria@example.com',
-            phone: '+63 923 456 7890',
-            location: 'Cebu City, Philippines',
-            total_orders: 8,
-            total_spent: 9500,
-            last_purchase_date: '2024-03-01',
-            status: 'active',
-            tags: ['new']
-          },
-          {
-            id: '3',
-            full_name: 'Roberto Garcia',
-            email: 'roberto@example.com',
-            phone: '+63 934 567 8901',
-            location: 'Davao City, Philippines',
-            total_orders: 5,
-            total_spent: 6300,
-            last_purchase_date: '2024-02-20',
-            status: 'inactive',
-            tags: []
-          },
-          {
-            id: '4',
-            full_name: 'Elena Magtanggol',
-            email: 'elena@example.com',
-            phone: '+63 945 678 9012',
-            location: 'Iloilo City, Philippines',
-            total_orders: 23,
-            total_spent: 32000,
-            last_purchase_date: '2024-03-18',
-            status: 'active',
-            tags: ['repeat', 'premium', 'wholesale']
-          },
-          {
-            id: '5',
-            full_name: 'Michael Tan',
-            email: 'michael@example.com',
-            phone: '+63 956 789 0123',
-            location: 'Baguio City, Philippines',
-            total_orders: 3,
-            total_spent: 4200,
-            last_purchase_date: '2024-01-10',
-            status: 'inactive',
-            tags: ['seasonal']
-          }
-        ];
-        
-        setCustomers(mockCustomers);
+        setCustomers([]);
       }
     } catch (err: any) {
       console.error('Error fetching customers:', err);
       setError('Failed to fetch customers');
       toast.error('Failed to load customer data');
+      setCustomers([]);
     } finally {
       setIsLoading(false);
     }
   };
   
   const addTag = async (customerId: string, tag: string) => {
+    // Don't perform operations if not verified
+    if (!isVerified) return;
+    
     try {
       // Find the customer
       const customerIndex = customers.findIndex(c => c.id === customerId);
@@ -143,6 +94,9 @@ export const useCustomers = () => {
   };
   
   const removeTag = async (customerId: string, tag: string) => {
+    // Don't perform operations if not verified
+    if (!isVerified) return;
+    
     try {
       // Find the customer
       const customerIndex = customers.findIndex(c => c.id === customerId);
@@ -164,7 +118,7 @@ export const useCustomers = () => {
   
   useEffect(() => {
     fetchCustomers();
-  }, []);
+  }, [isVerified, sellerId]);
   
   // Filtered and sorted customers
   const filteredCustomers = customers.filter(customer => {
@@ -213,6 +167,7 @@ export const useCustomers = () => {
     customers: filteredCustomers,
     isLoading,
     error,
+    isVerified,
     search,
     setSearch,
     statusFilter,

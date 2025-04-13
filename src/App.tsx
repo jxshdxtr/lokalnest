@@ -1,4 +1,3 @@
-
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Index from './pages/Index';
 import SellerDashboard from './pages/SellerDashboard';
@@ -21,7 +20,10 @@ import BuyerMessages from './components/buyer/messaging/BuyerMessages';
 import ProductDetail from './pages/ProductDetail';
 import Auth from './pages/Auth';
 import VerifyOTP from './pages/VerifyOTP';
+import SellerVerification from './pages/SellerVerification';
+import SellerVerificationManagement from './components/admin/SellerVerificationManagement';
 import { CartProvider } from './components/buyer/shopping/Cart';
+import AdminDashboard from './pages/AdminDashboard';
 
 function App() {
   return (
@@ -32,6 +34,7 @@ function App() {
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/verify" element={<VerifyOTP />} />
+          <Route path="/seller-verification" element={<SellerVerification />} />
           
           {/* Seller Dashboard Routes */}
           <Route path="/seller">
@@ -60,6 +63,13 @@ function App() {
             <Route path="reviews" element={<BuyerReviews />} />
             <Route path="support" element={<BuyerSupport />} />
             <Route path="messages" element={<BuyerMessages />} />
+          </Route>
+          
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminDashboard />}>
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<div>Admin Dashboard</div>} />
+            <Route path="seller-verifications" element={<SellerVerificationManagement />} />
           </Route>
           
           <Route path="/checkout" element={<Checkout />} />

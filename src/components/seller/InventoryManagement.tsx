@@ -45,6 +45,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Card, CardContent } from "@/components/ui/card"; 
+import { useNavigate } from "react-router-dom";
+import { useSellerVerification } from "@/hooks/use-seller-verification";
+import VerificationBanner from "./VerificationBanner";
 
 // Types
 interface InventoryLog {
@@ -71,6 +75,10 @@ interface Product {
 }
 
 const InventoryManagement: React.FC = () => {
+  // Use our verification hook
+  const { isVerified, isLoading: verificationLoading, sellerId, verificationStatus } = useSellerVerification();
+  const navigate = useNavigate();
+  
   const [products, setProducts] = useState<Product[]>([]);
   const [logs, setLogs] = useState<InventoryLog[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -89,16 +97,29 @@ const InventoryManagement: React.FC = () => {
 
   // Fetch products
   const fetchProducts = useCallback(async () => {
+    if (!sellerId) return;
+    
+    // If not verified, don't fetch real data
+    if (!isVerified) {
+      setProducts([]);
+      setIsLoading(false);
+      return;
+    }
+    
     setIsLoading(true);
     try {
       // Try to use the database
       const { data: dbProducts, error: dbError } = await supabase
         .from('products')
-        .select('*, categories:category_id(id, name)');
+        .select('*, categories:category_id(id, name)')
+        .eq('seller_id', sellerId);
 
       if (!dbError && dbProducts && dbProducts.length > 0) {
+        // Filter to ensure products belong to this seller only
+        const filteredProducts = dbProducts.filter(product => product.seller_id === sellerId);
+        
         // Map database results to our product interface
-        const mappedProducts: Product[] = dbProducts.map((product: any) => ({
+        const mappedProducts: Product[] = filteredProducts.map((product: any) => ({
           id: product.id,
           name: product.name,
           stock_quantity: product.stock_quantity || 0,
@@ -113,56 +134,8 @@ const InventoryManagement: React.FC = () => {
         }));
         setProducts(mappedProducts);
       } else {
-        console.log('Using mock data');
-        // Use mock data if database is empty or has an error
-        const mockProducts: Product[] = [
-          {
-            id: "1",
-            name: "Handwoven Cotton Tote Bag",
-            stock_quantity: 26,
-            low_stock_threshold: 10,
-            category_name: "Textiles",
-            sku: "BAG-001",
-            status: "in_stock"
-          },
-          {
-            id: "2",
-            name: "Wooden Serving Bowl",
-            stock_quantity: 8,
-            low_stock_threshold: 10,
-            category_name: "Wooden Crafts",
-            sku: "BOWL-001",
-            status: "low_stock"
-          },
-          {
-            id: "3",
-            name: "Ceramic Coffee Mug",
-            stock_quantity: 0,
-            low_stock_threshold: 5,
-            category_name: "Pottery",
-            sku: "MUG-001",
-            status: "out_of_stock"
-          },
-          {
-            id: "4",
-            name: "Silver Earrings",
-            stock_quantity: 15,
-            low_stock_threshold: 5,
-            category_name: "Jewelry",
-            sku: "EAR-001",
-            status: "in_stock"
-          },
-          {
-            id: "5",
-            name: "Bamboo Wall Decor",
-            stock_quantity: 3,
-            low_stock_threshold: 5,
-            category_name: "Home Decor",
-            sku: "DECO-001",
-            status: "low_stock"
-          },
-        ];
-        setProducts(mockProducts);
+        console.log('No products found or DB error, using empty array');
+        setProducts([]);
       }
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -170,19 +143,28 @@ const InventoryManagement: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [sellerId, isVerified]);
 
   // Fetch inventory logs
   const fetchInventoryLogs = useCallback(async () => {
+    if (!sellerId || !isVerified) {
+      setLogs([]);
+      return;
+    }
+    
     try {
       // Use regular query instead of RPC to avoid TypeScript errors
       const { data, error: queryError } = await supabase
         .from('inventory_logs')
-        .select('*, products:product_id(name, category_id, categories:category_id(name))');
+        .select('*, products:product_id(name, category_id, seller_id, categories:category_id(name))')
+        .eq('products.seller_id', sellerId);
       
       if (!queryError && data) {
+        // Filter logs to ensure they belong to this seller's products
+        const filteredLogs = data.filter(log => log.products?.seller_id === sellerId);
+        
         // Map the database results to our InventoryLog interface
-        const mappedLogs: InventoryLog[] = data.map((log: any) => ({
+        const mappedLogs: InventoryLog[] = filteredLogs.map((log: any) => ({
           id: log.id,
           product_id: log.product_id || '',
           product_name: log.products?.name || 'Unknown Product',
@@ -197,53 +179,14 @@ const InventoryManagement: React.FC = () => {
         
         setLogs(mappedLogs);
       } else {
-        console.error('Query error:', queryError);
-        
-        // Mock inventory logs
-        const mockLogs: InventoryLog[] = [
-          {
-            id: "1",
-            product_id: "1",
-            product_name: "Handwoven Cotton Tote Bag",
-            product_category: "Textiles",
-            previous_quantity: 20,
-            new_quantity: 26,
-            change_quantity: 6,
-            reason: "Restocking",
-            timestamp: "2023-03-15T08:30:00Z",
-            staff_name: "Juan Dela Cruz"
-          },
-          {
-            id: "2",
-            product_id: "2",
-            product_name: "Wooden Serving Bowl",
-            product_category: "Wooden Crafts",
-            previous_quantity: 10,
-            new_quantity: 8,
-            change_quantity: -2,
-            reason: "Order fulfillment",
-            timestamp: "2023-03-14T14:20:00Z",
-            staff_name: "Maria Santos"
-          },
-          {
-            id: "3",
-            product_id: "3",
-            product_name: "Ceramic Coffee Mug",
-            product_category: "Pottery",
-            previous_quantity: 5,
-            new_quantity: 0,
-            change_quantity: -5,
-            reason: "Bulk order",
-            timestamp: "2023-03-13T10:15:00Z",
-            staff_name: "Juan Dela Cruz"
-          }
-        ];
-        setLogs(mockLogs);
+        console.error('Query error or no logs found:', queryError);
+        setLogs([]);
       }
     } catch (error) {
       console.error("Error fetching inventory logs:", error);
+      setLogs([]);
     }
-  }, []);
+  }, [sellerId, isVerified]);
 
   useEffect(() => {
     fetchProducts();
@@ -251,7 +194,7 @@ const InventoryManagement: React.FC = () => {
   }, [fetchProducts, fetchInventoryLogs]);
 
   const handleUpdateStock = async () => {
-    if (!selectedProduct) return;
+    if (!selectedProduct || !isVerified) return;
     
     try {
       const previousQuantity = selectedProduct.stock_quantity;
@@ -341,249 +284,155 @@ const InventoryManagement: React.FC = () => {
     }
   };
 
+  // If verification is loading, show loading state
+  if (verificationLoading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading inventory management...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Inventory Management</h1>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={() => {}}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button onClick={() => {}}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Product
-          </Button>
-        </div>
-      </div>
-      
-      {/* Filters */}
-      <div className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-          <Input
-            placeholder="Search products..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-        
-        <div className="flex space-x-2">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[160px]">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="in_stock">In Stock</SelectItem>
-              <SelectItem value="low_stock">Low Stock</SelectItem>
-              <SelectItem value="out_of_stock">Out of Stock</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[180px]">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map(category => (
-                <SelectItem key={category} value={category.toLowerCase()}>
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      
-      {/* Inventory Table */}
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[100px]">SKU</TableHead>
-              <TableHead className="min-w-[250px]">Product</TableHead>
-              <TableHead>
-                <div className="flex items-center">
-                  Current Stock
-                  <ArrowUpDown className="ml-2 h-3 w-3" />
-                </div>
-              </TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  Loading inventory data...
-                </TableCell>
-              </TableRow>
-            ) : filteredProducts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  No products found matching your filters
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="font-mono text-sm">{product.sku}</TableCell>
-                  <TableCell>{product.name}</TableCell>
-                  <TableCell>{product.stock_quantity}</TableCell>
-                  <TableCell>{getStatusBadge(product.status)}</TableCell>
-                  <TableCell>{product.category_name}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openRestockDialog(product)}>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Update Stock
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => viewProductLogs(product.id)}>
-                          <FileText className="mr-2 h-4 w-4" />
-                          View History
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Product
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      
-      {/* Restock Dialog */}
-      <Dialog open={showRestockDialog} onOpenChange={setShowRestockDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Update Stock</DialogTitle>
-            <DialogDescription>
-              Update inventory for {selectedProduct?.name}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Current Stock:</span>
-              <span>{selectedProduct?.stock_quantity}</span>
+      {/* Show verification banner for unverified sellers */}
+      {verificationStatus && (
+        <VerificationBanner 
+          status={verificationStatus} 
+          message="To manage inventory and list products, you need to verify your seller account."
+        />
+      )}
+
+      {/* Show inventory management UI only for verified sellers */}
+      {isVerified && (
+        <>
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-semibold">Inventory Management</h1>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" onClick={() => {}}>
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+              <Button onClick={() => {}}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Product
+              </Button>
             </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="quantity" className="text-sm font-medium">
-                Quantity Change
-              </label>
+          </div>
+          
+          {/* Filters */}
+          <div className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <Input
-                id="quantity"
-                type="number"
-                value={restockQuantity}
-                onChange={(e) => setRestockQuantity(parseInt(e.target.value) || 0)}
-                placeholder="Enter quantity change (positive or negative)"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8"
               />
-              <p className="text-sm text-muted-foreground">
-                Use positive numbers to increase stock, negative to decrease
-              </p>
             </div>
             
-            <div className="space-y-2">
-              <label htmlFor="reason" className="text-sm font-medium">
-                Reason
-              </label>
-              <Select value={restockReason} onValueChange={setRestockReason}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select reason for update" />
+            <div className="flex space-x-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Restocking">Restocking</SelectItem>
-                  <SelectItem value="Damaged">Damaged/Defective</SelectItem>
-                  <SelectItem value="Order fulfillment">Order fulfillment</SelectItem>
-                  <SelectItem value="Inventory count">Inventory count adjustment</SelectItem>
-                  <SelectItem value="Return">Customer return</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="in_stock">In Stock</SelectItem>
+                  <SelectItem value="low_stock">Low Stock</SelectItem>
+                  <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map(category => (
+                    <SelectItem key={category} value={category.toLowerCase()}>
+                      {category}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
           
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRestockDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateStock}>
-              Update Stock
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Product Log History Dialog */}
-      <Dialog open={showLogDialog} onOpenChange={setShowLogDialog}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Stock History</DialogTitle>
-            <DialogDescription>
-              {productLogs.length > 0 
-                ? `Inventory changes for ${productLogs[0].product_name}`
-                : "No history available"
-              }
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="max-h-[60vh] overflow-y-auto">
+          {/* Inventory Table */}
+          <div className="border rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Change</TableHead>
-                  <TableHead>New Stock</TableHead>
+                  <TableHead className="w-[100px]">SKU</TableHead>
+                  <TableHead className="min-w-[250px]">Product</TableHead>
+                  <TableHead>
+                    <div className="flex items-center">
+                      Current Stock
+                      <ArrowUpDown className="ml-2 h-3 w-3" />
+                    </div>
+                  </TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>By</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {productLogs.length === 0 ? (
+                {isLoading ? (
                   <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center">
-                      No history available for this product
+                      Loading inventory data...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredProducts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                      No products found matching your filters
                     </TableCell>
                   </TableRow>
                 ) : (
-                  productLogs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell>
-                        {new Date(log.timestamp).toLocaleDateString()}
+                  filteredProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-mono text-sm">{product.sku}</TableCell>
+                      <TableCell>{product.name}</TableCell>
+                      <TableCell>{product.stock_quantity}</TableCell>
+                      <TableCell>{getStatusBadge(product.status)}</TableCell>
+                      <TableCell>{product.category_name}</TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openRestockDialog(product)}>
+                              <Plus className="mr-2 h-4 w-4" />
+                              Update Stock
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => viewProductLogs(product.id)}>
+                              <FileText className="mr-2 h-4 w-4" />
+                              View History
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600">
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Product
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
-                      <TableCell>
-                        <span className={log.change_quantity > 0 ? "text-green-600" : "text-red-600"}>
-                          {log.change_quantity > 0 ? `+${log.change_quantity}` : log.change_quantity}
-                        </span>
-                      </TableCell>
-                      <TableCell>{log.new_quantity}</TableCell>
-                      <TableCell>{log.product_category}</TableCell>
-                      <TableCell>{log.reason}</TableCell>
-                      <TableCell>{log.staff_name}</TableCell>
                     </TableRow>
                   ))
                 )}
@@ -591,13 +440,132 @@ const InventoryManagement: React.FC = () => {
             </Table>
           </div>
           
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowLogDialog(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          {/* Restock Dialog */}
+          <Dialog open={showRestockDialog} onOpenChange={setShowRestockDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Update Stock</DialogTitle>
+                <DialogDescription>
+                  Update inventory for {selectedProduct?.name}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Current Stock:</span>
+                  <span>{selectedProduct?.stock_quantity}</span>
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="quantity" className="text-sm font-medium">
+                    Quantity Change
+                  </label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    value={restockQuantity}
+                    onChange={(e) => setRestockQuantity(parseInt(e.target.value) || 0)}
+                    placeholder="Enter quantity change (positive or negative)"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Use positive numbers to increase stock, negative to decrease
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="reason" className="text-sm font-medium">
+                    Reason
+                  </label>
+                  <Select value={restockReason} onValueChange={setRestockReason}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select reason for update" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Restocking">Restocking</SelectItem>
+                      <SelectItem value="Damaged">Damaged/Defective</SelectItem>
+                      <SelectItem value="Order fulfillment">Order fulfillment</SelectItem>
+                      <SelectItem value="Inventory count">Inventory count adjustment</SelectItem>
+                      <SelectItem value="Return">Customer return</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowRestockDialog(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleUpdateStock}>
+                  Update Stock
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          
+          {/* Product Log History Dialog */}
+          <Dialog open={showLogDialog} onOpenChange={setShowLogDialog}>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Stock History</DialogTitle>
+                <DialogDescription>
+                  {productLogs.length > 0 
+                    ? `Inventory changes for ${productLogs[0].product_name}`
+                    : "No history available"
+                  }
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="max-h-[60vh] overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Change</TableHead>
+                      <TableHead>New Stock</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>By</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {productLogs.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-24 text-center">
+                          No history available for this product
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      productLogs.map((log) => (
+                        <TableRow key={log.id}>
+                          <TableCell>
+                            {new Date(log.timestamp).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <span className={log.change_quantity > 0 ? "text-green-600" : "text-red-600"}>
+                              {log.change_quantity > 0 ? `+${log.change_quantity}` : log.change_quantity}
+                            </span>
+                          </TableCell>
+                          <TableCell>{log.new_quantity}</TableCell>
+                          <TableCell>{log.product_category}</TableCell>
+                          <TableCell>{log.reason}</TableCell>
+                          <TableCell>{log.staff_name}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowLogDialog(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </div>
   );
 };

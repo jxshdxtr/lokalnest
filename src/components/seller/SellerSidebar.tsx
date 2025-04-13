@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,7 +14,9 @@ import {
   BarChart2,
   Truck,
   Boxes,
-  Menu
+  Menu,
+  ShieldCheck,
+  ShieldAlert
 } from 'lucide-react';
 
 type NavItem = {
@@ -36,6 +38,7 @@ interface SellerSidebarProps {
 
 const SellerSidebar: React.FC<SellerSidebarProps> = ({ user }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPath = location.pathname;
 
   const navItems: NavItem[] = [
@@ -109,11 +112,13 @@ const SellerSidebar: React.FC<SellerSidebarProps> = ({ user }) => {
               <h2 className="text-sm font-semibold">{user.name}</h2>
               <div className="flex items-center">
                 {user.verified ? (
-                  <Badge className="text-xs bg-green-100 text-green-800 border-green-300 hover:bg-green-200">
+                  <Badge className="text-xs bg-green-100 text-green-800 border-green-300 hover:bg-green-200 flex items-center">
+                    <ShieldCheck className="h-3 w-3 mr-1" />
                     Verified
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-xs text-yellow-800 bg-yellow-100 border-yellow-300 hover:bg-yellow-200">
+                  <Badge variant="outline" className="text-xs text-yellow-800 bg-yellow-100 border-yellow-300 hover:bg-yellow-200 flex items-center cursor-pointer" onClick={() => navigate('/seller-verification')}>
+                    <ShieldAlert className="h-3 w-3 mr-1" />
                     Unverified
                   </Badge>
                 )}
@@ -124,6 +129,23 @@ const SellerSidebar: React.FC<SellerSidebarProps> = ({ user }) => {
             <Menu className="h-5 w-5" />
           </Button>
         </div>
+        
+        {!user.verified && (
+          <div className="mx-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+            <p className="text-xs text-yellow-800">
+              Your account is not verified. You need to upload your DTI Certificate to list products.
+            </p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2 w-full text-xs border-yellow-300 bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+              onClick={() => navigate('/seller-verification')}
+            >
+              Verify Your Account
+            </Button>
+          </div>
+        )}
+        
         <div className="px-4">
           <p className="text-xs text-muted-foreground mb-1">
             Store Dashboard

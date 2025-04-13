@@ -286,12 +286,15 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
       // If still not found, try looking in auth.users (if you have permission)
       if (!customerId && customer.email) {
         try {
-          const { data: userData, error: userError } = await supabase.auth.admin.getUserByEmail(customer.email);
-          if (!userError && userData) {
-            customerId = userData.id;
+          const { data, error } = await (supabase.rpc as any)('get_user_id_by_email', { 
+            user_email: customer.email 
+          });
+          
+          if (!error && data) {
+            customerId = data;
           }
         } catch (error) {
-          console.error("Cannot access auth admin API", error);
+          console.error("Cannot retrieve user ID from email", error);
         }
       }
       

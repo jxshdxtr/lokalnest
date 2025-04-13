@@ -7,6 +7,8 @@ import ProductTable from './ProductTable';
 import ProductToolbar from './ProductToolbar';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { ShieldAlert } from 'lucide-react';
 
 // Define product interface
 interface Product {
@@ -35,6 +37,8 @@ const ProductManagement = () => {
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
+  const [isVerified, setIsVerified] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   
   // Filter states
   const [filterPrice, setFilterPrice] = useState<{ min: string; max: string }>({ min: '', max: '' });
@@ -44,9 +48,58 @@ const ProductManagement = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchProducts();
+    checkVerificationStatus();
     fetchCategories();
   }, []);
+  
+  useEffect(() => {
+    if (isVerified) {
+      fetchProducts();
+    }
+  }, [isVerified]);
+
+  const checkVerificationStatus = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('You must be logged in to view your products');
+        navigate('/auth');
+        return;
+      }
+      
+      // Check if seller is verified
+      const { data: sellerData, error: sellerError } = await supabase
+        .from('seller_profiles')
+        .select('is_verified')
+        .eq('id', session.user.id)
+        .single();
+      
+      if (sellerError) throw sellerError;
+      
+      setIsVerified(!!sellerData?.is_verified);
+      
+      if (!sellerData?.is_verified) {
+        // Check for pending verification requests
+        const { data: verificationData, error: verificationError } = await supabase
+          .from('seller_verifications')
+          .select('status')
+          .eq('seller_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (verificationError) throw verificationError;
+        
+        if (verificationData && verificationData.length > 0) {
+          setVerificationStatus(verificationData[0].status);
+        } else {
+          setVerificationStatus('not_submitted');
+        }
+      }
+    } catch (error) {
+      console.error('Error checking verification status:', error);
+      toast.error('Failed to check seller verification status');
+    }
+  };
 
   const fetchCategories = async () => {
     try {
@@ -162,11 +215,21 @@ const ProductManagement = () => {
   const filteredProducts = products.filter(applyFilters);
 
   const handleAddProduct = () => {
+    if (!isVerified) {
+      toast.error('Your seller account must be verified before you can list products');
+      return;
+    }
+    
     setEditingProduct(null);
     setIsModalOpen(true);
   };
 
   const handleEditProduct = (product: Product) => {
+    if (!isVerified) {
+      toast.error('Your seller account must be verified before you can edit products');
+      return;
+    }
+    
     setEditingProduct(product);
     setIsModalOpen(true);
   };
@@ -177,6 +240,11 @@ const ProductManagement = () => {
   };
 
   const handleDeleteProduct = async (productId: string) => {
+    if (!isVerified) {
+      toast.error('Your seller account must be verified before you can delete products');
+      return;
+    }
+    
     try {
       const { error } = await supabase
         .from('products')
@@ -194,6 +262,11 @@ const ProductManagement = () => {
   };
 
   const handleDuplicateProduct = (product: any) => {
+    if (!isVerified) {
+      toast.error('Your seller account must be verified before you can duplicate products');
+      return;
+    }
+    
     const newProduct = {
       ...product,
       name: `${product.name} (Copy)`,
@@ -215,6 +288,55 @@ const ProductManagement = () => {
     setFilterCategory('');
     setIsFilterOpen(false);
   };
+  
+  const goToVerification = () => {
+    navigate('/seller-verification');
+  };
+
+  // Show verification status message if not verified
+  if (!isVerified) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex flex-col items-center justify-center space-y-4 py-12">
+              <ShieldAlert className="w-16 h-16 text-amber-500" />
+              <h2 className="text-xl font-semibold text-center">Seller Verification Required</h2>
+              
+              {verificationStatus === 'pending' ? (
+                <>
+                  <p className="text-center max-w-md text-muted-foreground">
+                    Your verification is pending review by our admin team. You will be able to list products once your account is verified.
+                  </p>
+                  <Button onClick={() => navigate('/seller/dashboard')} variant="outline">
+                    Go to Dashboard
+                  </Button>
+                </>
+              ) : verificationStatus === 'rejected' ? (
+                <>
+                  <p className="text-center max-w-md text-muted-foreground">
+                    Your verification was rejected. Please submit new verification documents.
+                  </p>
+                  <Button onClick={goToVerification}>
+                    Submit Verification
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-center max-w-md text-muted-foreground">
+                    To protect our customers, you must verify your seller account by uploading your DTI Certificate before you can list products.
+                  </p>
+                  <Button onClick={goToVerification}>
+                    Verify Your Account
+                  </Button>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

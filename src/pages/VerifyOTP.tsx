@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
@@ -97,38 +96,40 @@ const VerifyOTP = () => {
     }
   }, [email, navigate, isCheckingSession]);
 
-  const onSubmit = async (data: OTPFormValues) => {
-    if (!email) {
-      toast.error('No email provided for verification');
+  const verifyOTP = async () => {
+    if (!form.getValues('otp').trim()) {
+      toast.error('Please enter the verification code');
       return;
     }
 
     setIsLoading(true);
-    
+
     try {
-      const { error } = await supabase.auth.verifyOtp({
+      const { data, error } = await supabase.auth.verifyOtp({
         email,
-        token: data.otp,
-        type: 'signup',
+        token: form.getValues('otp'),
+        type: 'signup'
       });
-      
+
       if (error) throw error;
-      
+
       toast.success('Email verified successfully!');
       
-      // Get user session to determine role for redirection
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userType = sessionData?.session?.user.user_metadata.account_type;
+      // Get the account type from localStorage
+      const accountType = localStorage.getItem('accountType');
+
+      // Clean up
+      localStorage.removeItem('accountType');
       
-      // Redirect based on user role
-      if (userType === 'seller') {
-        navigate('/seller/dashboard');
+      // Redirect based on account type
+      if (accountType === 'seller') {
+        navigate('/seller-verification');
       } else {
-        navigate('/'); // Default to home for buyers or unknown roles
+        navigate('/');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to verify OTP. Please try again.');
-      console.error('OTP verification error:', error);
+      console.error('Verification error:', error);
+      toast.error(error.message || 'Failed to verify email');
     } finally {
       setIsLoading(false);
     }
@@ -188,7 +189,7 @@ const VerifyOTP = () => {
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(verifyOTP)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="otp"
