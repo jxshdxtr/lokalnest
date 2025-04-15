@@ -117,7 +117,7 @@ const Navbar = () => {
       <div className="container mx-auto px-4 flex items-center justify-between">
         <Link 
           to="/" 
-          className="text-xl md:text-2xl font-medium tracking-tight"
+          className="text-xl md:text-2xl font-medium tracking-tight pl-0"
         >
           <span className="text-gradient">LokalNest</span>
         </Link>

@@ -89,7 +89,7 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
               navigate('/seller-verification', { state: { userId: authData.user.id } });
             } else {
               // Redirect buyers to homepage
-              navigate('/');
+              navigate('/buyer/home');
             }
             return;
           } else {
@@ -155,7 +155,11 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin
+          redirectTo: `${window.location.origin}/buyer/home`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
       

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -71,7 +70,7 @@ const LoginForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVisibi
       if (userType === 'seller') {
         navigate('/seller/dashboard');
       } else {
-        navigate('/');
+        navigate('/buyer/home');
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to log in. Please try again.');
@@ -85,10 +84,14 @@ const LoginForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVisibi
     e.preventDefault(); // Prevent default button behavior
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin
+          redirectTo: `${window.location.origin}/buyer/home`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
       

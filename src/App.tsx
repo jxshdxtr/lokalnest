@@ -55,7 +55,7 @@ function App() {
           
           {/* Buyer Routes */}
           <Route path="/buyer" element={<BuyerDashboard />}>
-            <Route index element={<Navigate to="/buyer/dashboard" replace />} />
+            <Route index element={<Navigate to="/buyer/home" replace />} />
             <Route path="dashboard" element={<div>Dashboard</div>} />
             <Route path="home" element={<BuyerHome />} />
             <Route path="orders" element={<BuyerOrders />} />
