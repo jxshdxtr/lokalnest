@@ -54,7 +54,7 @@ const BuyerHome: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [selectedLocation, setSelectedLocation] = useState('All Locations');
-  const [priceRange, setPriceRange] = useState([0, 5000]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
   const [sortBy, setSortBy] = useState('popular');
   const [products, setProducts] = useState<ProductWithSeller[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,7 +173,7 @@ const BuyerHome: React.FC = () => {
                         max={5000}
                         step={100}
                         value={priceRange}
-                        onValueChange={setPriceRange}
+                        onValueChange={(value: [number, number]) => setPriceRange(value)}
                       />
                       <div className="flex justify-between text-sm">
                         <span>₱{priceRange[0]}</span>

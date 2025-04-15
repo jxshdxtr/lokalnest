@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -187,9 +188,9 @@ const Navbar = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.user_metadata?.avatar_url || ''} />
+                    <AvatarImage src={user?.user_metadata?.avatar_url || ''} />
                     <AvatarFallback>
-                      {getInitials(user.user_metadata?.full_name || user.email || '')}
+                      {getInitials(user?.user_metadata?.full_name || user?.email || '')}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -204,7 +205,7 @@ const Navbar = () => {
                 <DropdownMenuItem onClick={() => navigate('/buyer/orders')}>
                   Orders
                 </DropdownMenuItem>
-                {user.user_metadata?.account_type === 'seller' && (
+                {user?.user_metadata?.account_type === 'seller' && (
                   <DropdownMenuItem onClick={() => navigate('/seller/dashboard')}>
                     Seller Dashboard
                   </DropdownMenuItem>
