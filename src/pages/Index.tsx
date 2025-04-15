@@ -5,6 +5,9 @@ import FeaturedProducts from '@/components/home/FeaturedProducts';
 import CategorySection from '@/components/home/CategorySection';
 import ProducerSpotlight from '@/components/home/ProducerSpotlight';
 import Features from '@/components/home/Features';
+import { Link } from 'react-router-dom';
+import { Button } from 'react-bootstrap';
+import { ShoppingBag } from 'react-bootstrap-icons';
 
 const categories = [
   {
@@ -81,19 +84,30 @@ const producers = [
 const Index = () => {
   return (
     <Layout>
-      <div className="animate-fade-in">
-        <Hero />
-        <FeaturedProducts 
-          title="Featured Crafts" 
-          subtitle="Discover our curated selection of handcrafted products from talented local artisans"
-        />
-        <CategorySection 
-          title="Shop by Category"
-          subtitle="Browse our diverse range of locally-crafted products"
-          categories={categories}
-        />
-        <ProducerSpotlight producers={producers} />
-        <Features />
+      <div className="container mx-auto px-4">
+        <div className="flex justify-end mt-4">
+          <Link to="/buyer/home">
+            <Button variant="default" className="flex items-center gap-2">
+              <ShoppingBag className="h-4 w-4" />
+              Start Shopping
+            </Button>
+          </Link>
+        </div>
+        
+        <div className="animate-fade-in">
+          <Hero />
+          <FeaturedProducts 
+            title="Featured Crafts" 
+            subtitle="Discover our curated selection of handcrafted products from talented local artisans"
+          />
+          <CategorySection 
+            title="Shop by Category"
+            subtitle="Browse our diverse range of locally-crafted products"
+            categories={categories}
+          />
+          <ProducerSpotlight producers={producers} />
+          <Features />
+        </div>
       </div>
     </Layout>
   );
