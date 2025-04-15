@@ -6,8 +6,8 @@ import CategorySection from '@/components/home/CategorySection';
 import ProducerSpotlight from '@/components/home/ProducerSpotlight';
 import Features from '@/components/home/Features';
 import { Link } from 'react-router-dom';
-import { Button } from 'react-bootstrap';
-import { ShoppingBag } from 'react-bootstrap-icons';
+import { Button } from '@/components/ui/button';
+import { ShoppingBag } from 'lucide-react';
 
 const categories = [
   {
@@ -87,7 +87,7 @@ const Index = () => {
       <div className="container mx-auto px-4">
         <div className="flex justify-end mt-4">
           <Link to="/buyer/home">
-            <Button variant="default" className="flex items-center gap-2">
+            <Button className="flex items-center gap-2">
               <ShoppingBag className="h-4 w-4" />
               Start Shopping
             </Button>
