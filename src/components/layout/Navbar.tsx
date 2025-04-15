@@ -55,7 +55,9 @@ const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { totalItems } = useCart();
   const [user, setUser] = useState<any>(null);
+  const [isSignedIn, setIsSignedIn] = useState(false);
   const navigate = useNavigate();
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -71,11 +73,13 @@ const Navbar = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user || null);
+        setIsSignedIn(session?.user !== null);
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
+      setIsSignedIn(session?.user !== null);
     });
 
     return () => {
@@ -162,25 +166,23 @@ const Navbar = () => {
           </NavigationMenu>
         </div>
 
-        <div className="flex items-center space-x-3">
-          <Link to="/buyer/home">
-            <Button variant="ghost" size="icon" aria-label="Search">
-              <Search className="w-5 h-5" />
-            </Button>
-          </Link>
+        {/* User actions */}
+        <div className="flex items-center gap-2">
+          {/* Search button (small screens) */}
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="md:hidden" 
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search className="h-5 w-5" />
+          </Button>
           
-          <CartSidebar>
-            <Button variant="ghost" size="icon" className="relative">
-              <ShoppingCart className="w-5 h-5" />
-              {totalItems > 0 && (
-                <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center">
-                  {totalItems}
-                </Badge>
-              )}
-            </Button>
-          </CartSidebar>
+          {/* Shopping cart */}
+          <CartSidebar />
           
-          {user ? (
+          {/* User dropdown or login button */}
+          {isSignedIn ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
@@ -221,78 +223,6 @@ const Navbar = () => {
               </Button>
             </Link>
           )}
-
-          <div className="md:hidden">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[280px] sm:w-[350px]">
-                <div className="flex flex-col h-full">
-                  <div className="py-6">
-                    <h2 className="text-lg font-medium">Menu</h2>
-                  </div>
-                  <nav className="flex flex-col space-y-5">
-                    <Link to="/" className="flex items-center py-2 text-base font-medium">
-                      Home
-                    </Link>
-                    <div className="py-2">
-                      <h3 className="text-sm font-semibold text-muted-foreground mb-3">
-                        Categories
-                      </h3>
-                      <div className="space-y-3">
-                        {categories.map((category) => (
-                          <Link 
-                            key={category.name}
-                            to={category.href}
-                            className="block text-base py-1"
-                          >
-                            {category.name}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                    <Link to="/artisans" className="flex items-center py-2 text-base font-medium">
-                      Artisans
-                    </Link>
-                    <Link to="/about" className="flex items-center py-2 text-base font-medium">
-                      About
-                    </Link>
-                    <Link to="/buyer/home" className="flex items-center py-2 text-base font-medium">
-                      Shop
-                    </Link>
-                    <div className="flex-1"></div>
-                    {!user ? (
-                      <Link to="/auth" className="w-full">
-                        <Button className="w-full" size="default">
-                          Sign In
-                        </Button>
-                      </Link>
-                    ) : (
-                      <>
-                        <Link to="/profile" className="flex items-center py-2 text-base font-medium">
-                          My Profile
-                        </Link>
-                        <Link to="/buyer/orders" className="flex items-center py-2 text-base font-medium">
-                          My Orders
-                        </Link>
-                        {user.user_metadata?.account_type === 'seller' && (
-                          <Link to="/seller/dashboard" className="flex items-center py-2 text-base font-medium">
-                            Seller Dashboard
-                          </Link>
-                        )}
-                        <Button onClick={handleSignOut} variant="outline" className="w-full">
-                          Sign Out
-                        </Button>
-                      </>
-                    )}
-                  </nav>
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
         </div>
       </div>
     </header>
