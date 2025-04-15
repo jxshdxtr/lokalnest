@@ -63,14 +63,23 @@ const LoginForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVisibi
         throw error;
       }
       
+      // Successful login
       toast.success('Successfully logged in!');
       
-      // Redirect based on user role
-      const userType = authData.user?.user_metadata?.account_type;
-      if (userType === 'seller') {
-        navigate('/seller/dashboard');
+      // Ensure user session is established before redirecting
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (sessionData && sessionData.session) {
+        // Redirect based on user role
+        const userType = authData.user?.user_metadata?.account_type;
+        if (userType === 'seller') {
+          navigate('/seller/dashboard');
+        } else {
+          navigate('/buyer/home');
+        }
       } else {
-        navigate('/buyer/home');
+        // Something went wrong with session creation
+        toast.error('Session could not be established. Please try again.');
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to log in. Please try again.');
@@ -96,6 +105,9 @@ const LoginForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVisibi
       });
       
       if (error) throw error;
+      
+      // No need for success toast as the page will redirect to Google
+      console.log("Redirecting to Google for authentication...");
       
     } catch (error: any) {
       toast.error(error.message || 'Failed to sign in with Google. Please try again.');

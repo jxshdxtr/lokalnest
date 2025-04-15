@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
   ShoppingCart, 
@@ -55,7 +55,11 @@ const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { totalItems } = useCart();
   const [user, setUser] = useState<any>(null);
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [isBuyer, setIsBuyer] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -68,14 +72,77 @@ const Navbar = () => {
   }, []);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user || null);
+    // Load initial session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        setUser(session.user);
+        setIsSignedIn(true);
+        
+        // Debug: Log user metadata
+        console.log("User metadata:", session.user.user_metadata);
+        
+        // First, check user metadata for account type
+        const accountType = session.user.user_metadata?.account_type;
+        console.log("Account type from metadata:", accountType);
+        
+        // If account_type is explicitly set to 'seller', the user is not a buyer
+        if (accountType && accountType.toLowerCase() === 'seller') {
+          setIsBuyer(false);
+          console.log("User identified as seller from metadata");
+          return;
+        }
+        
+        // If account_type is explicitly set to 'buyer', the user is a buyer
+        if (accountType && accountType.toLowerCase() === 'buyer') {
+          setIsBuyer(true);
+          console.log("User identified as buyer from metadata");
+          return;
+        }
+        
+        // If account_type is not set, check if the user has a seller profile
+        try {
+          const { data: sellerProfile } = await supabase
+            .from('seller_profiles')
+            .select('id')
+            .eq('id', session.user.id)
+            .single();
+          
+          // If user has a seller profile, they are likely a seller
+          if (sellerProfile) {
+            setIsBuyer(false);
+            console.log("User identified as seller from seller_profiles table");
+          } else {
+            // Default to buyer if no seller profile exists
+            setIsBuyer(true);
+            console.log("User defaulted to buyer (no seller profile found)");
+          }
+        } catch (error) {
+          console.log("Error checking seller profile:", error);
+          // If there's an error, default to showing the cart (assume buyer)
+          setIsBuyer(true);
+          console.log("User defaulted to buyer due to error");
+        }
+      } else {
+        setUser(null);
+        setIsSignedIn(false);
+        setIsBuyer(false);
       }
-    );
+    });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null);
+    // Set up auth listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event);
+      if (session) {
+        setUser(session.user);
+        setIsSignedIn(true);
+        
+        // We'll handle this in the same way as above but in a separate function
+        checkIfUserIsBuyer(session);
+      } else {
+        setUser(null);
+        setIsSignedIn(false);
+        setIsBuyer(false);
+      }
     });
 
     return () => {
@@ -83,11 +150,61 @@ const Navbar = () => {
     };
   }, []);
 
+  // Helper function to determine if user is a buyer
+  const checkIfUserIsBuyer = async (session) => {
+    // First, check user metadata for account type
+    const accountType = session.user.user_metadata?.account_type;
+    console.log("Account type from metadata in auth change:", accountType);
+    
+    // If account_type is explicitly set to 'seller', the user is not a buyer
+    if (accountType && accountType.toLowerCase() === 'seller') {
+      setIsBuyer(false);
+      console.log("User identified as seller from metadata in auth change");
+      return;
+    }
+    
+    // If account_type is explicitly set to 'buyer', the user is a buyer
+    if (accountType && accountType.toLowerCase() === 'buyer') {
+      setIsBuyer(true);
+      console.log("User identified as buyer from metadata in auth change");
+      return;
+    }
+    
+    // If account_type is not set, check if the user has a seller profile
+    try {
+      const { data: sellerProfile } = await supabase
+        .from('seller_profiles')
+        .select('id')
+        .eq('id', session.user.id)
+        .single();
+      
+      // If user has a seller profile, they are likely a seller
+      if (sellerProfile) {
+        setIsBuyer(false);
+        console.log("User identified as seller from seller_profiles table in auth change");
+      } else {
+        // Default to buyer if no seller profile exists
+        setIsBuyer(true);
+        console.log("User defaulted to buyer (no seller profile found) in auth change");
+      }
+    } catch (error) {
+      console.log("Error checking seller profile in auth change:", error);
+      // If there's an error, default to showing the cart (assume buyer)
+      setIsBuyer(true);
+      console.log("User defaulted to buyer due to error in auth change");
+    }
+  };
+
   const handleSignOut = async (e: React.MouseEvent) => {
     e.preventDefault();
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
+      setUser(null);
+      setIsSignedIn(false);
+      setIsBuyer(false);
+      
       toast.success('Successfully signed out');
       navigate('/');
     } catch (error: any) {
@@ -117,7 +234,7 @@ const Navbar = () => {
       <div className="container mx-auto px-4 flex items-center justify-between">
         <Link 
           to="/" 
-          className="text-xl md:text-2xl font-medium tracking-tight pl-0"
+          className="text-xl md:text-2xl font-medium tracking-tight"
         >
           <span className="text-gradient">LokalNest</span>
         </Link>
@@ -162,32 +279,32 @@ const Navbar = () => {
           </NavigationMenu>
         </div>
 
-        <div className="flex items-center space-x-3">
-          <Link to="/buyer/home">
-            <Button variant="ghost" size="icon" aria-label="Search">
-              <Search className="w-5 h-5" />
-            </Button>
-          </Link>
+        {/* User actions */}
+        <div className="flex items-center gap-2">
+          {/* Search button (small screens) */}
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="md:hidden" 
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search className="h-5 w-5" />
+          </Button>
           
-          <CartSidebar>
-            <Button variant="ghost" size="icon" className="relative">
-              <ShoppingCart className="w-5 h-5" />
-              {totalItems > 0 && (
-                <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center">
-                  {totalItems}
-                </Badge>
-              )}
-            </Button>
-          </CartSidebar>
+          {/* Shopping cart - show for buyers or on home page when not signed in */}
+          {(isBuyer || (location.pathname === '/' && !isSignedIn)) && (
+            <CartSidebar />
+          )}
           
-          {user ? (
+          {/* User dropdown or login button */}
+          {isSignedIn && user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.user_metadata?.avatar_url || ''} />
+                    <AvatarImage src={user?.user_metadata?.avatar_url || ''} />
                     <AvatarFallback>
-                      {getInitials(user.user_metadata?.full_name || user.email || '')}
+                      {getInitials(user?.user_metadata?.full_name || user?.email || '')}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -199,12 +316,10 @@ const Navbar = () => {
                   <User className="mr-2 h-4 w-4" />
                   Profile
                 </DropdownMenuItem>
-                {user.user_metadata?.account_type !== 'seller' && (
-                  <DropdownMenuItem onClick={() => navigate('/buyer/orders')}>
-                    Orders
-                  </DropdownMenuItem>
-                )}
-                {user.user_metadata?.account_type === 'seller' && (
+                <DropdownMenuItem onClick={() => navigate('/buyer/orders')}>
+                  Orders
+                </DropdownMenuItem>
+                {user?.user_metadata?.account_type === 'seller' && (
                   <DropdownMenuItem onClick={() => navigate('/seller/dashboard')}>
                     Seller Dashboard
                   </DropdownMenuItem>
@@ -223,80 +338,20 @@ const Navbar = () => {
               </Button>
             </Link>
           )}
-
-          <div className="md:hidden">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[280px] sm:w-[350px]">
-                <div className="flex flex-col h-full">
-                  <div className="py-6">
-                    <h2 className="text-lg font-medium">Menu</h2>
-                  </div>
-                  <nav className="flex flex-col space-y-5">
-                    <Link to="/" className="flex items-center py-2 text-base font-medium">
-                      Home
-                    </Link>
-                    <div className="py-2">
-                      <h3 className="text-sm font-semibold text-muted-foreground mb-3">
-                        Categories
-                      </h3>
-                      <div className="space-y-3">
-                        {categories.map((category) => (
-                          <Link 
-                            key={category.name}
-                            to={category.href}
-                            className="block text-base py-1"
-                          >
-                            {category.name}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                    <Link to="/artisans" className="flex items-center py-2 text-base font-medium">
-                      Artisans
-                    </Link>
-                    <Link to="/about" className="flex items-center py-2 text-base font-medium">
-                      About
-                    </Link>
-                    <Link to="/buyer/home" className="flex items-center py-2 text-base font-medium">
-                      Shop
-                    </Link>
-                    <div className="flex-1"></div>
-                    {!user ? (
-                      <Link to="/auth" className="w-full">
-                        <Button className="w-full" size="default">
-                          Sign In
-                        </Button>
-                      </Link>
-                    ) : (
-                      <>
-                        <Link to="/profile" className="flex items-center py-2 text-base font-medium">
-                          My Profile
-                        </Link>
-                        {user.user_metadata?.account_type !== 'seller' && (
-                          <Link to="/buyer/orders" className="flex items-center py-2 text-base font-medium">
-                            My Orders
-                          </Link>
-                        )}
-                        {user.user_metadata?.account_type === 'seller' && (
-                          <Link to="/seller/dashboard" className="flex items-center py-2 text-base font-medium">
-                            Seller Dashboard
-                          </Link>
-                        )}
-                        <Button onClick={handleSignOut} variant="outline" className="w-full">
-                          Sign Out
-                        </Button>
-                      </>
-                    )}
-                  </nav>
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
+          
+          {/* Mobile menu button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
+          </Button>
         </div>
       </div>
     </header>

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -22,83 +23,8 @@ import {
 } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-
-// Mock data for demonstration
-const mockProducts = [
-  {
-    id: "1",
-    name: "Handwoven Cotton Tote Bag",
-    price: 850,
-    image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=2670&q=80",
-    seller: "Bahay Hablon",
-    category: "Textiles & Clothing",
-    location: "Iloilo"
-  },
-  {
-    id: "2",
-    name: "Wooden Salad Bowl Set",
-    price: 1200,
-    image: "https://images.unsplash.com/photo-1567374783966-0991fefd5ebb?auto=format&fit=crop&w=800&q=80",
-    seller: "Crafts by Juan",
-    category: "Wooden Crafts",
-    location: "Pampanga"
-  },
-  {
-    id: "3",
-    name: "Hand-Painted Ceramic Mug",
-    price: 350,
-    image: "https://images.unsplash.com/photo-1491374812364-00028bbe7d2f?auto=format&fit=crop&w=800&q=80",
-    seller: "Pottery Haven",
-    category: "Pottery & Ceramics",
-    location: "Batangas"
-  },
-  {
-    id: "4",
-    name: "Beaded Statement Necklace",
-    price: 750,
-    image: "https://images.unsplash.com/photo-1619119069152-a2b331eb392a?auto=format&fit=crop&w=800&q=80",
-    seller: "Indigenous Gems",
-    category: "Jewelry & Accessories",
-    location: "Davao"
-  },
-  {
-    id: "5",
-    name: "Handmade Abaca Lamp Shade",
-    price: 1800,
-    image: "https://images.unsplash.com/photo-1543122264-70dcbf81145e?auto=format&fit=crop&w=800&q=80",
-    seller: "Luna Home Decor",
-    category: "Home Decor",
-    location: "Cebu"
-  },
-  {
-    id: "6",
-    name: "Coconut Shell Candles (Set of 3)",
-    price: 650,
-    image: "https://images.unsplash.com/photo-1631049035182-249067d7618e?auto=format&fit=crop&w=800&q=80",
-    seller: "Eco Crafts PH",
-    category: "Home Decor",
-    location: "Palawan"
-  },
-  {
-    id: "7",
-    name: "Hand-Embroidered Table Runner",
-    price: 1200,
-    image: "https://images.unsplash.com/photo-1635761764097-d611d9101743?auto=format&fit=crop&w=800&q=80",
-    seller: "Mana Embroidery",
-    category: "Textiles & Clothing",
-    location: "Baguio"
-  },
-  {
-    id: "8",
-    name: "Bamboo Utensil Set",
-    price: 450,
-    image: "https://images.unsplash.com/photo-1585076803376-620d785e2601?auto=format&fit=crop&w=800&q=80",
-    seller: "Eco Home PH",
-    category: "Home Decor",
-    location: "Laguna"
-  }
-];
+import { Skeleton } from '@/components/ui/skeleton';
+import { getAllProducts, ProductWithSeller } from '@/services/productService';
 
 const categories = [
   "All Categories",
@@ -128,39 +54,44 @@ const BuyerHome: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [selectedLocation, setSelectedLocation] = useState('All Locations');
-  const [priceRange, setPriceRange] = useState([0, 5000]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 5000]);
   const [sortBy, setSortBy] = useState('popular');
+  const [products, setProducts] = useState<ProductWithSeller[]>([]);
+  const [loading, setLoading] = useState(true);
   
-  // Filter products based on search, category, location, and price
-  const filteredProducts = mockProducts.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          product.seller.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All Categories' || product.category === selectedCategory;
-    const matchesLocation = selectedLocation === 'All Locations' || product.location === selectedLocation;
-    const matchesPrice = product.price >= priceRange[0] && product.price <= priceRange[1];
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        const data = await getAllProducts({
+          searchQuery,
+          category: selectedCategory,
+          location: selectedLocation,
+          priceRange,
+          sortBy
+        });
+        setProducts(data);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    return matchesSearch && matchesCategory && matchesLocation && matchesPrice;
-  });
+    fetchProducts();
+  }, [selectedCategory, selectedLocation, priceRange, sortBy]);
   
-  // Sort products
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    switch(sortBy) {
-      case 'price-low-high':
-        return a.price - b.price;
-      case 'price-high-low':
-        return b.price - a.price;
-      case 'name-a-z':
-        return a.name.localeCompare(b.name);
-      case 'name-z-a':
-        return b.name.localeCompare(a.name);
-      default:
-        return 0; // Keep original order for 'popular'
-    }
+  // Filter products based on search query client-side for immediate feedback
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = searchQuery.length === 0 || 
+                          product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          product.seller.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
   });
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 mt-16">
         {/* Search and filter section */}
         <div className="mb-8">
           <div className="flex flex-col md:flex-row gap-4">
@@ -242,7 +173,7 @@ const BuyerHome: React.FC = () => {
                         max={5000}
                         step={100}
                         value={priceRange}
-                        onValueChange={setPriceRange}
+                        onValueChange={(value) => setPriceRange([value[0], value[1]] as [number, number])}
                       />
                       <div className="flex justify-between text-sm">
                         <span>₱{priceRange[0]}</span>
@@ -308,9 +239,29 @@ const BuyerHome: React.FC = () => {
         {/* Products display */}
         <div className="mb-4">
           <h2 className="text-xl font-semibold mb-4">
-            {sortedProducts.length} {sortedProducts.length === 1 ? 'Product' : 'Products'} Found
+            {loading 
+              ? "Loading products..." 
+              : `${filteredProducts.length} ${filteredProducts.length === 1 ? 'Product' : 'Products'} Found`
+            }
           </h2>
-          <ProductGrid products={sortedProducts} columns={4} />
+          
+          {loading ? (
+            <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <div key={i} className="border rounded-lg overflow-hidden">
+                  <Skeleton className="aspect-square w-full" />
+                  <div className="p-4 space-y-3">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-6 w-1/3" />
+                    <Skeleton className="h-10 w-full mt-4" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <ProductGrid products={filteredProducts} columns={4} />
+          )}
         </div>
       </div>
     </Layout>
