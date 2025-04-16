@@ -84,39 +84,6 @@ export type Database = {
         }
         Relationships: []
       }
-      admin_users: {
-        Row: {
-          created_at: string
-          email: string | null
-          id: string
-          is_active: boolean
-          last_modified_by: string | null
-          modification_ip: unknown | null
-          role: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          email?: string | null
-          id: string
-          is_active?: boolean
-          last_modified_by?: string | null
-          modification_ip?: unknown | null
-          role?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          email?: string | null
-          id?: string
-          is_active?: boolean
-          last_modified_by?: string | null
-          modification_ip?: unknown | null
-          role?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
       categories: {
         Row: {
           created_at: string
@@ -350,13 +317,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "order_disputes_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "admin_users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "order_disputes_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
@@ -503,13 +463,6 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_flags_reviewed_by_fkey"
-            columns: ["reviewed_by"]
-            isOneToOne: false
-            referencedRelation: "admin_users"
             referencedColumns: ["id"]
           },
         ]
@@ -976,13 +929,6 @@ export type Database = {
             referencedRelation: "seller_profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "seller_verifications_verified_by_fkey"
-            columns: ["verified_by"]
-            isOneToOne: false
-            referencedRelation: "admin_users"
-            referencedColumns: ["id"]
-          },
         ]
       }
       system_settings: {
@@ -1007,15 +953,7 @@ export type Database = {
           updated_by?: string | null
           value?: Json
         }
-        Relationships: [
-          {
-            foreignKeyName: "system_settings_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "admin_users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       wishlist: {
         Row: {

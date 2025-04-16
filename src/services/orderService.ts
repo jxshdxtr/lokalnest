@@ -1,7 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { CartItem } from '@/components/buyer/shopping/Cart';
-import { Order } from '@/components/buyer/orders/types';
+import { Order, RawOrder, RawOrderItem, RawProductImage } from '@/components/buyer/orders/types';
 import { toast } from 'sonner';
 
 export async function createOrder(items: CartItem[], shippingAddress: string, billingAddress: string, paymentMethod: string) {
@@ -62,6 +60,7 @@ export async function createOrder(items: CartItem[], shippingAddress: string, bi
 
 export async function getOrders(): Promise<Order[]> {
   try {
+    // Get the current user's session
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     if (userError || !user) {
@@ -109,11 +108,11 @@ export async function getOrders(): Promise<Order[]> {
     }
     
     // Transform the data to match the Order type
-    return orders.map(order => {
+    const transformedOrders: Order[] = orders.map((order: RawOrder) => {
       const items = orderItems
-        .filter(item => item.order_id === order.id)
+        .filter((item: RawOrderItem) => item.order_id === order.id)
         .map(item => {
-          const image = productImages?.find(img => img.product_id === item.product_id)?.url || '';
+          const image = productImages?.find((img: RawProductImage) => img.product_id === item.product_id)?.url || '';
           return {
             name: item.products?.name || 'Unknown Product',
             quantity: item.quantity,
@@ -122,18 +121,8 @@ export async function getOrders(): Promise<Order[]> {
           };
         });
       
-      // Ensure status is one of the allowed values in the Order type
-      let typedStatus: "processing" | "shipped" | "delivered" | "cancelled";
-      switch(order.status) {
-        case "processing":
-        case "shipped":
-        case "delivered":
-        case "cancelled":
-          typedStatus = order.status;
-          break;
-        default:
-          typedStatus = "processing"; // Default fallback
-      }
+      // Ensure status is one of the allowed values
+      let typedStatus: Order['status'] = order.status;
       
       return {
         id: order.id,
@@ -150,6 +139,8 @@ export async function getOrders(): Promise<Order[]> {
         } : undefined
       };
     });
+    
+    return transformedOrders;
   } catch (error) {
     console.error('Fetching orders failed:', error);
     toast.error(error instanceof Error ? error.message : 'Failed to fetch your orders');
