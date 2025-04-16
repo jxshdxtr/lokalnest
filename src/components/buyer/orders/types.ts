@@ -1,3 +1,4 @@
+
 export interface OrderItem {
   name: string;
   quantity: number;
@@ -29,11 +30,12 @@ export interface Order {
   tracking?: OrderTracking;
 }
 
+// Modified to accept string status that will be cast to the required type
 export type RawOrder = {
   id: string;
   created_at: string;
   total_amount: number;
-  status: 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: string;  // Changed from literal union type to string to accept database values
   tracking_number?: string;
   tracking_url?: string;
   estimated_delivery?: string;

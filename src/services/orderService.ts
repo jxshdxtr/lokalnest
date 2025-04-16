@@ -1,6 +1,8 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Order, RawOrder, RawOrderItem, RawProductImage } from '@/components/buyer/orders/types';
 import { toast } from 'sonner';
+import { CartItem } from '@/components/buyer/shopping/Cart';
 
 export async function createOrder(items: CartItem[], shippingAddress: string, billingAddress: string, paymentMethod: string) {
   try {
@@ -108,7 +110,7 @@ export async function getOrders(): Promise<Order[]> {
     }
     
     // Transform the data to match the Order type
-    const transformedOrders: Order[] = orders.map((order: RawOrder) => {
+    const transformedOrders: Order[] = orders.map((order: any) => {
       const items = orderItems
         .filter((item: RawOrderItem) => item.order_id === order.id)
         .map(item => {
@@ -122,7 +124,13 @@ export async function getOrders(): Promise<Order[]> {
         });
       
       // Ensure status is one of the allowed values
-      let typedStatus: Order['status'] = order.status;
+      let typedStatus: Order['status'] = 'processing';
+      
+      // Map the status from database to our allowed types
+      if (order.status === 'processing' || order.status === 'shipped' || 
+          order.status === 'delivered' || order.status === 'cancelled') {
+        typedStatus = order.status as Order['status'];
+      }
       
       return {
         id: order.id,
