@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,9 +7,12 @@ import {
   User, 
   Menu, 
   X,
-  LogOut
+  LogOut,
+  Moon,
+  Sun
 } from 'lucide-react';
-import {
+import { useTheme } from 'next-themes';
+import { 
   Sheet,
   SheetContent,
   SheetTrigger,
@@ -59,6 +61,7 @@ const Navbar = () => {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
+  const { setTheme, theme } = useTheme();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -167,9 +170,7 @@ const Navbar = () => {
           </NavigationMenu>
         </div>
 
-        {/* User actions */}
         <div className="flex items-center gap-2">
-          {/* Search button (small screens) */}
           <Button 
             variant="ghost" 
             size="icon"
@@ -179,10 +180,8 @@ const Navbar = () => {
             <Search className="h-5 w-5" />
           </Button>
           
-          {/* Shopping cart */}
           <CartSidebar />
           
-          {/* User dropdown or login button */}
           {isSignedIn ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -211,6 +210,19 @@ const Navbar = () => {
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+                  {theme === "dark" ? (
+                    <>
+                      <Sun className="mr-2 h-4 w-4" />
+                      Light Mode
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="mr-2 h-4 w-4" />
+                      Dark Mode
+                    </>
+                  )}
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign out

@@ -846,13 +846,11 @@ export type Database = {
         Row: {
           business_name: string | null
           created_at: string
+          document_expiry_date: string | null
+          document_number: string | null
           document_type: string
           document_url: string
-          dti_certification_expiry: string | null
-          dti_certification_number: string | null
           first_name: string | null
-          government_id_type: string | null
-          government_id_url: string | null
           id: string
           last_name: string | null
           middle_name: string | null
@@ -864,6 +862,9 @@ export type Database = {
           suffix: string | null
           tin_number: string | null
           updated_at: string
+          valid_id: string | null
+          valid_id_back: string | null
+          valid_id_front: string | null
           vat_status: string | null
           verification_date: string | null
           verified_by: string | null
@@ -872,13 +873,11 @@ export type Database = {
         Insert: {
           business_name?: string | null
           created_at?: string
+          document_expiry_date?: string | null
+          document_number?: string | null
           document_type: string
           document_url: string
-          dti_certification_expiry?: string | null
-          dti_certification_number?: string | null
           first_name?: string | null
-          government_id_type?: string | null
-          government_id_url?: string | null
           id?: string
           last_name?: string | null
           middle_name?: string | null
@@ -890,6 +889,9 @@ export type Database = {
           suffix?: string | null
           tin_number?: string | null
           updated_at?: string
+          valid_id?: string | null
+          valid_id_back?: string | null
+          valid_id_front?: string | null
           vat_status?: string | null
           verification_date?: string | null
           verified_by?: string | null
@@ -898,13 +900,11 @@ export type Database = {
         Update: {
           business_name?: string | null
           created_at?: string
+          document_expiry_date?: string | null
+          document_number?: string | null
           document_type?: string
           document_url?: string
-          dti_certification_expiry?: string | null
-          dti_certification_number?: string | null
           first_name?: string | null
-          government_id_type?: string | null
-          government_id_url?: string | null
           id?: string
           last_name?: string | null
           middle_name?: string | null
@@ -916,6 +916,9 @@ export type Database = {
           suffix?: string | null
           tin_number?: string | null
           updated_at?: string
+          valid_id?: string | null
+          valid_id_back?: string | null
+          valid_id_front?: string | null
           vat_status?: string | null
           verification_date?: string | null
           verified_by?: string | null
@@ -1037,6 +1040,28 @@ export type Database = {
       is_admin: {
         Args: { user_id: string }
         Returns: boolean
+      }
+      submit_seller_verification: {
+        Args: {
+          p_seller_id: string
+          p_document_type: string
+          p_document_url: string
+          p_document_number: string
+          p_document_expiry_date: string
+          p_government_id_type: string
+          p_government_id_url: string
+          p_seller_type: string
+          p_first_name: string
+          p_middle_name: string
+          p_last_name: string
+          p_suffix: string
+          p_business_name: string
+          p_registered_address: string
+          p_zip_code: string
+          p_tin_number: string
+          p_vat_status: string
+        }
+        Returns: string
       }
     }
     Enums: {
