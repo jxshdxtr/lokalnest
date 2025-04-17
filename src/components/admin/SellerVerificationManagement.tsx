@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Eye, 
@@ -91,9 +92,20 @@ const SellerVerificationManagement = () => {
 
       if (error) throw error;
       
+      // Map Supabase response to our VerificationDocumentType format
       setVerifications(data?.map(item => ({
-        ...item,
-        business_name: item.seller_profiles.business_name
+        id: item.id,
+        seller_id: item.seller_id,
+        document_type: item.document_type,
+        document_url: item.document_url,
+        dti_certification_number: item.document_number, // Map from document_number
+        dti_certification_expiry: item.document_expiry_date, // Map from document_expiry_date
+        status: item.status,
+        created_at: item.created_at,
+        business_name: item.seller_profiles.business_name,
+        notes: item.notes || '',
+        verification_date: item.verification_date,
+        verified_by: item.verified_by
       })) || []);
     } catch (error: any) {
       console.error('Error fetching verifications:', error);
