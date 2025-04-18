@@ -24,6 +24,7 @@ import SellerVerification from './pages/SellerVerification';
 import { CartProvider } from './components/buyer/shopping/Cart';
 import SellerVerificationManagement from './components/admin/SellerVerificationManagement';
 import { ThemeProvider } from './components/providers/ThemeProvider';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -72,6 +73,8 @@ function App() {
             
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/product/:id" element={<ProductDetail />} />
+            
+            <Route path="/profile" element={<Profile />} />
             
             {/* Add additional routes here */}
             <Route path="*" element={<Navigate to="/" replace />} />
