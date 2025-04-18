@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -78,6 +77,54 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Force dark mode backgrounds for key elements */
+  .dark body,
+  .dark #root,
+  .dark main,
+  .dark div[class*="container"],
+  .dark div[class*="wrapper"],
+  .dark section,
+  .dark header,
+  .dark footer,
+  .dark aside,
+  .dark nav {
+    @apply bg-background text-foreground;
+  }
+
+  /* Ensure cards and panels respect dark mode */
+  .dark div[class*="card"],
+  .dark div[class*="panel"],
+  .dark div[class*="box"],
+  .dark div[class*="sidebar"],
+  .dark div[class*="dropdown"],
+  .dark div[class*="menu"],
+  .dark div[class*="modal"] {
+    @apply bg-card text-card-foreground;
+  }
+
+  /* Specific overrides for product cards and listings */
+  .dark [class*="product-card"],
+  .dark a[href*="product"],
+  .dark div[class*="product"],
+  .dark div[class*="listing"] {
+    @apply bg-card text-card-foreground border-border;
+  }
+
+  /* Force dark inputs */
+  .dark input,
+  .dark select,
+  .dark textarea,
+  .dark button {
+    @apply bg-input text-foreground border-border;
+  }
+
+  /* Force dark background for static content sections */
+  .dark div[class*="static-content"],
+  .dark div[class*="content-section"],
+  .dark div[class*="section"] {
+    @apply bg-background text-foreground;
+  }
+
   /* Smooth scrolling */
   html {
     scroll-behavior: smooth;
@@ -128,10 +175,25 @@
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-light to-blue-dark;
   }
+
+  /* Override text-gradient in dark mode */
+  .dark .text-gradient {
+    @apply text-white;
+  }
   
   .bg-gradient-soft {
     @apply bg-gradient-to-b from-marketplace-50 to-white;
   }
+
+  /* Override gradient in dark mode */
+  .dark .bg-gradient-soft {
+    @apply bg-gradient-to-b from-slate-900 to-slate-800;
+  }
+}
+
+/* Override for dark mode */
+.dark {
+  color-scheme: dark;
 }
 
 /* Animations for page transitions */
@@ -184,6 +246,15 @@ img.loaded {
     rgba(255, 255, 255, 0) 0%,
     rgba(255, 255, 255, 0.4) 50%,
     rgba(255, 255, 255, 0) 100%
+  );
+}
+
+.dark .loading-shimmer::after {
+  background: linear-gradient(
+    90deg,
+    rgba(30, 41, 59, 0) 0%,
+    rgba(30, 41, 59, 0.4) 50%,
+    rgba(30, 41, 59, 0) 100%
   );
 }
 

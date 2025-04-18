@@ -297,7 +297,7 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-border"></div>
           </div>
-          <div className="relative bg-white px-4 text-sm text-muted-foreground">
+          <div className="relative bg-background dark:bg-background px-4 text-sm text-muted-foreground">
             Or continue with
           </div>
         </div>

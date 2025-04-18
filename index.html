@@ -15,6 +15,21 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    
+    <!-- Theme script to prevent flash of wrong theme -->
+    <script>
+      // Check if theme exists in localStorage
+      const theme = localStorage.getItem('lokalNest-ui-theme');
+      // Check if user prefers dark mode
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      // Apply dark mode if user has selected it or if system prefers it and user hasn't selected light
+      if (theme === 'dark' || (!theme && systemPrefersDark)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    </script>
   </head>
 
   <body>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-export type VerificationStatus = 'pending' | 'rejected' | 'not_submitted';
+export type VerificationStatus = 'pending' | 'rejected' | 'not_submitted' | 'approved' | 'verified';
 
 interface UseSellerVerificationReturn {
   isVerified: boolean;
@@ -31,45 +31,33 @@ export function useSellerVerification(): UseSellerVerificationReturn {
         // Set seller ID
         setSellerId(session.user.id);
         
-        // Check if seller is verified
-        const { data: sellerData, error: sellerError } = await supabase
-          .from('seller_profiles')
-          .select('is_verified')
-          .eq('id', session.user.id)
-          .single();
+        // Check verification status directly from seller_verifications table
+        const { data: verificationData, error: verificationError } = await supabase
+          .from('seller_verifications')
+          .select('status')
+          .eq('seller_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
         
-        if (sellerError && sellerError.code !== 'PGRST116') {
-          throw sellerError;
-        }
+        if (verificationError) throw verificationError;
         
-        const verified = !!sellerData?.is_verified;
-        setIsVerified(verified);
-        
-        if (!verified) {
-          setShowVerificationBanner(true);
-          
-          // Check for pending verification requests
-          const { data: verificationData, error: verificationError } = await supabase
-            .from('seller_verifications')
-            .select('status, created_at')
-            .eq('seller_id', session.user.id)
-            .order('created_at', { ascending: false })
-            .limit(1);
-          
-          if (verificationError) throw verificationError;
-          
-          if (verificationData && verificationData.length > 0) {
-            setVerificationStatus(verificationData[0].status as VerificationStatus);
-          } else {
-            setVerificationStatus('not_submitted');
-          }
+        if (verificationData && verificationData.length > 0) {
+          // Set verification status
+          setVerificationStatus(verificationData[0].status as VerificationStatus);
+          // Set verified if status is either 'approved' or 'verified'
+          const verified = verificationData[0].status === 'approved' || verificationData[0].status === 'verified';
+          setIsVerified(verified);
+          setShowVerificationBanner(!verified);
         } else {
-          setShowVerificationBanner(false);
-          setVerificationStatus(null);
+          setVerificationStatus('not_submitted');
+          setIsVerified(false);
+          setShowVerificationBanner(true);
         }
       } catch (error) {
         console.error('Error checking verification status:', error);
         toast.error('Failed to check seller verification status');
+        setIsVerified(false);
+        setVerificationStatus(null);
       } finally {
         setIsLoading(false);
       }
@@ -85,4 +73,4 @@ export function useSellerVerification(): UseSellerVerificationReturn {
     verificationStatus,
     showVerificationBanner
   };
-} 
+}

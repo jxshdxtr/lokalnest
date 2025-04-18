@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import LoginForm from './LoginForm';
@@ -14,9 +13,9 @@ const AuthForm = () => {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto p-6 space-y-6 bg-white rounded-lg shadow-elevation-1 border border-border">
+    <div className="w-full max-w-md mx-auto p-6 space-y-6 bg-card dark:bg-card rounded-lg shadow-elevation-1 border border-border">
       <div className="text-center">
-        <h1 className="text-2xl font-bold">Welcome to LocalNest</h1>
+        <h1 className="text-2xl font-bold">Welcome to LokalNest</h1>
         <p className="text-muted-foreground mt-2">Sign in or create an account to continue</p>
       </div>
 

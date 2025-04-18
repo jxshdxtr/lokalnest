@@ -38,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 
 const categories = [
   { name: "Textiles & Clothing", href: "/category/textiles-clothing" },
@@ -227,8 +228,8 @@ const Navbar = () => {
       className={cn(
         "fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300 ease-in-out",
         isScrolled 
-          ? "py-2 bg-white/90 backdrop-blur-md shadow-subtle" 
-          : "py-4 bg-transparent"
+          ? "py-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-subtle" 
+          : "py-4 bg-transparent dark:bg-transparent"
       )}
     >
       <div className="container mx-auto px-4 flex items-center justify-between">
@@ -236,7 +237,7 @@ const Navbar = () => {
           to="/" 
           className="text-xl md:text-2xl font-medium tracking-tight"
         >
-          <span className="text-gradient">LokalNest</span>
+          <span className="text-gradient dark:text-white">LokalNest</span>
         </Link>
 
         <div className="hidden md:flex items-center space-x-8">
@@ -296,6 +297,11 @@ const Navbar = () => {
             <CartSidebar />
           )}
           
+          {/* Theme toggle visible for desktop */}
+          <div className="hidden md:block">
+            <ThemeToggle />
+          </div>
+          
           {/* User dropdown or login button */}
           {isSignedIn && user ? (
             <DropdownMenu>
@@ -316,15 +322,26 @@ const Navbar = () => {
                   <User className="mr-2 h-4 w-4" />
                   Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/buyer/orders')}>
-                  Orders
-                </DropdownMenuItem>
+                {/* Show Orders only for buyers or users who aren't explicitly sellers */}
+                {(isBuyer || user?.user_metadata?.account_type !== 'seller') && (
+                  <DropdownMenuItem onClick={() => navigate('/buyer/orders')}>
+                    Orders
+                  </DropdownMenuItem>
+                )}
                 {user?.user_metadata?.account_type === 'seller' && (
                   <DropdownMenuItem onClick={() => navigate('/seller/dashboard')}>
                     Seller Dashboard
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
+                {/* Theme toggle option */}
+                <DropdownMenuItem className="md:hidden">
+                  <div className="flex items-center justify-between w-full">
+                    <span>Theme</span>
+                    <ThemeToggle />
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="md:hidden" />
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign out

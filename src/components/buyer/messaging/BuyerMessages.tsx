@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -160,7 +159,7 @@ const BuyerMessages = () => {
               {filteredPreviews.map((preview) => (
                 <div 
                   key={preview.seller_id}
-                  className="p-4 border rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
+                  className="p-4 border border-border rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
                   onClick={() => handleOpenChat(preview)}
                 >
                   <div className="flex items-start gap-3">

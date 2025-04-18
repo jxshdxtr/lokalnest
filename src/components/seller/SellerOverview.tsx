@@ -58,7 +58,7 @@ interface RecentOrder {
 
 const SellerOverview = () => {
   const navigate = useNavigate();
-  const [isVerified, setIsVerified] = useState(true); // Default to true to avoid flash
+  const [isVerified, setIsVerified] = useState(false); 
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
@@ -104,35 +104,23 @@ const SellerOverview = () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
         
-        // Check if seller is verified
-        const { data: sellerData, error: sellerError } = await supabase
-          .from('seller_profiles')
-          .select('is_verified')
-          .eq('id', session.user.id)
-          .single();
+        // Check verification status in seller_verifications table
+        const { data: verificationData, error: verificationError } = await supabase
+          .from('seller_verifications')
+          .select('status, created_at')
+          .eq('seller_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
         
-        if (sellerError && sellerError.code !== 'PGRST116') {
-          throw sellerError;
-        }
+        if (verificationError) throw verificationError;
         
-        setIsVerified(!!sellerData?.is_verified);
-        
-        if (!sellerData?.is_verified) {
-          // Check for pending verification requests
-          const { data: verificationData, error: verificationError } = await supabase
-            .from('seller_verifications')
-            .select('status, created_at')
-            .eq('seller_id', session.user.id)
-            .order('created_at', { ascending: false })
-            .limit(1);
-          
-          if (verificationError) throw verificationError;
-          
-          if (verificationData && verificationData.length > 0) {
-            setVerificationStatus(verificationData[0].status);
-          } else {
-            setVerificationStatus('not_submitted');
-          }
+        if (verificationData && verificationData.length > 0) {
+          setVerificationStatus(verificationData[0].status);
+          // Set isVerified based on the status being 'approved' or 'verified'
+          setIsVerified(verificationData[0].status === 'approved' || verificationData[0].status === 'verified');
+        } else {
+          setVerificationStatus('not_submitted');
+          setIsVerified(false);
         }
       } catch (error) {
         console.error('Error checking verification status:', error);
@@ -155,37 +143,26 @@ const SellerOverview = () => {
         
         const sellerId = session.session.user.id;
         
-        // Check if seller is verified first
-        const { data: sellerData, error: sellerError } = await supabase
-          .from('seller_profiles')
-          .select('is_verified')
-          .eq('id', sellerId)
-          .single();
+        // Check verification status from seller_verifications table
+        const { data: verificationData, error: verificationError } = await supabase
+          .from('seller_verifications')
+          .select('status, created_at')
+          .eq('seller_id', sellerId)
+          .order('created_at', { ascending: false })
+          .limit(1);
         
-        if (sellerError && sellerError.code !== 'PGRST116') {
-          throw sellerError;
+        if (verificationError) throw verificationError;
+        
+        if (verificationData && verificationData.length > 0) {
+          setVerificationStatus(verificationData[0].status);
+          // Set isVerified based on the status being 'approved' or 'verified'
+          setIsVerified(verificationData[0].status === 'approved' || verificationData[0].status === 'verified');
+        } else {
+          setVerificationStatus('not_submitted');
+          setIsVerified(false);
         }
         
-        // Set verification status
-        setIsVerified(!!sellerData?.is_verified);
-        
-        if (!sellerData?.is_verified) {
-          // Check for pending verification requests
-          const { data: verificationData, error: verificationError } = await supabase
-            .from('seller_verifications')
-            .select('status, created_at')
-            .eq('seller_id', sellerId)
-            .order('created_at', { ascending: false })
-            .limit(1);
-          
-          if (verificationError) throw verificationError;
-          
-          if (verificationData && verificationData.length > 0) {
-            setVerificationStatus(verificationData[0].status);
-          } else {
-            setVerificationStatus('not_submitted');
-          }
-          
+        if (!isVerified) {
           // For unverified sellers, set empty data but still fetch category data for their products
           setStats([
             { 
@@ -248,7 +225,7 @@ const SellerOverview = () => {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [isVerified]);
 
   // Fetch stats (sales, orders, rating, customers)
   const fetchStats = async (sellerId: string) => {

@@ -67,33 +67,23 @@ const ProductManagement = () => {
         return;
       }
       
-      // Check if seller is verified
-      const { data: sellerData, error: sellerError } = await supabase
-        .from('seller_profiles')
-        .select('is_verified')
-        .eq('id', session.user.id)
-        .single();
+      // Check verification status directly from seller_verifications table
+      const { data: verificationData, error: verificationError } = await supabase
+        .from('seller_verifications')
+        .select('status')
+        .eq('seller_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
       
-      if (sellerError) throw sellerError;
+      if (verificationError) throw verificationError;
       
-      setIsVerified(!!sellerData?.is_verified);
-      
-      if (!sellerData?.is_verified) {
-        // Check for pending verification requests
-        const { data: verificationData, error: verificationError } = await supabase
-          .from('seller_verifications')
-          .select('status')
-          .eq('seller_id', session.user.id)
-          .order('created_at', { ascending: false })
-          .limit(1);
-        
-        if (verificationError) throw verificationError;
-        
-        if (verificationData && verificationData.length > 0) {
-          setVerificationStatus(verificationData[0].status);
-        } else {
-          setVerificationStatus('not_submitted');
-        }
+      if (verificationData && verificationData.length > 0) {
+        // Set verification status and isVerified based on status in seller_verifications
+        setVerificationStatus(verificationData[0].status);
+        setIsVerified(verificationData[0].status === 'approved' || verificationData[0].status === 'verified');
+      } else {
+        setVerificationStatus('not_submitted');
+        setIsVerified(false);
       }
     } catch (error) {
       console.error('Error checking verification status:', error);

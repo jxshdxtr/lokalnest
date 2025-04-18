@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Card,
@@ -53,7 +52,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
           </div>
           
           {/* Order Total */}
-          <div className="flex justify-between pt-4 border-t">
+          <div className="flex justify-between pt-4 border-t border-border">
             <p className="font-semibold">Total</p>
             <p className="font-semibold">₱{order.total.toLocaleString()}</p>
           </div>

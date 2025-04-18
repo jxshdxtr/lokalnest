@@ -1,9 +1,34 @@
-
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronDown } from 'lucide-react';
 
 const Hero = () => {
+  // Function to remove any potential overlays when the component mounts
+  useEffect(() => {
+    // Find and remove any overlays that might be auto-added
+    const overlays = document.querySelectorAll('.lokalnest-intro-overlay, .hero-overlay, [class*="overlay"]');
+    overlays.forEach(overlay => {
+      if (overlay.classList.contains('bg-black') || 
+          overlay.classList.contains('dark:bg-slate-900') || 
+          overlay.classList.contains('dark:bg-background') || 
+          overlay.classList.contains('from-black')) {
+        // Skip our actual gradient overlay
+        if (!overlay.closest('.relative.h-\\[90vh\\]')) {
+          overlay.remove();
+        }
+      }
+    });
+    
+    // Disable any potential scripts that might be creating these overlays
+    const disableOverlayScripts = () => {
+      // This will prevent theme previews from creating overlays
+      window.localStorage.setItem('lokalnest-welcome-seen', 'true');
+      window.localStorage.setItem('theme-preview-seen', 'true');
+    };
+    
+    disableOverlayScripts();
+  }, []);
+
   const scrollToProducts = () => {
     const productsSection = document.getElementById('featured-products');
     if (productsSection) {

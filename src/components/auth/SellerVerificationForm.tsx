@@ -132,73 +132,98 @@ const SellerVerificationForm = ({ userId: propsUserId, onComplete }: SellerVerif
       // We need to manually track upload progress since onUploadProgress isn't supported
       setUploadProgress(10); // Start progress indication
       
-      // Upload DTI document to Storage
-      const { error: documentUploadError } = await supabase.storage
+      // Upload DTI document to Storage - assume bucket exists
+      const { data: documentData, error: documentUploadError } = await supabase.storage
         .from('seller_documents')
         .upload(documentFileName, data.documentFile, {
           cacheControl: '3600',
-          upsert: false,
+          upsert: true,
         });
         
       setUploadProgress(40); // Update progress after first upload
         
-      if (documentUploadError) throw documentUploadError;
+      if (documentUploadError) {
+        console.error('Document upload error:', documentUploadError);
+        if (documentUploadError.message.includes('bucket') || documentUploadError.message.includes('404')) {
+          throw new Error('Seller document storage is not configured. Please contact support.');
+        }
+        throw documentUploadError;
+      }
       
       // Upload Government ID to Storage
-      const { error: govIdUploadError } = await supabase.storage
+      const { data: govIdData, error: govIdUploadError } = await supabase.storage
         .from('seller_documents')
         .upload(govIdFileName, data.governmentIdFile, {
           cacheControl: '3600',
-          upsert: false,
+          upsert: true,
         });
       
       setUploadProgress(70); // Update progress after second upload
       
-      if (govIdUploadError) throw govIdUploadError;
+      if (govIdUploadError) {
+        console.error('Government ID upload error:', govIdUploadError);
+        throw govIdUploadError;
+      }
       
       setUploadProgress(80); // Update progress before database operation
       
-      // Save verification details to the database
-      const { error: dbError } = await supabase
+      // Get the public URLs for the uploaded files directly from Supabase
+      const { data: documentUrlData } = supabase.storage
+        .from('seller_documents')
+        .getPublicUrl(documentFileName);
+        
+      const { data: govIdUrlData } = supabase.storage
+        .from('seller_documents')
+        .getPublicUrl(govIdFileName);
+        
+      const documentUrl = documentUrlData.publicUrl;
+      const govIdUrl = govIdUrlData.publicUrl;
+      
+      // Insert all form data into the seller_verifications table at once
+      const { error: insertError } = await supabase
         .from('seller_verifications')
         .insert({
           seller_id: userId,
           document_type: data.documentType,
-          document_url: documentFileName,
-          dti_certification_number: data.dtiCertificationNumber,
-          dti_certification_expiry: data.dtiCertificationExpiry.toISOString().split('T')[0],
-          status: 'pending',
-          notes: 'Awaiting verification',
+          document_url: documentUrl,
+          document_number: data.dtiCertificationNumber,
+          document_expiry_date: data.dtiCertificationExpiry.toISOString().split('T')[0],
+          valid_id: data.governmentIdType,
+          valid_id_front: govIdUrl,
+          // Personal and business information
           seller_type: data.sellerType,
           first_name: data.firstName,
-          middle_name: data.middleName,
+          middle_name: data.middleName || null,
           last_name: data.lastName,
-          suffix: data.suffix,
+          suffix: data.suffix || null,
           business_name: data.businessName,
           registered_address: data.registeredAddress,
           zip_code: data.zipCode,
-          government_id_type: data.governmentIdType,
-          government_id_url: govIdFileName,
           tin_number: data.tinNumber,
           vat_status: data.vatStatus,
+          status: 'pending',
+          notes: 'Awaiting verification'
         });
-        
-      setUploadProgress(100); // Complete progress
       
-      if (dbError) throw dbError;
+      if (insertError) {
+        console.error('Database insert error:', insertError);
+        throw new Error(`Failed to save verification data: ${insertError.message}`);
+      }
+      
+      setUploadProgress(100); // Complete progress
       
       toast.success('Verification documents submitted successfully. Your account is pending verification.');
       onComplete();
     } catch (error: any) {
-      setUploadError(error.message || 'Failed to upload verification documents. Please try again.');
-      toast.error(error.message || 'Failed to upload verification documents. Please try again.');
+      const errorMessage = error.message || 'Failed to upload verification documents. Please try again.';
+      setUploadError(errorMessage);
+      toast.error(errorMessage);
       console.error('Verification upload error:', error);
-      console.error('Verification upload error details:', JSON.stringify(error, null, 2));
     } finally {
       setIsUploading(false);
     }
   };
-
+ 
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
@@ -517,7 +542,7 @@ const SellerVerificationForm = ({ userId: propsUserId, onComplete }: SellerVerif
               <FormField
                 control={form.control}
                 name="documentFile"
-                render={({ field: { value, onChange, ...fieldProps } }) => (
+                render={({ field: { value, onChange } }) => (
                   <FormItem className="mt-4">
                     <FormLabel>Upload Document</FormLabel>
                     <FormControl>
@@ -533,7 +558,6 @@ const SellerVerificationForm = ({ userId: propsUserId, onComplete }: SellerVerif
                               onChange(file);
                             }
                           }}
-                          {...fieldProps}
                         />
                       </div>
                     </FormControl>
@@ -591,7 +615,7 @@ const SellerVerificationForm = ({ userId: propsUserId, onComplete }: SellerVerif
               <FormField
                 control={form.control}
                 name="governmentIdFile"
-                render={({ field: { value, onChange, ...fieldProps } }) => (
+                render={({ field: { value, onChange } }) => (
                   <FormItem className="mt-4">
                     <FormLabel>Upload Government ID (w/ Photo)</FormLabel>
                     <FormControl>
@@ -607,7 +631,6 @@ const SellerVerificationForm = ({ userId: propsUserId, onComplete }: SellerVerif
                               onChange(file);
                             }
                           }}
-                          {...fieldProps}
                         />
                       </div>
                     </FormControl>

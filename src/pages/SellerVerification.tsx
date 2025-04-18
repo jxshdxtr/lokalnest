@@ -44,22 +44,7 @@ const SellerVerification = () => {
           return;
         }
 
-        // Check if seller is already verified
-        const { data: sellerData, error: sellerError } = await supabase
-          .from('seller_profiles')
-          .select('is_verified')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (sellerError && sellerError.code !== 'PGRST116') {
-          throw sellerError;
-        }
-        
-        if (sellerData?.is_verified) {
-          setIsVerified(true);
-        }
-
-        // Check for pending verification
+        // Check verification status in the seller_verifications table
         const { data: verificationData, error: verificationError } = await supabase
           .from('seller_verifications')
           .select('status')
@@ -69,8 +54,13 @@ const SellerVerification = () => {
         
         if (verificationError) throw verificationError;
         
-        if (verificationData && verificationData.length > 0 && verificationData[0].status === 'pending') {
-          setHasPendingVerification(true);
+        // If there's a record and status is 'approved' or 'verified', set isVerified to true
+        if (verificationData && verificationData.length > 0) {
+          if (verificationData[0].status === 'approved' || verificationData[0].status === 'verified') {
+            setIsVerified(true);
+          } else if (verificationData[0].status === 'pending') {
+            setHasPendingVerification(true);
+          }
         }
       } catch (error) {
         console.error('Error checking verification status:', error);
@@ -138,4 +128,4 @@ const SellerVerification = () => {
   );
 };
 
-export default SellerVerification; 
+export default SellerVerification;

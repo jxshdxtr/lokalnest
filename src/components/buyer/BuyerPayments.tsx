@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   CreditCard,
@@ -189,11 +188,11 @@ const BuyerPayments = () => {
   const getStatusBadge = (status: Transaction['status']) => {
     switch (status) {
       case 'completed':
-        return <Badge variant="outline" className="border-green-500 text-green-500">Completed</Badge>;
+        return <Badge variant="outline" className="border-green-500 text-green-500 dark:border-green-400 dark:text-green-400">Completed</Badge>;
       case 'pending':
-        return <Badge variant="outline" className="border-amber-500 text-amber-500">Pending</Badge>;
+        return <Badge variant="outline" className="border-amber-500 text-amber-500 dark:border-amber-400 dark:text-amber-400">Pending</Badge>;
       case 'failed':
-        return <Badge variant="outline" className="border-red-500 text-red-500">Failed</Badge>;
+        return <Badge variant="outline" className="border-red-500 text-red-500 dark:border-red-400 dark:text-red-400">Failed</Badge>;
       default:
         return null;
     }
@@ -202,11 +201,11 @@ const BuyerPayments = () => {
   const getStatusIcon = (status: Transaction['status']) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+        return <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-green-400" />;
       case 'pending':
-        return <Clock className="h-4 w-4 text-amber-500" />;
+        return <Clock className="h-4 w-4 text-amber-500 dark:text-amber-400" />;
       case 'failed':
-        return <XCircle className="h-4 w-4 text-red-500" />;
+        return <XCircle className="h-4 w-4 text-red-500 dark:text-red-400" />;
       default:
         return null;
     }
@@ -255,7 +254,7 @@ const BuyerPayments = () => {
                   </RadioGroup>
 
                   {selectedPaymentMethod === 'card' && (
-                    <div className="space-y-4 mt-4 border rounded-md p-4">
+                    <div className="space-y-4 mt-4 border border-border rounded-md p-4">
                       <div className="space-y-2">
                         <Label htmlFor="name">Cardholder Name</Label>
                         <Input 
@@ -298,7 +297,7 @@ const BuyerPayments = () => {
                   )}
 
                   {selectedPaymentMethod === 'cod' && (
-                    <div className="mt-4 p-4 border rounded-md">
+                    <div className="mt-4 p-4 border border-border rounded-md">
                       <p className="text-sm">
                         By selecting Cash on Delivery, you agree to pay the full amount when your order is delivered to your address.
                       </p>
@@ -320,10 +319,10 @@ const BuyerPayments = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       {method.type === 'card' ? (
-                        <CreditCard className="h-10 w-10 text-blue-500 mr-4" />
+                        <CreditCard className="h-10 w-10 text-blue-500 dark:text-blue-400 mr-4" />
                       ) : (
-                        <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center mr-4">
-                          <span className="text-green-700 font-bold">₱</span>
+                        <div className="h-10 w-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mr-4">
+                          <span className="text-green-700 dark:text-green-400 font-bold">₱</span>
                         </div>
                       )}
                       <div>
@@ -348,7 +347,7 @@ const BuyerPayments = () => {
             ))}
 
             {paymentMethods.length === 0 && (
-              <div className="text-center py-10 border rounded-lg">
+              <div className="text-center py-10 border border-border rounded-lg">
                 <p className="text-muted-foreground">No payment methods added yet.</p>
               </div>
             )}
@@ -364,7 +363,7 @@ const BuyerPayments = () => {
             <CardContent>
               <div className="space-y-2">
                 {transactions.map((transaction) => (
-                  <div key={transaction.id} className="flex items-center justify-between p-4 border rounded-md">
+                  <div key={transaction.id} className="flex items-center justify-between p-4 border border-border rounded-md">
                     <div className="space-y-1">
                       <div className="flex items-center">
                         <h3 className="font-medium">{transaction.description}</h3>

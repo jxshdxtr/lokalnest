@@ -299,7 +299,7 @@ const InventoryManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Show verification banner for unverified sellers */}
-      {verificationStatus && (
+      {!isVerified && verificationStatus && (
         <VerificationBanner 
           status={verificationStatus} 
           message="To manage inventory and list products, you need to verify your seller account."

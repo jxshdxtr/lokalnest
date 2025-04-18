@@ -8,14 +8,13 @@ import { useSellerVerification } from '@/hooks/use-seller-verification';
 import VerificationBanner from './VerificationBanner';
 
 const CustomerManagement = () => {
-  // Use our verification hook
-  const { verificationStatus } = useSellerVerification();
+  // Use our verification hook with updated logic
+  const { isVerified, verificationStatus, isLoading: verificationLoading } = useSellerVerification();
   
   // Get customers data
   const { 
     customers, 
     isLoading,
-    isVerified,
     search,
     statusFilter,
     addTag,
@@ -44,6 +43,18 @@ const CustomerManagement = () => {
       toast.error('Failed to update customer status');
     }
   };
+
+  // Show loading state while verification status is being checked
+  if (verificationLoading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading customer management...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Show verification banner for unverified sellers
   if (!isVerified && verificationStatus) {

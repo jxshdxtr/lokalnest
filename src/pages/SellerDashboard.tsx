@@ -12,7 +12,7 @@ interface SellerUser {
   id: string;
   name: string;
   avatar?: string;
-  verified?: boolean;
+  verified: boolean; // Changed to non-optional
 }
 
 const SellerDashboard = () => {
@@ -32,7 +32,7 @@ const SellerDashboard = () => {
           return;
         }
 
-        // Get seller profile
+        // Get seller profile for name and avatar info
         const { data: sellerProfile, error } = await supabase
           .from('seller_profiles')
           .select('*')
@@ -50,13 +50,30 @@ const SellerDashboard = () => {
           .select('*')
           .eq('id', session.user.id)
           .single();
+          
+        // Check verification status directly from seller_verifications table
+        const { data: verificationData, error: verificationError } = await supabase
+          .from('seller_verifications')
+          .select('status')
+          .eq('seller_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (verificationError) {
+          console.error("Error fetching verification status:", verificationError);
+        }
+        
+        // Set verified status based on seller_verifications table
+        const isVerified = verificationData && verificationData.length > 0 ? 
+                          (verificationData[0].status === 'approved' || verificationData[0].status === 'verified') : 
+                          false;
 
         // Set user data combining auth and profile data
         setUser({
           id: session.user.id,
           name: sellerProfile?.business_name || profile?.full_name || 'Seller Account',
           avatar: profile?.avatar_url || '',
-          verified: sellerProfile?.is_verified || false
+          verified: isVerified // Use verification status from seller_verifications
         });
 
       } catch (error) {
@@ -92,7 +109,6 @@ const SellerDashboard = () => {
     if (path === 'reviews') return 'reviews';
     if (path === 'settings') return 'settings';
     if (path === 'profile') return 'profile';
-    if (path === 'logistics') return 'logistics';
     if (path === 'overview') return 'overview';
     return 'overview';
   };
@@ -131,7 +147,7 @@ const SellerDashboard = () => {
             {/* Content Area */}
             <div className="col-span-1 lg:col-span-9">
               <Tabs value={getActiveTab()} className="w-full" onValueChange={handleTabChange}>
-                <TabsList className="w-full mb-6 overflow-x-auto flex sm:grid sm:grid-cols-9">
+                <TabsList className="w-full mb-6 overflow-x-auto flex sm:grid sm:grid-cols-8">
                   <TabsTrigger value="overview" className="flex-1">Overview</TabsTrigger>
                   <TabsTrigger 
                     value="products" 
@@ -169,13 +185,6 @@ const SellerDashboard = () => {
                     Promotions {!user.verified && <span className="ml-1 text-xs">🔒</span>}
                   </TabsTrigger>
                   <TabsTrigger 
-                    value="logistics" 
-                    className={`flex-1 ${!user.verified ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    disabled={!user.verified}
-                  >
-                    Logistics {!user.verified && <span className="ml-1 text-xs">🔒</span>}
-                  </TabsTrigger>
-                  <TabsTrigger 
                     value="reviews" 
                     className={`flex-1 ${!user.verified ? 'opacity-50 cursor-not-allowed' : ''}`}
                     disabled={!user.verified}
@@ -206,10 +215,6 @@ const SellerDashboard = () => {
                 </TabsContent>
                 
                 <TabsContent value="promotions">
-                  <Outlet />
-                </TabsContent>
-                
-                <TabsContent value="logistics">
                   <Outlet />
                 </TabsContent>
                 

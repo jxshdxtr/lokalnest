@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -13,11 +12,9 @@ import {
   ShoppingBag, 
   Calendar,
   MoreHorizontal,
-  Edit,
-  Mail,
+  Eye,
   MessagesSquare,
   UserX,
-  Tag,
   UserPlus,
   Loader2
 } from 'lucide-react';
@@ -25,6 +22,7 @@ import { formatDistance } from 'date-fns';
 import { Customer } from './types';
 import { toast } from 'sonner';
 import CustomerMessaging from './CustomerMessaging';
+import CustomerDetails from './CustomerDetails';
 
 interface CustomerTableProps {
   customers: Customer[];
@@ -35,6 +33,7 @@ interface CustomerTableProps {
 const CustomerTable: React.FC<CustomerTableProps> = ({ customers, loading, onUpdateStatus }) => {
   const [isMessagingOpen, setIsMessagingOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   const getInitials = (name: string) => {
     return name
@@ -54,24 +53,14 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, loading, onUpd
     }
   };
   
-  const handleSendEmail = (customer: Customer) => {
-    // This would typically integrate with an email API
-    toast.success(`Email dialog opened for ${customer.full_name}`);
-  };
-  
   const handleSendMessage = (customer: Customer) => {
     setSelectedCustomer(customer);
     setIsMessagingOpen(true);
   };
   
-  const handleEditDetails = (customer: Customer) => {
-    // This would open the customer edit form
-    toast.success(`Edit form opened for ${customer.full_name}`);
-  };
-  
-  const handleAddTag = (customer: Customer) => {
-    // This would open a tag selection interface
-    toast.success(`Tag dialog opened for ${customer.full_name}`);
+  const handleViewDetails = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setIsDetailsOpen(true);
   };
   
   if (loading) {
@@ -157,21 +146,13 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, loading, onUpd
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleEditDetails(customer)}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleSendEmail(customer)}>
-                        <Mail className="h-4 w-4 mr-2" />
-                        Send Email
+                      <DropdownMenuItem onClick={() => handleViewDetails(customer)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Details
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleSendMessage(customer)}>
                         <MessagesSquare className="h-4 w-4 mr-2" />
                         Message
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleAddTag(customer)}>
-                        <Tag className="h-4 w-4 mr-2" />
-                        Add Tags
                       </DropdownMenuItem>
                       {customer.status === 'active' ? (
                         <DropdownMenuItem onClick={() => onUpdateStatus(customer.id, 'inactive')}>
@@ -197,6 +178,12 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, loading, onUpd
         customer={selectedCustomer}
         isOpen={isMessagingOpen}
         onClose={() => setIsMessagingOpen(false)}
+      />
+      
+      <CustomerDetails
+        customer={selectedCustomer}
+        isOpen={isDetailsOpen}
+        onClose={() => setIsDetailsOpen(false)}
       />
     </>
   );

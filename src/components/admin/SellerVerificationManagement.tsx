@@ -85,10 +85,18 @@ const SellerVerificationManagement = () => {
 
   const approveVerification = async (verificationId: string, sellerId: string) => {
     try {
-      // Update the verification status
+      // Get current user's ID for tracking who approved it
+      const { data: { session } } = await supabase.auth.getSession();
+      const adminId = session?.user?.id;
+      
+      // Update the verification status - no longer connects to admin_users
       const { error: verificationError } = await supabase
         .from('seller_verifications')
-        .update({ status: 'approved' })
+        .update({ 
+          status: 'approved',
+          verified_by: adminId, // Store the admin's user ID directly
+          verification_date: new Date().toISOString()
+        })
         .eq('id', verificationId);
 
       if (verificationError) throw verificationError;
@@ -427,4 +435,4 @@ const SellerVerificationManagement = () => {
   );
 };
 
-export default SellerVerificationManagement; 
+export default SellerVerificationManagement;

@@ -59,10 +59,10 @@ const BuyerSidebar = () => {
   ];
 
   return (
-    <div className="border-r border-gray-200 w-full md:w-64 flex-shrink-0 bg-white">
+    <div className="border-r border-border w-full md:w-64 flex-shrink-0 bg-background">
       <div className="sticky top-[72px]">
-        <div className="p-4 md:p-6 border-b">
-          <h2 className="text-xl font-semibold">Buyer Portal</h2>
+        <div className="p-4 md:p-6 border-b border-border">
+          <h2 className="text-xl font-semibold text-foreground">Buyer Portal</h2>
           <p className="text-sm text-muted-foreground mt-1">Manage your orders and account</p>
         </div>
         <nav className="mt-2 px-2">
@@ -74,14 +74,14 @@ const BuyerSidebar = () => {
                   className={cn(
                     "group flex items-center px-3 py-2 text-sm font-medium rounded-md",
                     item.current
-                      ? "bg-gray-100 text-primary"
-                      : "text-gray-700 hover:text-primary hover:bg-gray-50"
+                      ? "bg-accent text-primary dark:bg-accent dark:text-primary-foreground"
+                      : "text-foreground hover:text-primary hover:bg-accent/50"
                   )}
                 >
                   <item.icon
                     className={cn(
                       "mr-3 flex-shrink-0 h-5 w-5",
-                      item.current ? "text-primary" : "text-gray-500 group-hover:text-primary"
+                      item.current ? "text-primary" : "text-muted-foreground group-hover:text-primary"
                     )}
                   />
                   {item.name}
