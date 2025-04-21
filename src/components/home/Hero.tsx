@@ -16,8 +16,8 @@ const Hero = () => {
       {/* Background image with overlay */}
       <div className="absolute inset-0 bg-black">
         <img
-          src="/lovable-uploads/7d8f1f16-ac2a-44a7-9893-174cd3a3581d.png"
-          alt="Handcrafted items from local producers"
+          src="https://images.unsplash.com/photo-1500375592092-40eb2168fd21?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+          alt="Ocean wave at beach"
           className="w-full h-full object-cover opacity-85"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent"></div>
@@ -70,3 +70,4 @@ const Hero = () => {
 };
 
 export default Hero;
+

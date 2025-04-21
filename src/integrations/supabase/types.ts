@@ -376,6 +376,7 @@ export type Database = {
           id: string
           payment_method: string
           payment_status: string
+          seller_id: string | null
           shipping_address: string
           status: string
           total_amount: number
@@ -391,6 +392,7 @@ export type Database = {
           id?: string
           payment_method: string
           payment_status?: string
+          seller_id?: string | null
           shipping_address: string
           status?: string
           total_amount: number
@@ -406,6 +408,7 @@ export type Database = {
           id?: string
           payment_method?: string
           payment_status?: string
+          seller_id?: string | null
           shipping_address?: string
           status?: string
           total_amount?: number
@@ -419,6 +422,13 @@ export type Database = {
             columns: ["buyer_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "seller_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -507,9 +517,11 @@ export type Database = {
           category_id: string | null
           created_at: string
           description: string | null
+          dimensions: string | null
           featured: boolean | null
           id: string
           is_available: boolean | null
+          materials: string | null
           name: string
           price: number
           rating: number | null
@@ -517,16 +529,21 @@ export type Database = {
           sale_price: number | null
           seller_id: string
           shipping_info: string | null
+          shipping_note: string | null
           stock_quantity: number
+          tags: string | null
           updated_at: string
+          weight: string | null
         }
         Insert: {
           category_id?: string | null
           created_at?: string
           description?: string | null
+          dimensions?: string | null
           featured?: boolean | null
           id?: string
           is_available?: boolean | null
+          materials?: string | null
           name: string
           price: number
           rating?: number | null
@@ -534,16 +551,21 @@ export type Database = {
           sale_price?: number | null
           seller_id: string
           shipping_info?: string | null
+          shipping_note?: string | null
           stock_quantity?: number
+          tags?: string | null
           updated_at?: string
+          weight?: string | null
         }
         Update: {
           category_id?: string | null
           created_at?: string
           description?: string | null
+          dimensions?: string | null
           featured?: boolean | null
           id?: string
           is_available?: boolean | null
+          materials?: string | null
           name?: string
           price?: number
           rating?: number | null
@@ -551,8 +573,11 @@ export type Database = {
           sale_price?: number | null
           seller_id?: string
           shipping_info?: string | null
+          shipping_note?: string | null
           stock_quantity?: number
+          tags?: string | null
           updated_at?: string
+          weight?: string | null
         }
         Relationships: [
           {
