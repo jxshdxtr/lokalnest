@@ -112,7 +112,7 @@ export async function getProductById(id: string): Promise<ProductDetail | null> 
       dimensions: product.dimensions,
       weight: product.weight,
       materials: product.materials,
-      tags: product.tags,
+      tags: product.tags ? product.tags.split(',') : null,
       category: {
         id: product.categories.id,
         name: product.categories.name,

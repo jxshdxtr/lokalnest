@@ -23,9 +23,6 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
-  Card, CardContent, CardDescription, CardHeader, CardTitle 
-} from '@/components/ui/card';
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -59,56 +56,42 @@ interface RecentOrder {
   status: string;
   date: string;
 }
-import { SellerStats } from './dashboard/types';
-import { fetchSellerStats } from './dashboard/sellerStatsService';
-import { fetchRevenueData } from './dashboard/revenueService';
-import { fetchCategoryData } from './dashboard/categoryService';
-import { fetchRecentOrders } from './dashboard/ordersService';
-import StatsCard from './dashboard/StatsCard';
-import CategoryChart from './dashboard/CategoryChart';
-import RevenueChart from './dashboard/RevenueChart';
-import RecentOrdersTable from './dashboard/RecentOrdersTable';
 
 const SellerOverview = () => {
   const navigate = useNavigate();
   const [isVerified, setIsVerified] = useState(false); 
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [revenueData, setRevenueData] = useState([]);
-  const [categoryData, setCategoryData] = useState([]);
-  const [isVerified, setIsVerified] = useState(false);
-  const [stats, setStats] = useState<SellerStats>({
-    sales: { 
+  const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
+  const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
+  const [stats, setStats] = useState<StatData[]>([
+    { 
       title: "Total Sales", 
       value: "₱0.00", 
       description: "Loading...", 
       trend: "neutral",
-      iconName: "DollarSign",
-      iconColor: "text-blue-500"
+      icon: <DollarSign className="h-5 w-5 text-blue-500" /> 
     },
-    orders: { 
+    { 
       title: "Orders", 
       value: "0", 
       description: "Loading...",
       trend: "neutral", 
-      iconName: "ShoppingBag",
-      iconColor: "text-orange-500"
+      icon: <ShoppingBag className="h-5 w-5 text-orange-500" /> 
     },
-    rating: { 
+    { 
       title: "Rating", 
       value: "0/5", 
       description: "No reviews yet", 
       trend: "neutral",
-      iconName: "Star",
-      iconColor: "text-yellow-500"
+      icon: <Star className="h-5 w-5 text-yellow-500" /> 
     },
-    customers: { 
+    { 
       title: "Customers", 
       value: "0", 
       description: "Loading...",
       trend: "neutral", 
-      iconName: "Users",
-      iconColor: "text-green-500"
+      icon: <Users className="h-5 w-5 text-green-500" /> 
     }
   ]);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
@@ -147,8 +130,6 @@ const SellerOverview = () => {
 
     checkVerificationStatus();
   }, []);
-  });
-  const [recentOrders, setRecentOrders] = useState([]);
 
   // Fetch seller dashboard data
   useEffect(() => {
@@ -162,19 +143,6 @@ const SellerOverview = () => {
         }
         
         const sellerId = session.session.user.id;
-        
-        // Check seller verification status
-        const { data: sellerProfile, error: profileError } = await supabase
-          .from('seller_profiles')
-          .select('is_verified')
-          .eq('id', sellerId)
-          .single();
-          
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.error('Error checking seller verification:', profileError);
-        }
-        
-        setIsVerified(sellerProfile?.is_verified || false);
         
         // Check verification status from seller_verifications table
         const { data: verificationData, error: verificationError } = await supabase
@@ -248,29 +216,6 @@ const SellerOverview = () => {
           await fetchCategoryData(sellerId);
           await fetchRecentOrders(sellerId);
         }
-        // Fetch stats: total sales, order count, average rating, customer count
-        const statsData = await fetchSellerStats(sellerId);
-        setStats(statsData);
-        
-        // Only fetch additional data if seller is verified
-        if (sellerProfile?.is_verified) {
-          // Fetch revenue data for chart
-          const revenueData = await fetchRevenueData(sellerId);
-          setRevenueData(revenueData);
-          
-          // Fetch category data for pie chart
-          const categoryData = await fetchCategoryData(sellerId);
-          setCategoryData(categoryData);
-          
-          // Fetch recent orders
-          const recentOrders = await fetchRecentOrders(sellerId);
-          setRecentOrders(recentOrders);
-        } else {
-          // Set empty data for unverified sellers
-          setRevenueData([]);
-          setCategoryData([]);
-          setRecentOrders([]);
-        }
         
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -281,7 +226,6 @@ const SellerOverview = () => {
     };
 
     fetchDashboardData();
-  }, []);
   }, [isVerified]);
 
   // Fetch stats (sales, orders, rating, customers)
@@ -661,21 +605,6 @@ const SellerOverview = () => {
             trend={stat.trend}
           />
         ))}
-      {!isVerified && (
-        <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mb-4">
-          <h3 className="font-medium text-amber-800">Account Verification Required</h3>
-          <p className="text-amber-700 text-sm mt-1">
-            Your seller account is pending verification. Some dashboard features are limited until your account is verified.
-          </p>
-        </div>
-      )}
-      
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard {...stats.sales} />
-        <StatsCard {...stats.orders} />
-        <StatsCard {...stats.rating} />
-        <StatsCard {...stats.customers} />
       </div>
 
       {/* Charts */}
@@ -747,13 +676,93 @@ const SellerOverview = () => {
             </div>
           </CardContent>
         </Card>
-        <RevenueChart data={revenueData} />
-        <CategoryChart data={categoryData} />
       </div>
 
       {/* Recent Orders */}
-      <RecentOrdersTable orders={recentOrders} />
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Orders</CardTitle>
+          <CardDescription>Latest customer orders</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {recentOrders.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order ID</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentOrders.map((order, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium">{order.id.substring(0, 8)}</TableCell>
+                    <TableCell>{order.customer}</TableCell>
+                    <TableCell>{order.product}</TableCell>
+                    <TableCell>{order.amount}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        order.status === 'delivered' ? 'bg-green-100 text-green-800' : 
+                        order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
+                        order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                      </span>
+                    </TableCell>
+                    <TableCell>{order.date}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">No orders found</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
+  );
+};
+
+// Stats Card Component
+interface StatsCardProps {
+  title: string;
+  value: string;
+  description: string;
+  icon: React.ReactNode;
+  trend?: 'up' | 'down' | 'neutral';
+}
+
+const StatsCard: React.FC<StatsCardProps> = ({ title, value, description, icon, trend = 'neutral' }) => {
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div className="rounded-full p-2 bg-muted">
+            {icon}
+          </div>
+          {trend === 'up' && <ArrowUpRight className="h-4 w-4 text-green-500" />}
+          {trend === 'down' && <ArrowDownRight className="h-4 w-4 text-red-500" />}
+        </div>
+        <div className="mt-4">
+          <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+          <p className="text-2xl font-bold mt-1">{value}</p>
+          <p className={`text-xs mt-1 ${
+            trend === 'up' ? 'text-green-500' : 
+            trend === 'down' ? 'text-red-500' : 
+            'text-muted-foreground'
+          }`}>
+            {description}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

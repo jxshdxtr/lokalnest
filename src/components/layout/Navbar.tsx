@@ -7,12 +7,9 @@ import {
   User, 
   Menu, 
   X,
-  LogOut,
-  Moon,
-  Sun
+  LogOut
 } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import { 
+import {
   Sheet,
   SheetContent,
   SheetTrigger,
@@ -61,12 +58,9 @@ const Navbar = () => {
   const [user, setUser] = useState<any>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [isBuyer, setIsBuyer] = useState(false);
-  const [isSignedIn, setIsSignedIn] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchOpen, setSearchOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const { setTheme, theme } = useTheme();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -150,16 +144,6 @@ const Navbar = () => {
         setIsSignedIn(false);
         setIsBuyer(false);
       }
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user || null);
-        setIsSignedIn(session?.user !== null);
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null);
-      setIsSignedIn(session?.user !== null);
     });
 
     return () => {
@@ -320,24 +304,10 @@ const Navbar = () => {
           
           {/* User dropdown or login button */}
           {isSignedIn && user ? (
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            className="md:hidden" 
-            onClick={() => setSearchOpen(true)}
-          >
-            <Search className="h-5 w-5" />
-          </Button>
-          
-          <CartSidebar />
-          
-          {isSignedIn ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.user_metadata?.avatar_url || ''} />
                     <AvatarImage src={user?.user_metadata?.avatar_url || ''} />
                     <AvatarFallback>
                       {getInitials(user?.user_metadata?.full_name || user?.email || '')}
@@ -359,28 +329,11 @@ const Navbar = () => {
                   </DropdownMenuItem>
                 )}
                 {user?.user_metadata?.account_type === 'seller' && (
-                <DropdownMenuItem onClick={() => navigate('/buyer/orders')}>
-                  Orders
-                </DropdownMenuItem>
-                {user?.user_metadata?.account_type === 'seller' && (
                   <DropdownMenuItem onClick={() => navigate('/seller/dashboard')}>
                     Seller Dashboard
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-                  {theme === "dark" ? (
-                    <>
-                      <Sun className="mr-2 h-4 w-4" />
-                      Light Mode
-                    </>
-                  ) : (
-                    <>
-                      <Moon className="mr-2 h-4 w-4" />
-                      Dark Mode
-                    </>
-                  )}
-                </DropdownMenuItem>
                 {/* Theme toggle option */}
                 <DropdownMenuItem className="md:hidden">
                   <div className="flex items-center justify-between w-full">

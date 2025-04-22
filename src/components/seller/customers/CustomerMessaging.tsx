@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-
-import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -45,15 +42,10 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
   const presenceChannelRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [currentSellerId, setCurrentSellerId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // Get current seller ID when component mounts
   useEffect(() => {
     // Get the current user ID when component mounts
     const getCurrentUser = async () => {
-    const getCurrentSeller = async () => {
       const { data: session } = await supabase.auth.getSession();
       if (session.session?.user) {
         setCurrentUserId(session.session.user.id);
@@ -63,7 +55,6 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
     getCurrentUser();
   }, []);
 
-  // Fetch messages when dialog opens
   useEffect(() => {
     if (isOpen && customer) {
       fetchMessages();
@@ -80,8 +71,6 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
         presenceChannelRef.current.unsubscribe();
       }
     };
-      markMessagesAsRead();
-    }
   }, [isOpen, customer]);
 
   useEffect(() => {
@@ -191,45 +180,6 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
     }
   };
 
-  // Set up real-time subscription to new messages
-  useEffect(() => {
-    if (!customer || !isOpen) return;
-    
-    const channel = supabase
-      .channel(`messages-${customer.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'customer_messages',
-          filter: `customer_id=eq.${customer.id}`,
-        },
-        (payload) => {
-          // Add the new message to the messages state
-          const newMessage = payload.new as Message;
-          setMessages(prevMessages => [...prevMessages, newMessage]);
-          
-          // Mark the message as read if it's from the customer
-          if (newMessage.seller_id !== currentSellerId) {
-            markMessageAsRead(newMessage.id);
-          }
-        }
-      )
-      .subscribe();
-    
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [customer, isOpen, currentSellerId]);
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages]);
-
   const fetchMessages = async () => {
     if (!customer) return;
     
@@ -291,42 +241,6 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
       toast.error('Failed to load messages');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const markMessagesAsRead = async () => {
-    if (!customer) return;
-    
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session.session) return;
-      
-      // Mark all messages from this customer as read
-      const { error } = await supabase
-        .from('customer_messages')
-        .update({ is_read: true })
-        .match({ 
-          customer_id: customer.id,
-          seller_id: session.session.user.id,
-          is_read: false
-        });
-      
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error marking messages as read:', error);
-    }
-  };
-
-  const markMessageAsRead = async (messageId: string) => {
-    try {
-      const { error } = await supabase
-        .from('customer_messages')
-        .update({ is_read: true })
-        .eq('id', messageId);
-      
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error marking message as read:', error);
     }
   };
 
@@ -413,6 +327,7 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
       if (data) {
         setMessages([...messages, data[0] as Message]);
         setMessage('');
+        toast.success('Message sent');
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -565,7 +480,6 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
         </DialogHeader>
         
         <ScrollArea className="flex-1 px-4 py-6 border rounded-md my-4 overflow-y-auto">
-        <ScrollArea ref={scrollAreaRef} className="flex-1 p-4 border rounded-md my-4">
           {loading ? (
             <div className="flex justify-center items-center h-[300px]">
               <p className="text-sm text-muted-foreground">Loading messages...</p>
@@ -628,8 +542,6 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
                   </div>
                 </div>
               )}
-              <div ref={messagesEndRef} />
-              ))}
               <div ref={messagesEndRef} />
             </div>
           )}

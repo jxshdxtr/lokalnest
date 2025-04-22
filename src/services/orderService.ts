@@ -1,6 +1,4 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Order, RawOrder, RawOrderItem, RawProductImage } from '@/components/buyer/orders/types';
-import { toast } from 'sonner';
 import { CartItem } from '@/components/buyer/shopping/Cart';
 import { Order } from '@/components/buyer/orders/types';
 import { toast } from 'sonner';
@@ -167,14 +165,12 @@ export async function updateOrderPaymentStatus(orderId: string, paymentIntentId:
 
 export async function getOrders(): Promise<Order[]> {
   try {
-    // Get the current user's session
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     if (userError || !user) {
       throw new Error('You must be signed in to view orders');
     }
     
-    // First, get orders
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select(`
@@ -199,35 +195,6 @@ export async function getOrders(): Promise<Order[]> {
     
     if (ordersError) {
       throw new Error(`Failed to fetch orders: ${ordersError.message}`);
-    }
-
-    if (!orders || orders.length === 0) {
-      return [];
-    }
-
-    const orderIds = orders.map(order => order.id);
-    
-    // Then, get order items with product info
-    const { data: orderItems, error: itemsError } = await supabase
-      .from('order_items')
-      .select('*, products:product_id(*)')
-      .in('order_id', orderIds);
-      
-    if (itemsError) {
-      throw new Error(`Failed to fetch order items: ${itemsError.message}`);
-    }
-    
-    // Get product images for the ordered products
-    const productIds = orderItems.map(item => item.product_id);
-    const { data: productImages, error: imagesError } = await supabase
-      .from('product_images')
-      .select('*')
-      .in('product_id', productIds)
-      .eq('is_primary', true);
-      
-    if (imagesError) {
-      console.error('Failed to fetch product images:', imagesError);
-      // Continue without images rather than failing completely
     }
     
     // Fetch product details separately to avoid the relationship conflict

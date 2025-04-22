@@ -28,7 +28,6 @@ interface CustomerTableProps {
   customers: Customer[];
   loading: boolean;
   onUpdateStatus: (customerId: string, status: string) => void;
-  onSendMessage: (customer: Customer) => void;
 }
 
 const CustomerTable: React.FC<CustomerTableProps> = ({ customers, loading, onUpdateStatus }) => {

@@ -53,6 +53,7 @@ const LoginForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVisibi
       });
       
       if (error) {
+        // If error code indicates email is not confirmed, redirect to verification page
         if (error.message.includes('Email not confirmed') || 
             error.message.includes('Email verification')) {
           toast.info('Please verify your email first');
@@ -79,13 +80,6 @@ const LoginForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVisibi
       } else {
         // Something went wrong with session creation
         toast.error('Session could not be established. Please try again.');
-      // Update redirect logic based on user role
-      const userType = authData.user?.user_metadata?.account_type;
-      if (userType === 'seller') {
-        navigate('/seller/dashboard');
-      } else {
-        // Redirect buyers to the buyer home page
-        navigate('/buyer/home');
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to log in. Please try again.');

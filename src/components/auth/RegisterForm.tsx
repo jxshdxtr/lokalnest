@@ -36,7 +36,6 @@ interface RegisterFormProps {
 
 const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVisibility }: RegisterFormProps) => {
   const navigate = useNavigate();
-  const [registrationError, setRegistrationError] = useState<string | null>(null);
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -50,7 +49,6 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
 
   const onSubmit = async (data: RegisterFormValues) => {
     setIsLoading(true);
-    setRegistrationError(null);
 
     try {
       // Sign up the user with minimal configuration
@@ -107,70 +105,10 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
       } else if (error) {
         throw error;
       }
-          },
-          emailRedirectTo: `${window.location.origin}/verify`,
-        },
-      });
-      
-      if (error) {
-        if (error.message === 'Error sending confirmation email') {
-          // Handle email sending error with direct navigation approach
-          toast.warning('Could not send verification email, but your account was created. Proceeding with direct login.');
-          
-          // Try to sign in the user directly
-          const { error: signInError } = await supabase.auth.signInWithPassword({
-            email: data.email,
-            password: data.password,
-          });
-          
-          if (signInError) {
-            throw signInError;
-          }
-          
-          // If the seller profile needs to be created, do it here
-          if (data.accountType === 'seller' && authData?.user) {
-            const { error: sellerError } = await supabase
-              .from('seller_profiles')
-              .insert({
-                id: authData.user.id,
-                business_name: data.name,
-              });
-            
-            if (sellerError) {
-              console.error('Failed to create seller profile:', sellerError);
-            }
-            
-            // Redirect to seller verification page instead of dashboard
-            navigate('/seller/verification');
-            return;
-          }
-          
-          // Redirect buyer to home page
-          navigate('/');
-          return;
-        } else {
-          throw error;
-        }
-      }
       
       // If the user is a seller, create a seller profile
       if (data.accountType === 'seller' && authData.user) {
         await createSellerProfile(authData.user.id, data.name);
-      if (data.accountType === 'seller' && authData?.user) {
-        const { error: sellerError } = await supabase
-          .from('seller_profiles')
-          .insert({
-            id: authData.user.id,
-            business_name: data.name,
-          });
-        
-        if (sellerError) {
-          console.error('Failed to create seller profile:', sellerError);
-          // Continue anyway since the user account was created
-        }
-        
-        // After creating seller profile, tell user they need to verify
-        toast.info('After email verification, you will need to submit DTI documents for seller verification.');
       }
       
       toast.success('Account created! Please check your email for verification code.');
@@ -181,8 +119,6 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
       // Redirect to OTP verification page
       navigate(`/verify?email=${encodeURIComponent(data.email)}`);
     } catch (error: any) {
-      setRegistrationError(error.message || 'Failed to create account. Please try again.');
-      toast.error(error.message || 'Failed to create account. Please try again.');
       console.error('Register error:', error);
       
       // Check if it's a 500 Internal Server Error
@@ -239,12 +175,6 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {registrationError && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-600 text-sm">
-            Error: {registrationError}
-          </div>
-        )}
-        
         <FormField
           control={form.control}
           name="name"
@@ -352,11 +282,6 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
               {field.value === 'seller' && (
                 <p className="text-sm text-muted-foreground mt-2">
                   As a seller, you'll need to verify your account with DTI documents after registration.
-                </p>
-              )}
-              {field.value === 'seller' && (
-                <p className="text-xs text-amber-600 mt-1">
-                  Note: Seller accounts require DTI document verification after registration
                 </p>
               )}
               <FormMessage />

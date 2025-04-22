@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-
-import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -50,11 +47,9 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
   const presenceChannelRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // Get the current user ID when component mounts
   useEffect(() => {
+    // Get the current user ID when component mounts
     const getCurrentUser = async () => {
       const { data: session } = await supabase.auth.getSession();
       if (session.session?.user) {
@@ -65,7 +60,6 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
     getCurrentUser();
   }, []);
 
-  // Fetch messages when dialog opens
   useEffect(() => {
     if (isOpen && seller && currentUserId) {
       fetchMessages();
@@ -145,50 +139,6 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
       console.error('Error marking message as read:', error);
     }
   };
-      markMessagesAsRead();
-    }
-  }, [isOpen, seller]);
-
-  // Set up real-time subscription to new messages
-  useEffect(() => {
-    if (!seller || !isOpen || !currentUserId) return;
-    
-    const channel = supabase
-      .channel(`buyer-messages-${seller.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'customer_messages',
-          filter: `seller_id=eq.${seller.id}`,
-        },
-        (payload) => {
-          // Add the new message to the messages state if it matches our conversation
-          const newMessage = payload.new as Message;
-          if (newMessage.customer_id === currentUserId) {
-            setMessages(prevMessages => [...prevMessages, newMessage]);
-            
-            // Mark the message as read if it's from the seller
-            if (newMessage.seller_id === seller.id) {
-              markMessageAsRead(newMessage.id);
-            }
-          }
-        }
-      )
-      .subscribe();
-    
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [seller, isOpen, currentUserId]);
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages]);
 
   const fetchMessages = async () => {
     if (!seller) return;
@@ -205,7 +155,6 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
       
       // Query messages where either I am the sender and seller is recipient
       // OR seller is sender and I am recipient
-      // Using raw query to fetch customer messages
       const { data, error } = await supabase
         .from('messages')
         .select('*')
@@ -225,42 +174,6 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
       toast.error('Failed to load messages');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const markMessagesAsRead = async () => {
-    if (!seller) return;
-    
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session.session) return;
-      
-      // Mark all messages from this seller to this customer as read
-      const { error } = await supabase
-        .from('customer_messages')
-        .update({ is_read: true })
-        .match({ 
-          seller_id: seller.id,
-          customer_id: session.session.user.id,
-          is_read: false
-        });
-      
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error marking messages as read:', error);
-    }
-  };
-
-  const markMessageAsRead = async (messageId: string) => {
-    try {
-      const { error } = await supabase
-        .from('customer_messages')
-        .update({ is_read: true })
-        .eq('id', messageId);
-      
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error marking message as read:', error);
     }
   };
 
@@ -302,7 +215,6 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
       
       console.log('Sending message with:', newMessage);
       
-      // Insert the new message
       const { data, error } = await supabase
         .from('messages')
         .insert(newMessage)
@@ -316,6 +228,7 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
       if (data) {
         setMessages([...messages, data[0] as Message]);
         setMessage('');
+        toast.success('Message sent');
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -461,7 +374,6 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
         </DialogHeader>
         
         <ScrollArea className="flex-1 px-4 py-6 border rounded-md my-4 overflow-y-auto">
-        <ScrollArea ref={scrollAreaRef} className="flex-1 p-4 border rounded-md my-4">
           {loading ? (
             <div className="flex justify-center items-center h-[300px]">
               <p className="text-sm text-muted-foreground">Loading messages...</p>
@@ -544,8 +456,6 @@ const BuyerMessaging: React.FC<BuyerMessagingProps> = ({ seller, isOpen, onClose
                   </div>
                 </div>
               )}
-              <div ref={messagesEndRef} />
-              ))}
               <div ref={messagesEndRef} />
             </div>
           )}
