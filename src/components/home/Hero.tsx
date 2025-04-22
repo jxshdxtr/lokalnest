@@ -1,7 +1,7 @@
 
 import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ShoppingBag, Star, Package, HeartHandshake, Pottery } from 'lucide-react';
+import { ShoppingBag, Star, Package, HeartHandshake, Hammer, Leaf, Home, Palette } from 'lucide-react';
 
 const Hero = () => {
   useEffect(() => {
@@ -76,15 +76,15 @@ const Hero = () => {
             {/* Trust Indicators */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-8">
               <div className="flex flex-col items-center text-center bg-white/10 backdrop-blur-sm rounded-lg p-3">
-                <Pottery className="h-6 w-6 text-white mb-2" />
+                <Palette className="h-6 w-6 text-white mb-2" />
                 <span className="text-white text-sm">Pottery & Ceramics</span>
               </div>
               <div className="flex flex-col items-center text-center bg-white/10 backdrop-blur-sm rounded-lg p-3">
-                <basket className="h-6 w-6 text-white mb-2" />
+                <Leaf className="h-6 w-6 text-white mb-2" />
                 <span className="text-white text-sm">Basket Weaving</span>
               </div>
               <div className="flex flex-col items-center text-center bg-white/10 backdrop-blur-sm rounded-lg p-3">
-                <home-decor className="h-6 w-6 text-white mb-2" />
+                <Home className="h-6 w-6 text-white mb-2" />
                 <span className="text-white text-sm">Home Decor</span>
               </div>
               <div className="flex flex-col items-center text-center bg-white/10 backdrop-blur-sm rounded-lg p-3">
