@@ -11,12 +11,14 @@ export const mockOrders: Order[] = [
         quantity: 1,
         price: 850,
         image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=2670&q=80",
+        product_id: "prod-1001", // Added product_id
       },
       {
         name: "Bamboo Serving Tray",
         quantity: 1,
         price: 650,
         image: "https://images.unsplash.com/photo-1605518216938-7c31b7b14ad0?auto=format&fit=crop&w=2670&q=80",
+        product_id: "prod-1002", // Added product_id
       }
     ],
     total: 1500,
@@ -55,6 +57,7 @@ export const mockOrders: Order[] = [
         quantity: 1,
         price: 1200,
         image: "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?auto=format&fit=crop&w=2670&q=80",
+        product_id: "prod-1003", // Added product_id
       }
     ],
     total: 1200,
@@ -102,6 +105,7 @@ export const mockOrders: Order[] = [
         quantity: 2,
         price: 450,
         image: "https://images.unsplash.com/photo-1547619292-8816ee7cdd50?auto=format&fit=crop&w=2670&q=80",
+        product_id: "prod-1004", // Added product_id
       }
     ],
     total: 900,
