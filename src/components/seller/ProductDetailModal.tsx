@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   Dialog, 
@@ -38,6 +37,20 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ isOpen, onClose
     }
   };
 
+  // Helper function to get category name from different possible fields
+  const getCategoryName = (): string => {
+    if (product.categories?.name) {
+      return product.categories.name;
+    }
+    if (product.category_name) {
+      return product.category_name;
+    }
+    if (product.category) {
+      return product.category;
+    }
+    return 'Uncategorized';
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]">
@@ -66,7 +79,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ isOpen, onClose
             <div>
               <h2 className="text-2xl font-semibold">{product.name}</h2>
               <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline">{product.category_name || 'Uncategorized'}</Badge>
+                <Badge variant="outline">{getCategoryName()}</Badge>
                 {getStatusBadge(product.stock)}
               </div>
             </div>
@@ -126,7 +139,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ isOpen, onClose
           >
             Close
           </Button>
-          <Button 
+          {/* <Button 
             onClick={() => {
               onClose();
               // Additional action here if needed
@@ -134,7 +147,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ isOpen, onClose
           >
             <Edit className="h-4 w-4 mr-2" />
             Edit Product
-          </Button>
+          </Button> */}
         </DialogFooter>
       </DialogContent>
     </Dialog>

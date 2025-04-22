@@ -1,33 +1,53 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { PlusCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import ProductTable from './ProductTable';
 import ProductFormModal from './ProductFormModal';
 import ProductDetailModal from './ProductDetailModal';
-import ProductFilters from './ProductFilters';
+import ProductTable from './ProductTable';
 import ProductToolbar from './ProductToolbar';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { ShieldAlert } from 'lucide-react';
+
+// Define product interface
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  image?: string;
+  category?: string;
+  categories?: {
+    name: string;
+  };
+  category_name?: string;
+  stock: number;
+  status: string;
+  description?: string;
+  created_at?: string;
+}
 
 const ProductManagement = () => {
-  const navigate = useNavigate();
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [isSellerVerified, setIsSellerVerified] = useState(false);
-  const [isCheckingVerification, setIsCheckingVerification] = useState(true);
-  
-  // Add state for product management
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [filterPrice, setFilterPrice] = useState({ min: '', max: '' });
-  const [filterStock, setFilterStock] = useState('all');
-  const [filterCategory, setFilterCategory] = useState('');
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
+  const [isVerified, setIsVerified] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+  
+  // Filter states
+  const [filterPrice, setFilterPrice] = useState<{ min: string; max: string }>({ min: '', max: '' });
+  const [filterStock, setFilterStock] = useState<string>('all'); 
+  const [filterCategory, setFilterCategory] = useState<string>('');
+
+  const navigate = useNavigate();
+
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
 
   useEffect(() => {
@@ -94,6 +114,48 @@ const ProductManagement = () => {
 
   // Add effect to fetch products
   useEffect(() => {
+    checkVerificationStatus();
+    fetchCategories();
+  }, []);
+  
+  useEffect(() => {
+    if (isVerified) {
+      fetchProducts();
+    }
+  }, [isVerified]);
+
+  const checkVerificationStatus = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('You must be logged in to view your products');
+        navigate('/auth');
+        return;
+      }
+      
+      // Check verification status directly from seller_verifications table
+      const { data: verificationData, error: verificationError } = await supabase
+        .from('seller_verifications')
+        .select('status')
+        .eq('seller_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (verificationError) throw verificationError;
+      
+      if (verificationData && verificationData.length > 0) {
+        // Set verification status and isVerified based on status in seller_verifications
+        setVerificationStatus(verificationData[0].status);
+        setIsVerified(verificationData[0].status === 'approved' || verificationData[0].status === 'verified');
+      } else {
+        setVerificationStatus('not_submitted');
+        setIsVerified(false);
+      }
+    } catch (error) {
+      console.error('Error checking verification status:', error);
+      toast.error('Failed to check seller verification status');
+    }
+  };
     const fetchProducts = async () => {
       try {
         setLoading(true);
@@ -142,103 +204,251 @@ const ProductManagement = () => {
     fetchProducts();
   }, [isCreateOpen, isDetailOpen]);
 
-  // Add effect to fetch categories
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('categories')
-          .select('id, name')
-          .order('name');
-          
-        if (error) throw error;
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('id, name')
+        .order('name');
         
-        setCategories(data || []);
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-      }
-    };
-    
-    fetchCategories();
-  }, []);
-
-  // Add effect to filter products based on search and filters
-  useEffect(() => {
-    let filtered = [...products];
-    
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(product => 
-        product.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      if (error) throw error;
+      
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
     }
-    
-    // Apply price filter
-    if (filterPrice.min && !isNaN(Number(filterPrice.min))) {
-      filtered = filtered.filter(product => product.price >= Number(filterPrice.min));
-    }
-    
-    if (filterPrice.max && !isNaN(Number(filterPrice.max))) {
-      filtered = filtered.filter(product => product.price <= Number(filterPrice.max));
-    }
-    
-    // Apply stock filter
-    if (filterStock !== 'all') {
-      if (filterStock === 'in_stock') {
-        filtered = filtered.filter(product => product.stock_quantity > 0);
-      } else if (filterStock === 'low_stock') {
-        filtered = filtered.filter(product => product.stock_quantity > 0 && product.stock_quantity < 10);
-      } else if (filterStock === 'out_of_stock') {
-        filtered = filtered.filter(product => product.stock_quantity === 0);
-      }
-    }
-    
-    // Apply category filter
-    if (filterCategory) {
-      filtered = filtered.filter(product => product.category_id === filterCategory);
-    }
-    
-    setFilteredProducts(filtered);
-  }, [searchTerm, filterPrice, filterStock, filterCategory, products]);
-
-  const handleViewProductDetail = (productId: string) => {
-    setSelectedProductId(productId);
-    setIsDetailOpen(true);
   };
 
-  const handleCreateNew = () => {
-    if (!isSellerVerified) {
-      toast.error('Your account must be verified before you can add products');
-      return;
+  const fetchProducts = async () => {
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('You must be logged in to view your products');
+        navigate('/auth');
+        return;
+      }
+      
+      // Fetch products with category names
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          id,
+          name,
+          price,
+          description,
+          stock_quantity,
+          created_at,
+          category_id,
+          categories(name)
+        `)
+        .eq('seller_id', session.user.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Fetch product images
+      const productsWithImages = await Promise.all(
+        (data || []).map(async (product) => {
+          const { data: images } = await supabase
+            .from('product_images')
+            .select('url')
+            .eq('product_id', product.id)
+            .eq('is_primary', true)
+            .limit(1);
+          
+          return {
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            description: product.description,
+            image: images && images.length > 0 ? images[0].url : undefined,
+            category: product.category_id,
+            categories: product.categories,
+            stock: product.stock_quantity,
+            status: product.stock_quantity > 0 
+              ? (product.stock_quantity < 10 ? 'low_stock' : 'active') 
+              : 'out_of_stock',
+            created_at: product.created_at
+          };
+        })
+      );
+      
+      setProducts(productsWithImages);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Failed to load products');
+    } finally {
+      setLoading(false);
     }
-    setIsCreateOpen(true);
   };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
 
+  const toggleFilter = () => {
+    setIsFilterOpen(!isFilterOpen);
+  };
+
+  const applyFilters = (product: Product) => {
+    const matchesSearch = 
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.categories?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
+    
+    const matchesPrice = 
+      (filterPrice.min === '' || product.price >= parseFloat(filterPrice.min)) &&
+      (filterPrice.max === '' || product.price <= parseFloat(filterPrice.max));
+    
+    let matchesStock = true;
+    if (filterStock === 'in_stock') {
+      matchesStock = product.stock > 0;
+    } else if (filterStock === 'low_stock') {
+      matchesStock = product.stock > 0 && product.stock < 10;
+    } else if (filterStock === 'out_of_stock') {
+      matchesStock = product.stock === 0;
+    }
+    
+    // Improve category matching to handle all possible ways a category might be represented
+    let matchesCategory = filterCategory === '';
+    if (filterCategory !== '') {
+      if (product.category === filterCategory) {
+        matchesCategory = true;
+      } else if (product.categories?.name && categories.find(cat => cat.id === filterCategory)?.name === product.categories.name) {
+        matchesCategory = true;
+      } else if (product.category_name && categories.find(cat => cat.id === filterCategory)?.name === product.category_name) {
+        matchesCategory = true;
+      }
+    }
+    
+    return matchesSearch && matchesPrice && matchesStock && matchesCategory;
+  };
+
+  const filteredProducts = products.filter(applyFilters);
+
+  const handleAddProduct = () => {
+    if (!isVerified) {
+      toast.error('Your seller account must be verified before you can list products');
+      return;
+    }
+    
+    setEditingProduct(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditProduct = (product: Product) => {
+    if (!isVerified) {
+      toast.error('Your seller account must be verified before you can edit products');
+      return;
+    }
+    
+    setEditingProduct(product);
+    setIsModalOpen(true);
+  };
+
+  const handleViewProduct = (product: Product) => {
+    setViewingProduct(product);
+    setIsViewModalOpen(true);
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!isVerified) {
+      toast.error('Your seller account must be verified before you can delete products');
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId);
+        
+      if (error) throw error;
+      
+      setProducts(products.filter(product => product.id !== productId));
+      toast.success("Product deleted successfully");
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast.error('Failed to delete product');
+    }
+  };
+
+  const handleDuplicateProduct = (product: any) => {
+    if (!isVerified) {
+      toast.error('Your seller account must be verified before you can duplicate products');
+      return;
+    }
+    
+    const newProduct = {
+      ...product,
+      name: `${product.name} (Copy)`,
+      id: undefined
+    };
+    
+    setEditingProduct(newProduct);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveProduct = () => {
+    fetchProducts(); // Refresh products from the database
+    setIsModalOpen(false);
+  };
+
   const resetFilters = () => {
     setFilterPrice({ min: '', max: '' });
     setFilterStock('all');
     setFilterCategory('');
-    setSearchTerm('');
+    setIsFilterOpen(false);
+  };
+  
+  const goToVerification = () => {
+    navigate('/seller-verification');
   };
 
-  const handleEditProduct = (product: any) => {
-    // Implement edit functionality
-    console.log('Edit product:', product);
-  };
-
-  const handleDeleteProduct = (productId: string) => {
-    // Implement delete functionality
-    console.log('Delete product:', productId);
-  };
-
-  const handleDuplicateProduct = (product: any) => {
-    // Implement duplicate functionality
-    console.log('Duplicate product:', product);
-  };
+  // Show verification status message if not verified
+  if (!isVerified) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex flex-col items-center justify-center space-y-4 py-12">
+              <ShieldAlert className="w-16 h-16 text-amber-500" />
+              <h2 className="text-xl font-semibold text-center">Seller Verification Required</h2>
+              
+              {verificationStatus === 'pending' ? (
+                <>
+                  <p className="text-center max-w-md text-muted-foreground">
+                    Your verification is pending review by our admin team. You will be able to list products once your account is verified.
+                  </p>
+                  <Button onClick={() => navigate('/seller/dashboard')} variant="outline">
+                    Go to Dashboard
+                  </Button>
+                </>
+              ) : verificationStatus === 'rejected' ? (
+                <>
+                  <p className="text-center max-w-md text-muted-foreground">
+                    Your verification was rejected. Please submit new verification documents.
+                  </p>
+                  <Button onClick={goToVerification}>
+                    Submit Verification
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-center max-w-md text-muted-foreground">
+                    To protect our customers, you must verify your seller account by uploading your DTI Certificate before you can list products.
+                  </p>
+                  <Button onClick={goToVerification}>
+                    Verify Your Account
+                  </Button>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (isCheckingVerification) {
     return (
@@ -250,67 +460,42 @@ const ProductManagement = () => {
 
   return (
     <div className="space-y-6">
-      {!isSellerVerified && (
-        <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mb-4">
-          <h3 className="font-medium text-amber-800">Account Verification Required</h3>
-          <p className="text-amber-700 text-sm mt-1">
-            Your seller account is pending verification. You can view products but cannot add new ones until your account is verified.
-          </p>
-        </div>
-      )}
+      <Card>
+        <CardContent className="p-6">
+          <ProductToolbar
+            searchTerm={searchTerm}
+            handleSearch={handleSearch}
+            handleAddProduct={handleAddProduct}
+            isFilterOpen={isFilterOpen}
+            toggleFilter={toggleFilter}
+            filterPrice={filterPrice}
+            setFilterPrice={setFilterPrice}
+            filterStock={filterStock}
+            setFilterStock={setFilterStock}
+            filterCategory={filterCategory}
+            setFilterCategory={setFilterCategory}
+            categories={categories}
+            resetFilters={resetFilters}
+          />
 
-      <div className="flex flex-col sm:flex-row justify-between gap-4">
-        <h1 className="text-xl font-semibold">Product Management</h1>
-        <Button 
-          onClick={handleCreateNew} 
-          className="flex items-center gap-1"
-          disabled={!isSellerVerified}
-        >
-          <PlusCircle size={16} />
-          <span>Add Product</span>
-        </Button>
-      </div>
+          <ProductTable 
+            products={products}
+            loading={loading}
+            filteredProducts={filteredProducts}
+            handleEditProduct={handleEditProduct}
+            handleViewProduct={handleViewProduct}
+            handleDeleteProduct={handleDeleteProduct}
+            handleDuplicateProduct={handleDuplicateProduct}
+          />
+        </CardContent>
+      </Card>
 
-      <ProductToolbar 
-        searchTerm={searchTerm}
-        handleSearch={handleSearch}
-        handleAddProduct={handleCreateNew}
-        isFilterOpen={isFilterOpen}
-        setIsFilterOpen={setIsFilterOpen}
-        categories={categories}
-      />
-      
-      <ProductFilters 
-        filterPrice={filterPrice}
-        setFilterPrice={setFilterPrice}
-        filterStock={filterStock}
-        setFilterStock={setFilterStock}
-        filterCategory={filterCategory}
-        setFilterCategory={setFilterCategory}
-        resetFilters={resetFilters}
-        categories={categories}
-        setIsFilterOpen={setIsFilterOpen}
-      />
-      
-      <ProductTable 
-        products={products}
-        loading={loading}
-        filteredProducts={filteredProducts}
-        handleEditProduct={handleEditProduct}
-        handleViewProduct={(product) => handleViewProductDetail(product.id)}
-        handleDeleteProduct={handleDeleteProduct}
-        handleDuplicateProduct={handleDuplicateProduct}
-      />
-
-      {isCreateOpen && (
+      {isModalOpen && (
         <ProductFormModal
-          isOpen={isCreateOpen}
-          onClose={() => setIsCreateOpen(false)}
-          onSave={() => {
-            setIsCreateOpen(false);
-            // Refresh products after save
-            // This will be handled by the useEffect
-          }}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleSaveProduct}
+          product={editingProduct}
         />
       )}
 

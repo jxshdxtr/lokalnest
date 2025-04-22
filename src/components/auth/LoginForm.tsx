@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -63,8 +62,23 @@ const LoginForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVisibi
         throw error;
       }
       
+      // Successful login
       toast.success('Successfully logged in!');
       
+      // Ensure user session is established before redirecting
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (sessionData && sessionData.session) {
+        // Redirect based on user role
+        const userType = authData.user?.user_metadata?.account_type;
+        if (userType === 'seller') {
+          navigate('/seller/dashboard');
+        } else {
+          navigate('/buyer/home');
+        }
+      } else {
+        // Something went wrong with session creation
+        toast.error('Session could not be established. Please try again.');
       // Update redirect logic based on user role
       const userType = authData.user?.user_metadata?.account_type;
       if (userType === 'seller') {
@@ -85,14 +99,21 @@ const LoginForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVisibi
     e.preventDefault(); // Prevent default button behavior
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin
+          redirectTo: `${window.location.origin}/buyer/home`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
       
       if (error) throw error;
+      
+      // No need for success toast as the page will redirect to Google
+      console.log("Redirecting to Google for authentication...");
       
     } catch (error: any) {
       toast.error(error.message || 'Failed to sign in with Google. Please try again.');
@@ -176,7 +197,7 @@ const LoginForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVisibi
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-border"></div>
           </div>
-          <div className="relative bg-white px-4 text-sm text-muted-foreground">
+          <div className="relative bg-background dark:bg-background px-4 text-sm text-muted-foreground">
             Or continue with
           </div>
         </div>

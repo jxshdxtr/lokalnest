@@ -1,5 +1,5 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,10 +12,12 @@ import {
   Settings,
   Star,
   BarChart2,
-  Truck,
   Boxes,
-  Menu
+  Menu,
+  ShieldCheck,
+  ShieldAlert
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 type NavItem = {
   title: string;
@@ -36,7 +38,42 @@ interface SellerSidebarProps {
 
 const SellerSidebar: React.FC<SellerSidebarProps> = ({ user }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPath = location.pathname;
+  const [isVerified, setIsVerified] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Check verification status directly from seller_verifications table
+  useEffect(() => {
+    const checkVerificationStatus = async () => {
+      try {
+        const { data: verificationData, error } = await supabase
+          .from('seller_verifications')
+          .select('status')
+          .eq('seller_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (error) throw error;
+        
+        // Set verified status if status is either 'approved' or 'verified'
+        if (verificationData && verificationData.length > 0) {
+          setIsVerified(verificationData[0].status === 'approved' || verificationData[0].status === 'verified');
+        } else {
+          setIsVerified(false);
+        }
+      } catch (error) {
+        console.error('Error checking verification status:', error);
+        setIsVerified(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (user?.id) {
+      checkVerificationStatus();
+    }
+  }, [user?.id]);
 
   const navItems: NavItem[] = [
     {
@@ -77,12 +114,6 @@ const SellerSidebar: React.FC<SellerSidebarProps> = ({ user }) => {
       variant: currentPath === '/seller/dashboard/promotions' ? 'default' : 'ghost'
     },
     {
-      title: 'Logistics',
-      href: '/seller/dashboard/logistics',
-      icon: <Truck className="h-5 w-5" />,
-      variant: currentPath === '/seller/dashboard/logistics' ? 'default' : 'ghost'
-    },
-    {
       title: 'Reviews',
       href: '/seller/dashboard/reviews',
       icon: <Star className="h-5 w-5" />,
@@ -97,7 +128,7 @@ const SellerSidebar: React.FC<SellerSidebarProps> = ({ user }) => {
   ];
 
   return (
-    <div className="pb-12 border rounded-lg">
+    <div className="pb-12 border border-border rounded-lg bg-background dark:bg-card">
       <div className="space-y-4 py-4">
         <div className="px-4 py-2 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -106,14 +137,18 @@ const SellerSidebar: React.FC<SellerSidebarProps> = ({ user }) => {
               <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div>
-              <h2 className="text-sm font-semibold">{user.name}</h2>
+              <h2 className="text-sm font-semibold text-foreground">{user.name}</h2>
               <div className="flex items-center">
-                {user.verified ? (
-                  <Badge className="text-xs bg-green-100 text-green-800 border-green-300 hover:bg-green-200">
+                {isLoading ? (
+                  <Badge variant="outline" className="text-xs">Loading...</Badge>
+                ) : isVerified ? (
+                  <Badge className="text-xs bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-400 border-green-300 hover:bg-green-200 flex items-center">
+                    <ShieldCheck className="h-3 w-3 mr-1" />
                     Verified
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-xs text-yellow-800 bg-yellow-100 border-yellow-300 hover:bg-yellow-200">
+                  <Badge variant="outline" className="text-xs text-yellow-800 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-800/30 border-yellow-300 hover:bg-yellow-200 flex items-center cursor-pointer" onClick={() => navigate('/seller-verification')}>
+                    <ShieldAlert className="h-3 w-3 mr-1" />
                     Unverified
                   </Badge>
                 )}
@@ -124,6 +159,23 @@ const SellerSidebar: React.FC<SellerSidebarProps> = ({ user }) => {
             <Menu className="h-5 w-5" />
           </Button>
         </div>
+        
+        {!isVerified && !isLoading && (
+          <div className="mx-4 p-3 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-900 rounded-md">
+            <p className="text-xs text-yellow-800 dark:text-yellow-400">
+              Your account is not verified. You need to upload your DTI Certificate to list products.
+            </p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2 w-full text-xs border-yellow-300 dark:border-yellow-800 bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/60"
+              onClick={() => navigate('/seller-verification')}
+            >
+              Verify Your Account
+            </Button>
+          </div>
+        )}
+        
         <div className="px-4">
           <p className="text-xs text-muted-foreground mb-1">
             Store Dashboard
@@ -138,7 +190,7 @@ const SellerSidebar: React.FC<SellerSidebarProps> = ({ user }) => {
                   className={cn(
                     "w-full justify-start",
                     item.variant === 'default' &&
-                    "bg-muted hover:bg-muted text-primary hover:text-primary"
+                    "bg-muted hover:bg-muted text-primary hover:text-primary dark:bg-muted/70 dark:hover:bg-muted/90 dark:text-primary-foreground"
                   )}
                 >
                   {item.icon}

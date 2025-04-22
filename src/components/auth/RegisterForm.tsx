@@ -53,7 +53,7 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
     setRegistrationError(null);
 
     try {
-      // Sign up the user
+      // Sign up the user with minimal configuration
       const { data: authData, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -61,6 +61,52 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
           data: {
             full_name: data.name,
             account_type: data.accountType,
+          }
+        }
+      });
+      
+      // Log to help with debugging
+      console.log("Signup response:", { data: authData, error });
+      
+      // Check for the specific email sending error
+      if (error && error.message?.includes('Error sending confirmation email')) {
+        // The user is likely created but email failed
+        toast.warning('Your account was created, but there was an issue sending the verification email.');
+        
+        try {
+          // Try to sign in immediately - this might work if the account was created
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: data.email,
+            password: data.password,
+          });
+          
+          if (!signInError) {
+            // Sign in successful - account exists and is working
+            toast.success('Account created and signed in successfully!');
+            
+            // Create seller profile if needed
+            if (data.accountType === 'seller' && authData?.user) {
+              await createSellerProfile(authData.user.id, data.name);
+              // Redirect sellers to verification page with userId in state
+              navigate('/seller-verification', { state: { userId: authData.user.id } });
+            } else {
+              // Redirect buyers to homepage
+              navigate('/buyer/home');
+            }
+            return;
+          } else {
+            console.log("Auto sign-in failed:", signInError);
+          }
+        } catch (signInErr) {
+          console.error("Error during auto sign-in:", signInErr);
+        }
+        
+        // If auto-signin failed, redirect to login page
+        navigate('/auth');
+        return;
+      } else if (error) {
+        throw error;
+      }
           },
           emailRedirectTo: `${window.location.origin}/verify`,
         },
@@ -108,6 +154,8 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
       }
       
       // If the user is a seller, create a seller profile
+      if (data.accountType === 'seller' && authData.user) {
+        await createSellerProfile(authData.user.id, data.name);
       if (data.accountType === 'seller' && authData?.user) {
         const { error: sellerError } = await supabase
           .from('seller_profiles')
@@ -127,14 +175,40 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
       
       toast.success('Account created! Please check your email for verification code.');
       
+      // Store account type in local storage to guide the user after verification
+      localStorage.setItem('accountType', data.accountType);
+      
       // Redirect to OTP verification page
       navigate(`/verify?email=${encodeURIComponent(data.email)}`);
     } catch (error: any) {
       setRegistrationError(error.message || 'Failed to create account. Please try again.');
       toast.error(error.message || 'Failed to create account. Please try again.');
       console.error('Register error:', error);
+      
+      // Check if it's a 500 Internal Server Error
+      if (error.status === 500 || (error.message && error.message.includes('500'))) {
+        toast.error('Registration failed due to a server issue. Please try again later or contact support.');
+      } else {
+        toast.error(error.message || 'Failed to create account. Please try again.');
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Helper function to create seller profile
+  const createSellerProfile = async (userId: string, businessName: string) => {
+    const { error: sellerError } = await supabase
+      .from('seller_profiles')
+      .insert({
+        id: userId,
+        business_name: businessName,
+        is_verified: false, // Set to false initially
+      });
+    
+    if (sellerError) {
+      console.error('Failed to create seller profile:', sellerError);
+      toast.error('Your account was created but we could not set up your seller profile. Please contact support.');
     }
   };
 
@@ -145,7 +219,11 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin
+          redirectTo: `${window.location.origin}/buyer/home`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
       
@@ -272,6 +350,11 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
                 </Button>
               </div>
               {field.value === 'seller' && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  As a seller, you'll need to verify your account with DTI documents after registration.
+                </p>
+              )}
+              {field.value === 'seller' && (
                 <p className="text-xs text-amber-600 mt-1">
                   Note: Seller accounts require DTI document verification after registration
                 </p>
@@ -289,7 +372,7 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-border"></div>
           </div>
-          <div className="relative bg-white px-4 text-sm text-muted-foreground">
+          <div className="relative bg-background dark:bg-background px-4 text-sm text-muted-foreground">
             Or continue with
           </div>
         </div>

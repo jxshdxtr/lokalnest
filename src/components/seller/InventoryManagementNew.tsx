@@ -45,12 +45,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSellerVerification } from "@/hooks/use-seller-verification";
+import VerificationBanner from "./VerificationBanner";
 
 // Types
 interface InventoryLog {
   id: string;
   product_id: string;
   product_name: string;
+  product_category: string;
   previous_quantity: number;
   new_quantity: number;
   change_quantity: number;
@@ -69,7 +72,15 @@ interface Product {
   status: "in_stock" | "low_stock" | "out_of_stock";
 }
 
-const InventoryManagement: React.FC = () => {
+const InventoryManagementNew: React.FC = () => {
+  // Use the verification hook
+  const { 
+    isVerified, 
+    isLoading: verificationLoading, 
+    sellerId, 
+    verificationStatus 
+  } = useSellerVerification();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [logs, setLogs] = useState<InventoryLog[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -88,21 +99,34 @@ const InventoryManagement: React.FC = () => {
 
   // Fetch products
   const fetchProducts = useCallback(async () => {
+    if (!sellerId) return;
+    
+    // If not verified, don't fetch real data
+    if (!isVerified) {
+      setProducts([]);
+      setIsLoading(false);
+      return;
+    }
+    
     setIsLoading(true);
     try {
       // Try to use the database
       const { data: dbProducts, error: dbError } = await supabase
         .from('products')
-        .select('*');
+        .select('*, categories:category_id(id, name)')
+        .eq('seller_id', sellerId);
 
       if (!dbError && dbProducts && dbProducts.length > 0) {
+        // Filter to ensure products belong to this seller only
+        const filteredProducts = dbProducts.filter(product => product.seller_id === sellerId);
+        
         // Map database results to our product interface
-        const mappedProducts: Product[] = dbProducts.map((product: any) => ({
+        const mappedProducts: Product[] = filteredProducts.map((product: any) => ({
           id: product.id,
           name: product.name,
           stock_quantity: product.stock_quantity || 0,
           low_stock_threshold: product.low_stock_threshold || 5,
-          category_name: product.category_name || 'Uncategorized',
+          category_name: product.categories?.name || 'Uncategorized',
           sku: product.sku || `SKU-${product.id.substring(0, 6)}`,
           status: product.stock_quantity <= 0 
             ? "out_of_stock" 
@@ -112,56 +136,8 @@ const InventoryManagement: React.FC = () => {
         }));
         setProducts(mappedProducts);
       } else {
-        console.log('Using mock data');
-        // Use mock data if database is empty or has an error
-        const mockProducts: Product[] = [
-          {
-            id: "1",
-            name: "Handwoven Cotton Tote Bag",
-            stock_quantity: 26,
-            low_stock_threshold: 10,
-            category_name: "Textiles",
-            sku: "BAG-001",
-            status: "in_stock"
-          },
-          {
-            id: "2",
-            name: "Wooden Serving Bowl",
-            stock_quantity: 8,
-            low_stock_threshold: 10,
-            category_name: "Wooden Crafts",
-            sku: "BOWL-001",
-            status: "low_stock"
-          },
-          {
-            id: "3",
-            name: "Ceramic Coffee Mug",
-            stock_quantity: 0,
-            low_stock_threshold: 5,
-            category_name: "Pottery",
-            sku: "MUG-001",
-            status: "out_of_stock"
-          },
-          {
-            id: "4",
-            name: "Silver Earrings",
-            stock_quantity: 15,
-            low_stock_threshold: 5,
-            category_name: "Jewelry",
-            sku: "EAR-001",
-            status: "in_stock"
-          },
-          {
-            id: "5",
-            name: "Bamboo Wall Decor",
-            stock_quantity: 3,
-            low_stock_threshold: 5,
-            category_name: "Home Decor",
-            sku: "DECO-001",
-            status: "low_stock"
-          },
-        ];
-        setProducts(mockProducts);
+        console.log('No products found or DB error, using empty array');
+        setProducts([]);
       }
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -169,22 +145,32 @@ const InventoryManagement: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [sellerId, isVerified]);
 
   // Fetch inventory logs
   const fetchInventoryLogs = useCallback(async () => {
+    if (!sellerId || !isVerified) {
+      setLogs([]);
+      return;
+    }
+    
     try {
       // Use regular query instead of RPC to avoid TypeScript errors
       const { data, error: queryError } = await supabase
         .from('inventory_logs')
-        .select('*, products:product_id(name)');
+        .select('*, products:product_id(name, category_id, seller_id, categories:category_id(name))')
+        .eq('products.seller_id', sellerId);
       
       if (!queryError && data) {
+        // Filter logs to ensure they belong to this seller's products
+        const filteredLogs = data.filter(log => log.products?.seller_id === sellerId);
+        
         // Map the database results to our InventoryLog interface
-        const mappedLogs: InventoryLog[] = data.map((log: any) => ({
+        const mappedLogs: InventoryLog[] = filteredLogs.map((log: any) => ({
           id: log.id,
           product_id: log.product_id || '',
           product_name: log.products?.name || 'Unknown Product',
+          product_category: log.products?.categories?.name || 'Uncategorized',
           previous_quantity: log.previous_quantity,
           new_quantity: log.new_quantity,
           change_quantity: log.change_quantity,
@@ -195,64 +181,56 @@ const InventoryManagement: React.FC = () => {
         
         setLogs(mappedLogs);
       } else {
-        console.error('Query error:', queryError);
-        
-        // Mock inventory logs
-        const mockLogs: InventoryLog[] = [
-          {
-            id: "1",
-            product_id: "1",
-            product_name: "Handwoven Cotton Tote Bag",
-            previous_quantity: 20,
-            new_quantity: 26,
-            change_quantity: 6,
-            reason: "Restocking",
-            timestamp: "2023-03-15T08:30:00Z",
-            staff_name: "Juan Dela Cruz"
-          },
-          {
-            id: "2",
-            product_id: "2",
-            product_name: "Wooden Serving Bowl",
-            previous_quantity: 10,
-            new_quantity: 8,
-            change_quantity: -2,
-            reason: "Order fulfillment",
-            timestamp: "2023-03-14T14:20:00Z",
-            staff_name: "Maria Santos"
-          },
-          {
-            id: "3",
-            product_id: "3",
-            product_name: "Ceramic Coffee Mug",
-            previous_quantity: 5,
-            new_quantity: 0,
-            change_quantity: -5,
-            reason: "Bulk order",
-            timestamp: "2023-03-13T10:15:00Z",
-            staff_name: "Juan Dela Cruz"
-          }
-        ];
-        setLogs(mockLogs);
+        console.error('Query error or no logs found:', queryError);
+        setLogs([]);
       }
     } catch (error) {
       console.error("Error fetching inventory logs:", error);
+      setLogs([]);
     }
-  }, []);
+  }, [sellerId, isVerified]);
 
   useEffect(() => {
-    fetchProducts();
-    fetchInventoryLogs();
-  }, [fetchProducts, fetchInventoryLogs]);
+    // Only fetch data if the seller is verified
+    if (isVerified && sellerId) {
+      fetchProducts();
+      fetchInventoryLogs();
+    }
+  }, [fetchProducts, fetchInventoryLogs, isVerified, sellerId]);
 
   const handleUpdateStock = async () => {
-    if (!selectedProduct) return;
+    if (!selectedProduct || !isVerified) return;
     
     try {
       const previousQuantity = selectedProduct.stock_quantity;
       const newQuantity = previousQuantity + restockQuantity;
       
-      // Update locally first for immediate UI feedback
+      // Update product stock in the database
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ 
+          stock_quantity: newQuantity 
+        })
+        .eq('id', selectedProduct.id);
+        
+      if (updateError) throw updateError;
+      
+      // Create inventory log entry in the database
+      const { error: logError } = await supabase
+        .from('inventory_logs')
+        .insert({
+          product_id: selectedProduct.id,
+          previous_quantity: previousQuantity,
+          new_quantity: newQuantity,
+          change_quantity: restockQuantity,
+          reason: restockReason,
+          created_at: new Date().toISOString(),
+          created_by: sellerId  // Using created_by instead of staff_id
+        });
+        
+      if (logError) throw logError;
+      
+      // Update locally for immediate UI feedback
       setProducts(products.map(p => 
         p.id === selectedProduct.id 
           ? {
@@ -267,11 +245,12 @@ const InventoryManagement: React.FC = () => {
           : p
       ));
       
-      // Create new log entry
+      // Create new log entry for the UI
       const newLog: InventoryLog = {
         id: Date.now().toString(),
         product_id: selectedProduct.id,
         product_name: selectedProduct.name,
+        product_category: selectedProduct.category_name || 'Uncategorized',
         previous_quantity: previousQuantity,
         new_quantity: newQuantity,
         change_quantity: restockQuantity,
@@ -282,8 +261,6 @@ const InventoryManagement: React.FC = () => {
       
       setLogs([newLog, ...logs]);
       
-      // Here you would also make an API call to update the database
-      // For demo purposes we'll just show a toast
       toast.success(`Updated stock for ${selectedProduct.name}`);
       
       // Reset form and close dialog
@@ -291,8 +268,8 @@ const InventoryManagement: React.FC = () => {
       setRestockReason("");
       setShowRestockDialog(false);
     } catch (error) {
+      console.error("Failed to update stock:", error);
       toast.error("Failed to update stock");
-      console.error(error);
     }
   };
   
@@ -334,6 +311,30 @@ const InventoryManagement: React.FC = () => {
         return <Badge variant="outline">Unknown</Badge>;
     }
   };
+
+  // If verification is loading, show loading state
+  if (verificationLoading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading inventory management...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show the verification banner if the seller is not verified
+  if (!isVerified && verificationStatus) {
+    return (
+      <div className="space-y-6">
+        <VerificationBanner 
+          status={verificationStatus} 
+          message="To manage inventory and list products, you need to verify your seller account."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -551,6 +552,7 @@ const InventoryManagement: React.FC = () => {
                   <TableHead>Date</TableHead>
                   <TableHead>Change</TableHead>
                   <TableHead>New Stock</TableHead>
+                  <TableHead>Category</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead>By</TableHead>
                 </TableRow>
@@ -558,7 +560,7 @@ const InventoryManagement: React.FC = () => {
               <TableBody>
                 {productLogs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={6} className="h-24 text-center">
                       No history available for this product
                     </TableCell>
                   </TableRow>
@@ -574,6 +576,7 @@ const InventoryManagement: React.FC = () => {
                         </span>
                       </TableCell>
                       <TableCell>{log.new_quantity}</TableCell>
+                      <TableCell>{log.product_category}</TableCell>
                       <TableCell>{log.reason}</TableCell>
                       <TableCell>{log.staff_name}</TableCell>
                     </TableRow>
@@ -594,4 +597,4 @@ const InventoryManagement: React.FC = () => {
   );
 };
 
-export default InventoryManagement;
+export default InventoryManagementNew;

@@ -1,11 +1,410 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { 
+  Search, 
+  MoreHorizontal, 
+  Calendar, 
+  Tag, 
+  Package, 
+  CreditCard,
+  Truck,
+  ClipboardCheck,
+  Loader2,
+  X
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { formatDistance, format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+
+interface OrderItem {
+  id: string;
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  image?: string;
+}
+
+interface Order {
+  id: string;
+  date: string;
+  buyer_id: string;
+  buyer_name?: string;
+  items: OrderItem[];
+  total: number;
+  status: string;
+  payment_status: string;
+  payment_method: string;
+  shipping_address: string;
+}
 import { useOrders } from './orders/useOrders';
 import OrderFilters from './orders/OrderFilters';
 import OrderTable from './orders/OrderTable';
 
 const OrderManagement = () => {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [timeFilter, setTimeFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('date_desc');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('You must be logged in to view orders');
+        navigate('/auth');
+        return;
+      }
+
+      // SIMPLEST APPROACH: Manual fetching of each component
+      // 1. Get seller's products
+      let { data: products } = await supabase
+        .from('products')
+        .select('id, name')
+        .eq('seller_id', session.user.id);
+      
+      if (!products || products.length === 0) {
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
+      
+      const productIds = products.map(p => p.id);
+      
+      // 2. Get order items referencing these products
+      const orderItemIdsByProduct = {};
+      for (const productId of productIds) {
+        const { data: items } = await supabase
+          .from('order_items')
+          .select('id')
+          .eq('product_id', productId);
+          
+        if (items && items.length > 0) {
+          orderItemIdsByProduct[productId] = items.map(item => item.id);
+        }
+      }
+      
+      // 3. Get full order item details and references
+      const orderItems = [];
+      const orderIdList = [];
+      
+      for (const productId in orderItemIdsByProduct) {
+        for (const itemId of orderItemIdsByProduct[productId]) {
+          const { data: item } = await supabase
+            .from('order_items')
+            .select('id, order_id, product_id, quantity, unit_price, total_price')
+            .eq('id', itemId)
+            .single();
+            
+          if (item) {
+            orderItems.push(item);
+            if (!orderIdList.includes(item.order_id)) {
+              orderIdList.push(item.order_id);
+            }
+          }
+        }
+      }
+      
+      if (orderItems.length === 0) {
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
+      
+      // 4. Get order details
+      const orderDetails = [];
+      for (const orderId of orderIdList) {
+        const { data: order } = await supabase
+          .from('orders')
+          .select('id, created_at, buyer_id, total_amount, status, payment_status, payment_method, shipping_address')
+          .eq('id', orderId)
+          .single();
+          
+        if (order) {
+          orderDetails.push(order);
+        }
+      }
+      
+      // 5. Get buyer profiles
+      const buyerProfiles = {};
+      for (const order of orderDetails) {
+        if (!buyerProfiles[order.buyer_id]) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .eq('id', order.buyer_id)
+            .single();
+            
+          buyerProfiles[order.buyer_id] = profile?.full_name || 'Customer';
+        }
+      }
+      
+      // 6. Get product images
+      const productImages = {};
+      for (const productId of productIds) {
+        const { data: images } = await supabase
+          .from('product_images')
+          .select('url')
+          .eq('product_id', productId)
+          .eq('is_primary', true)
+          .limit(1);
+          
+        productImages[productId] = images && images.length > 0 ? images[0].url : undefined;
+      }
+      
+      // 7. Build the complete orders
+      const completeOrders = orderDetails.map(order => {
+        // Find items for this order
+        const items = orderItems
+          .filter(item => item.order_id === order.id)
+          .map(item => {
+            const product = products.find(p => p.id === item.product_id);
+            return {
+              id: item.id,
+              product_id: item.product_id,
+              product_name: product?.name || 'Unknown Product',
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              total_price: item.total_price,
+              image: productImages[item.product_id]
+            };
+          });
+          
+        return {
+          id: order.id,
+          date: order.created_at,
+          buyer_id: order.buyer_id,
+          buyer_name: buyerProfiles[order.buyer_id],
+          items,
+          total: order.total_amount,
+          status: order.status,
+          payment_status: order.payment_status,
+          payment_method: order.payment_method,
+          shipping_address: order.shipping_address
+        };
+      });
+      
+      setOrders(completeOrders);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      toast.error('Failed to load orders');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const updateOrderStatus = async (orderId: string, status: string) => {
+    try {
+      // For COD orders, if status is being set to delivered, also update payment status to paid
+      const orderToUpdate = orders.find(order => order.id === orderId);
+      let updateData: any = { status };
+      
+      if (status === 'delivered' && orderToUpdate?.payment_method?.toLowerCase() === 'cash on delivery') {
+        updateData.payment_status = 'paid';
+      }
+      
+      const { error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', orderId);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setOrders(orders.map(order => 
+        order.id === orderId 
+          ? { ...order, status, ...(updateData.payment_status ? { payment_status: updateData.payment_status } : {}) } 
+          : order
+      ));
+      
+      toast.success(`Order status updated to ${status}`);
+      if (updateData.payment_status) {
+        toast.success(`Payment status automatically updated to paid for COD order`);
+      }
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      toast.error('Failed to update order status');
+    }
+  };
+  
+  const updatePaymentStatus = async (orderId: string, status: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          status: status,
+          payment_status: 'approved' // Changed from 'paid' to 'approved'
+        })
+        .eq('id', orderId);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setOrders(orders.map(order => 
+        order.id === orderId ? { ...order, status, payment_status: 'approved' } : order
+      ));
+      
+      toast.success(`Payment approved and order status updated`);
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      toast.error('Failed to update payment status');
+    }
+  };
+
+  // Filter and sort orders
+  const filteredOrders = orders.filter(order => {
+    // Search term filter
+    const searchMatch = 
+      order.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (order.buyer_name?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      order.items.some(item => 
+        item.product_name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    
+    // Status filter
+    const statusMatch = 
+      statusFilter === 'all' || 
+      order.status === statusFilter;
+    
+    // Time filter
+    let timeMatch = true;
+    const now = new Date();
+    const orderDate = new Date(order.date);
+    
+    if (timeFilter === 'today') {
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      timeMatch = orderDate >= today;
+    } else if (timeFilter === 'this_week') {
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      timeMatch = orderDate >= startOfWeek;
+    } else if (timeFilter === 'this_month') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      timeMatch = orderDate >= startOfMonth;
+    }
+    
+    return searchMatch && statusMatch && timeMatch;
+  });
+
+  // Sort orders
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    if (sortBy === 'date_desc') {
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    } else if (sortBy === 'date_asc') {
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    } else if (sortBy === 'total_desc') {
+      return b.total - a.total;
+    } else {
+      return a.total - b.total;
+    }
+  });
+
+  const getStatusBadge = (status: string) => {
+    switch(status.toLowerCase()) {
+      case 'processing':
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Processing</Badge>;
+      case 'shipped':
+        return <Badge className="bg-purple-100 text-purple-800 border-purple-200">Shipped</Badge>;
+      case 'delivered':
+        return <Badge className="bg-green-100 text-green-800 border-green-200">Delivered</Badge>;
+      case 'cancelled':
+        return <Badge className="bg-red-100 text-red-800 border-red-200">Cancelled</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
+    }
+  };
+
+  const getPaymentStatusBadge = (status: string) => {
+    switch(status.toLowerCase()) {
+      case 'paid':
+        return <Badge className="bg-green-100 text-green-800 border-green-200">Paid</Badge>;
+      case 'approved':
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Approved</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pending</Badge>;
+      case 'refunded':
+        return <Badge className="bg-gray-100 text-gray-800 border-gray-200">Refunded</Badge>;
+      case 'failed':
+        return <Badge className="bg-red-100 text-red-800 border-red-200">Failed</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
+    }
+  };
+
+  const formatOrderDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return formatDistance(date, new Date(), { addSuffix: true });
+    } catch (e) {
+      return 'Invalid Date';
+    }
+  };
+
+  const openOrderDetails = (order: Order) => {
+    setSelectedOrder(order);
+    setIsDetailsModalOpen(true);
+  };
+
+  const formatFullDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return format(date, 'PPP p'); // Format: Jan 1, 2023, 12:00 PM
+    } catch (e) {
+      return 'Invalid Date';
+    }
+  };
   const {
     searchTerm,
     setSearchTerm,
@@ -28,6 +427,189 @@ const OrderManagement = () => {
     <div className="space-y-6">
       <Card>
         <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div className="relative w-full sm:w-auto">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search orders..."
+                value={searchTerm}
+                onChange={handleSearch}
+                className="pl-10 w-full sm:w-[300px]"
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[140px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="shipped">Shipped</SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={timeFilter} onValueChange={setTimeFilter}>
+                <SelectTrigger className="w-full sm:w-[140px]">
+                  <SelectValue placeholder="Time Period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="this_week">This Week</SelectItem>
+                  <SelectItem value="this_month">This Month</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-full sm:w-[140px]">
+                  <SelectValue placeholder="Sort By" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date_desc">Newest First</SelectItem>
+                  <SelectItem value="date_asc">Oldest First</SelectItem>
+                  <SelectItem value="total_desc">Highest Amount</SelectItem>
+                  <SelectItem value="total_asc">Lowest Amount</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : sortedOrders.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table className="border-collapse w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[200px]">Order Info</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead>Payment</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedOrders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">
+                        <div>
+                          <p>Order #{order.id.split('-')[0]}</p>
+                          <div className="flex items-center text-muted-foreground text-xs gap-1 mt-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>{formatOrderDate(order.date)}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{order.buyer_name}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1 max-w-[250px]">
+                          {order.items.map((item) => (
+                            <div key={item.id} className="flex items-center gap-2">
+                              <div className="h-8 w-8 rounded overflow-hidden bg-muted flex-shrink-0">
+                                {item.image ? (
+                                  <img 
+                                    src={item.image} 
+                                    alt={item.product_name} 
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full bg-muted flex items-center justify-center">
+                                    <Package className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="truncate">
+                                <p className="text-xs font-medium truncate">{item.product_name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {item.quantity} × ₱{item.unit_price.toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="text-xs">{order.payment_method}</p>
+                          {getPaymentStatusBadge(order.payment_status)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="font-medium">₱{order.total.toFixed(2)}</p>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(order.status)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-[200px]">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            
+                            {/* Always show status change options regardless of current status */}
+                            <DropdownMenuItem onClick={() => updatePaymentStatus(order.id, 'approved')}>
+                              <CreditCard className="mr-2 h-4 w-4" />
+                              {order.status === 'approved' ? 'Payment Already Approved' : 'Approve Payment'}
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'processing')}>
+                              <Tag className="mr-2 h-4 w-4" />
+                              Mark as Processing
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'shipped')}>
+                              <Truck className="mr-2 h-4 w-4" />
+                              Mark as Shipped
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'delivered')}>
+                              <ClipboardCheck className="mr-2 h-4 w-4" />
+                              Mark as Delivered{order.payment_method?.toLowerCase() === 'cash on delivery' && ' (Will update COD payment)'}
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'cancelled')}>
+                              <X className="mr-2 h-4 w-4" />
+                              Mark as Cancelled
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuSeparator />
+                            
+                            <DropdownMenuItem onClick={() => openOrderDetails(order)}>
+                              <Package className="mr-2 h-4 w-4" />
+                              View Order Details
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">No orders found</h3>
+              <p className="text-muted-foreground">
+                {searchTerm || statusFilter !== 'all' || timeFilter !== 'all'
+                  ? 'Try adjusting your search filters.'
+                  : "You haven't received any orders yet."}
+              </p>
+            </div>
+          )}
           <OrderFilters 
             searchTerm={searchTerm}
             onSearchChange={(e) => setSearchTerm(e.target.value)}
@@ -48,6 +630,98 @@ const OrderManagement = () => {
           />
         </CardContent>
       </Card>
+
+      {/* Order Details Modal */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Order Details</DialogTitle>
+            <DialogDescription>
+              {selectedOrder && `Order ID: ${selectedOrder.id}`}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedOrder && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">Order Information</h3>
+                  <div className="bg-muted/50 p-3 rounded-md">
+                    <p><strong>Date:</strong> {formatFullDate(selectedOrder.date)}</p>
+                    <p><strong>Status:</strong> {selectedOrder.status}</p>
+                    <p><strong>Payment Method:</strong> {selectedOrder.payment_method}</p>
+                    <p><strong>Payment Status:</strong> {selectedOrder.payment_status}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">Customer Information</h3>
+                  <div className="bg-muted/50 p-3 rounded-md">
+                    <p><strong>Name:</strong> {selectedOrder.buyer_name}</p>
+                    <p><strong>Shipping Address:</strong> {selectedOrder.shipping_address}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">Order Items</h3>
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Unit Price</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedOrder.items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded overflow-hidden bg-muted flex-shrink-0">
+                                {item.image ? (
+                                  <img 
+                                    src={item.image} 
+                                    alt={item.product_name} 
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full bg-muted flex items-center justify-center">
+                                    <Package className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </div>
+                              <span>{item.product_name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{item.quantity}</TableCell>
+                          <TableCell>₱{item.unit_price.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">₱{item.total_price.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-right font-medium">Order Total</TableCell>
+                        <TableCell className="text-right font-bold">₱{selectedOrder.total.toFixed(2)}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+              
+              <div className="flex justify-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsDetailsModalOpen(false)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

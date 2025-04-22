@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingCart, Heart } from 'lucide-react';
@@ -48,8 +47,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
     <Link 
       to={`/product/${id}`}
       className={cn(
-        "group relative flex flex-col bg-white rounded-lg overflow-hidden transition-all duration-300",
-        "border border-border hover:border-gray-300 hover:shadow-elevation-2",
+        "group relative flex flex-col bg-background dark:bg-card rounded-lg overflow-hidden transition-all duration-300",
+        "border border-border hover:border-primary/20 hover:shadow-elevation-2",
         className
       )}
       onMouseEnter={() => setIsHovered(true)}
@@ -79,7 +78,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           <Button
             variant="outline"
             size="icon"
-            className="h-8 w-8 rounded-full bg-white shadow-sm"
+            className="h-8 w-8 rounded-full bg-background dark:bg-card shadow-sm"
             onClick={handleWishlist}
             aria-label="Add to wishlist"
           >
@@ -87,7 +86,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </Button>
         </div>
         <div className="absolute top-3 left-3">
-          <span className="inline-block bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium">
+          <span className="inline-block bg-background/90 dark:bg-card/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium text-foreground">
             {category}
           </span>
         </div>
@@ -95,8 +94,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
       
       <div className="flex flex-col p-4">
         <div className="text-muted-foreground text-xs mb-1">{seller} • {location}</div>
-        <h3 className="font-medium mb-1 line-clamp-1">{name}</h3>
-        <div className="text-sm font-semibold mb-3">₱{price.toFixed(2)}</div>
+        <h3 className="font-medium mb-1 line-clamp-1 text-foreground">{name}</h3>
+        <div className="text-sm font-semibold mb-3 text-foreground">₱{price.toFixed(2)}</div>
         
         <Button 
           className={cn(

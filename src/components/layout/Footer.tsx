@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,12 +6,12 @@ import { MapPin, Mail, Phone, Instagram, Facebook, Twitter } from 'lucide-react'
 
 const Footer = () => {
   return (
-    <footer className="bg-white border-t border-border mt-20">
+    <footer className="bg-background border-t border-border mt-20">
       <div className="container mx-auto px-4 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
           <div className="lg:col-span-2">
             <Link to="/" className="text-xl font-medium inline-block mb-4">
-              <span className="text-gradient">LocalNook</span>
+              <span className="text-gradient dark:text-white">LokalNest</span>
             </Link>
             <p className="text-muted-foreground max-w-md mb-6">
               Connecting you directly with local producers, farmers, and artisans to bring the freshest products to your table.
@@ -106,7 +105,7 @@ const Footer = () => {
               <Input 
                 type="email" 
                 placeholder="Your email" 
-                className="bg-secondary" 
+                className="bg-input" 
               />
               <Button className="w-full">Subscribe</Button>
             </div>

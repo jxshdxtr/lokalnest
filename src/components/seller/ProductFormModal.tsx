@@ -47,7 +47,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
     dimensions: '',
     weight: '',
     materials: '',
-    shipping_note: '',
+    shipping_info: '',
     tags: [] as string[]
   });
   
@@ -68,7 +68,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         dimensions: product.dimensions || '',
         weight: product.weight || '',
         materials: product.materials || '',
-        shipping_note: product.shipping_note || '',
+        shipping_info: product.shipping_info || '',
         tags: product.tags || []
       });
 
@@ -299,6 +299,11 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             price: productData.price,
             category_id: productData.category,
             stock_quantity: productData.stock,
+            shipping_info: productData.shipping_info,
+            dimensions: productData.dimensions,
+            weight: productData.weight,
+            materials: productData.materials,
+            tags: productData.tags,
             shipping_info: productData.shipping_note,
             updated_at: new Date().toISOString()
           })
@@ -338,6 +343,12 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             price: productData.price,
             category_id: productData.category,
             stock_quantity: productData.stock,
+            shipping_info: productData.shipping_info,
+            dimensions: productData.dimensions,
+            weight: productData.weight,
+            materials: productData.materials,
+            tags: productData.tags,
+            seller_id: session.user.id,
             shipping_info: productData.shipping_note,
             seller_id: session.user.id
           })
@@ -600,11 +611,11 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="shipping_note">Shipping Note</Label>
+              <Label htmlFor="shipping_info">Shipping Info</Label>
               <Textarea
-                id="shipping_note"
-                name="shipping_note"
-                value={formData.shipping_note}
+                id="shipping_info"
+                name="shipping_info"
+                value={formData.shipping_info}
                 onChange={handleChange}
                 placeholder="Special shipping instructions..."
                 rows={2}

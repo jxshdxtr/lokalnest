@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -5,12 +6,19 @@ import CustomerTable from './customers/CustomerTable';
 import EmptyState from './customers/EmptyState';
 import { useCustomers } from './customers/useCustomers';
 import { toast } from 'sonner';
+import { useSellerVerification } from '@/hooks/use-seller-verification';
+import VerificationBanner from './VerificationBanner';
 import CustomerMessaging from './customers/CustomerMessaging';
 import { supabase } from '@/integrations/supabase/client';
 
 const CustomerManagement = () => {
+  // Use our verification hook with updated logic
+  const { isVerified, verificationStatus, isLoading: verificationLoading } = useSellerVerification();
+  
+  // Get customers data
   const { 
     customers, 
+    isLoading,
     isLoading,
     search,
     statusFilter,
@@ -23,6 +31,8 @@ const CustomerManagement = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
 
   const handleUpdateStatus = async (customerId: string, status: string) => {
+    if (!isVerified) return;
+    
     try {
       // In a real app, you would call an API here
       // Since we can't setCustomers directly, we'll refresh the customer list after update
@@ -41,6 +51,30 @@ const CustomerManagement = () => {
       toast.error('Failed to update customer status');
     }
   };
+
+  // Show loading state while verification status is being checked
+  if (verificationLoading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading customer management...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show verification banner for unverified sellers
+  if (!isVerified && verificationStatus) {
+    return (
+      <div className="space-y-6">
+        <VerificationBanner 
+          status={verificationStatus} 
+          message="To manage customers and view customer data, you need to verify your seller account."
+        />
+      </div>
+    );
+  }
 
   const handleSendMessage = (customer) => {
     setSelectedCustomer(customer);
@@ -103,10 +137,13 @@ const CustomerManagement = () => {
             <EmptyState 
               searchTerm={search}
               statusFilter={statusFilter}
+              searchTerm={search}
+              statusFilter={statusFilter}
             />
           ) : (
             <CustomerTable 
               customers={customers} 
+              loading={isLoading}
               loading={isLoading}
               onUpdateStatus={handleUpdateStatus}
               onSendMessage={handleSendMessage}

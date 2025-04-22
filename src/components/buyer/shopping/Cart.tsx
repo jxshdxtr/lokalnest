@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,6 +19,8 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
+  isCartOpen: boolean;
+  setIsCartOpen: (open: boolean) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -31,6 +32,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     const savedCart = localStorage.getItem('cart');
     return savedCart ? JSON.parse(savedCart) : [];
   });
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Save to localStorage whenever cart changes
   useEffect(() => {
@@ -39,10 +41,10 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
   const addItem = async (product: Omit<CartItem, 'quantity'>) => {
     try {
-      // Check product availability in database
+      // Check product availability in database and get the seller_id
       const { data: productData, error } = await supabase
         .from('products')
-        .select('stock_quantity, is_available')
+        .select('stock_quantity, is_available, seller_id')
         .eq('id', product.id)
         .single();
       
@@ -75,11 +77,18 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
           toast.success(`Added another ${product.name} to your cart`);
           return newItems;
         } else {
-          // If it doesn't exist, add new item with quantity 1
+          // If it doesn't exist, add new item with quantity 1 and include seller_id
           toast.success(`${product.name} added to your cart`);
-          return [...currentItems, { ...product, quantity: 1 }];
+          return [...currentItems, { 
+            ...product, 
+            quantity: 1,
+            seller: productData.seller_id // Ensure seller ID is included
+          }];
         }
       });
+
+      // Open the cart sidebar when an item is added
+      setIsCartOpen(true);
     } catch (err) {
       console.error('Error adding item to cart:', err);
       toast.error('Failed to add item to cart');
@@ -156,7 +165,9 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     updateQuantity,
     clearCart,
     totalItems,
-    totalPrice
+    totalPrice,
+    isCartOpen,
+    setIsCartOpen
   };
 
   return (

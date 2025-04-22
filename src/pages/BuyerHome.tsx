@@ -173,7 +173,7 @@ const BuyerHome: React.FC = () => {
                         max={5000}
                         step={100}
                         value={priceRange}
-                        onValueChange={(value: [number, number]) => setPriceRange(value)}
+                        onValueChange={(value) => setPriceRange([value[0], value[1]] as [number, number])}
                       />
                       <div className="flex justify-between text-sm">
                         <span>₱{priceRange[0]}</span>
