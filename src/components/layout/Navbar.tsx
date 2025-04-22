@@ -292,8 +292,11 @@ const Navbar = () => {
             <Search className="h-5 w-5" />
           </Button>
           
-          {/* Shopping cart - show for buyers or on home page when not signed in */}
-          {(isBuyer || (location.pathname === '/' && !isSignedIn)) && (
+          {/* Shopping cart - show for buyers only (not on homepage or auth routes) */}
+          {isBuyer && 
+           location.pathname !== '/' && 
+           !location.pathname.includes('/auth') && 
+           !location.pathname.includes('/verify') && (
             <CartSidebar />
           )}
           
