@@ -44,43 +44,49 @@ const BuyerMessages = () => {
         return;
       }
 
-      // Get all messages for the current customer
+      const userId = session.session.user.id;
+      
+      // Get all messages for the current buyer from the messages table
       const { data: messages, error: messagesError } = await supabase
-        .from('customer_messages')
+        .from('messages')
         .select('*')
-        .eq('customer_id', session.session.user.id)
+        .eq('recipient_id', userId)
         .order('created_at', { ascending: false });
 
       if (messagesError) throw messagesError;
 
       if (messages && messages.length > 0) {
-        // Get unique seller IDs
-        const sellerIds = [...new Set(messages.map(msg => msg.seller_id))];
+        // Get unique seller IDs (senders to this buyer)
+        const sellerIds = [...new Set(messages.map(msg => msg.sender_id))];
         
         // Fetch seller profiles
         const { data: sellerProfiles, error: profilesError } = await supabase
-          .from('seller_profiles')
-          .select('id, business_name, logo_url')
+          .from('profiles')
+          .select('id, full_name, avatar_url')
           .in('id', sellerIds);
 
         if (profilesError) throw profilesError;
 
         // Create preview objects
-        const previews: MessagePreview[] = sellerIds.map(sellerId => {
-          const sellerMessages = messages.filter(msg => msg.seller_id === sellerId);
+        const previews: MessagePreview[] = [];
+        
+        // Process each seller's messages
+        for (const sellerId of sellerIds) {
+          const sellerMessages = messages.filter(msg => msg.sender_id === sellerId);
           const latestMessage = sellerMessages[0]; // Already sorted by created_at desc
           
           const sellerProfile = sellerProfiles?.find(profile => profile.id === sellerId);
+          if (!sellerProfile) continue;
           
-          return {
+          previews.push({
             seller_id: sellerId,
-            seller_name: sellerProfile?.business_name || 'Unknown Seller',
-            seller_avatar: sellerProfile?.logo_url,
-            last_message: latestMessage.message,
+            seller_name: sellerProfile.full_name || 'Unknown Seller',
+            seller_avatar: sellerProfile.avatar_url,
+            last_message: latestMessage.message_content,
             last_message_time: latestMessage.created_at,
-            unread_count: sellerMessages.filter(msg => !msg.is_read).length
-          };
-        });
+            unread_count: sellerMessages.filter(msg => !msg.read).length
+          });
+        }
         
         setMessagePreviews(previews);
       } else {

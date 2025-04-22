@@ -83,7 +83,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, loading, onUpd
             <tr className="border-b">
               <th className="text-left p-3 text-sm font-medium">Customer</th>
               <th className="text-left p-3 text-sm font-medium">Status</th>
-              <th className="text-left p-3 text-sm font-medium">Tags</th>
+              {/* <th className="text-left p-3 text-sm font-medium">Tags</th> */}
               <th className="text-center p-3 text-sm font-medium">Orders</th>
               <th className="text-center p-3 text-sm font-medium">Total Spent</th>
               <th className="text-left p-3 text-sm font-medium">Last Purchase</th>
@@ -112,7 +112,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, loading, onUpd
                     <Badge className="bg-gray-100 text-gray-800 border-gray-200">Inactive</Badge>
                   )}
                 </td>
-                <td className="p-3">
+                {/* <td className="p-3">
                   <div className="flex flex-wrap gap-1">
                     {customer.tags && customer.tags.length > 0 ? (
                       customer.tags.map((tag, index) => (
@@ -124,7 +124,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, loading, onUpd
                       <span className="text-xs text-muted-foreground">No tags</span>
                     )}
                   </div>
-                </td>
+                </td> */}
                 <td className="p-3 text-center">
                   <div className="flex items-center justify-center gap-1">
                     <ShoppingBag className="h-4 w-4 text-muted-foreground" />

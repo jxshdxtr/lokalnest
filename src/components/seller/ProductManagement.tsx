@@ -196,8 +196,17 @@ const ProductManagement = () => {
       matchesStock = product.stock === 0;
     }
     
-    const matchesCategory = 
-      filterCategory === '' || product.category === filterCategory;
+    // Improve category matching to handle all possible ways a category might be represented
+    let matchesCategory = filterCategory === '';
+    if (filterCategory !== '') {
+      if (product.category === filterCategory) {
+        matchesCategory = true;
+      } else if (product.categories?.name && categories.find(cat => cat.id === filterCategory)?.name === product.categories.name) {
+        matchesCategory = true;
+      } else if (product.category_name && categories.find(cat => cat.id === filterCategory)?.name === product.category_name) {
+        matchesCategory = true;
+      }
+    }
     
     return matchesSearch && matchesPrice && matchesStock && matchesCategory;
   };

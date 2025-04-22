@@ -137,7 +137,7 @@ export async function getProductById(id: string): Promise<ProductDetail | null> 
 
 export async function getFeaturedProducts(): Promise<ProductWithSeller[]> {
   try {
-    // Fetch featured products with seller info
+    // Fetch recent products with seller info - limit to only 6 products
     const { data, error } = await supabase
       .from('products')
       .select(`
@@ -146,15 +146,14 @@ export async function getFeaturedProducts(): Promise<ProductWithSeller[]> {
         price,
         is_available,
         stock_quantity,
-        categories!inner(name),
-        seller_profiles!inner(business_name, location),
+        categories(name),
+        seller_profiles(business_name, location),
         product_images(url, is_primary)
       `)
-      .eq('featured', true)
       .eq('is_available', true)
       .gt('stock_quantity', 0)
       .order('created_at', { ascending: false })
-      .limit(8);
+      .limit(6); // Changed from 8 to 6
 
     if (error) throw error;
 
@@ -172,7 +171,7 @@ export async function getFeaturedProducts(): Promise<ProductWithSeller[]> {
         price: product.price,
         image: image,
         seller: product.seller_profiles.business_name,
-        category: product.categories.name,
+        category: product.categories ? product.categories.name : 'Uncategorized',
         location: product.seller_profiles.location || 'Philippines'
       };
     });

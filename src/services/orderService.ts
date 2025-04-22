@@ -77,6 +77,63 @@ export async function createOrder(items: CartItem[], shippingAddress: string, bi
       throw new Error(`Failed to add order items: ${itemsError.message}`);
     }
     
+    // Add or update seller_customers record to establish the relationship
+    // Only proceed if we have a valid seller ID
+    if (potentialSellerId && typeof potentialSellerId === 'string' && isValidUUID(potentialSellerId)) {
+      // First, get the profile ID for the customer (buyer)
+      // This is needed because seller_customers.customer_id references public.profiles.id, not auth.users.id
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+      
+      if (profileError || !profileData) {
+        console.error('Error finding profile for customer:', profileError);
+        // Continue with order creation even if we can't update the seller_customers table
+      } else {
+        const customerId = profileData.id;
+        const currentDate = new Date().toISOString();
+        
+        // Now check if a seller-customer relationship already exists
+        const { data: existingRecord } = await supabase
+          .from('seller_customers')
+          .select('*')
+          .eq('seller_id', potentialSellerId)
+          .eq('customer_id', customerId)
+          .single();
+        
+        if (existingRecord) {
+          // Update existing record
+          await supabase
+            .from('seller_customers')
+            .update({
+              total_orders: (existingRecord.total_orders || 0) + 1,
+              total_spent: (existingRecord.total_spent || 0) + totalWithShipping,
+              last_purchase_date: currentDate,
+              updated_at: currentDate,
+              status: 'active' // Mark as active since they just placed an order
+            })
+            .eq('id', existingRecord.id);
+        } else {
+          // Create new record
+          await supabase
+            .from('seller_customers')
+            .insert({
+              seller_id: potentialSellerId,
+              customer_id: customerId, // Use the profile ID here
+              total_orders: 1,
+              total_spent: totalWithShipping,
+              last_purchase_date: currentDate,
+              created_at: currentDate,
+              updated_at: currentDate,
+              status: 'active',
+              tags: []
+            });
+        }
+      }
+    }
+    
     return order;
   } catch (error) {
     console.error('Order creation failed:', error);
@@ -127,6 +184,7 @@ export async function getOrders(): Promise<Order[]> {
         tracking_url,
         estimated_delivery,
         order_items (
+          id,
           product_id,
           quantity,
           unit_price
@@ -160,7 +218,8 @@ export async function getOrders(): Promise<Order[]> {
           name: product?.name || 'Product Name Unavailable',
           quantity: item.quantity,
           price: item.unit_price,
-          image: images && images.length > 0 ? images[0].url : ''
+          image: images && images.length > 0 ? images[0].url : '',
+          product_id: item.product_id // Include the product_id in the returned item
         };
       }));
       
@@ -187,5 +246,116 @@ export async function getOrders(): Promise<Order[]> {
     console.error('Fetching orders failed:', error);
     toast.error(error instanceof Error ? error.message : 'Failed to fetch your orders');
     throw error;
+  }
+}
+
+/**
+ * Get products from delivered orders that haven't been reviewed yet
+ * @returns Array of products that can be reviewed
+ */
+export async function getReviewableProducts() {
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      throw new Error('You must be signed in to view reviewable products');
+    }
+    
+    const buyerId = user.id;
+    
+    // Step 1: Get all delivered orders for this user
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select(`
+        id, 
+        created_at, 
+        order_items (
+          product_id
+        )
+      `)
+      .eq('buyer_id', buyerId)
+      .eq('status', 'delivered');
+    
+    if (ordersError) {
+      throw new Error(`Failed to fetch delivered orders: ${ordersError.message}`);
+    }
+    
+    // Step 2: Get all products from these orders
+    const productIds = new Set<string>();
+    const orderProductMap = new Map<string, { orderId: string, orderDate: string }>();
+    
+    orders.forEach(order => {
+      order.order_items.forEach((item: { product_id: string }) => {
+        productIds.add(item.product_id);
+        // Store order info for each product
+        orderProductMap.set(item.product_id, { 
+          orderId: order.id, 
+          orderDate: order.created_at 
+        });
+      });
+    });
+    
+    if (productIds.size === 0) {
+      return []; // No delivered products to review
+    }
+    
+    // Step 3: Check which of these products have already been reviewed
+    const { data: reviews, error: reviewsError } = await supabase
+      .from('reviews')
+      .select('product_id')
+      .eq('buyer_id', buyerId)
+      .in('product_id', Array.from(productIds));
+    
+    if (reviewsError) {
+      throw new Error(`Failed to check reviewed products: ${reviewsError.message}`);
+    }
+    
+    // Step 4: Filter out products that have already been reviewed
+    const reviewedProductIds = new Set(reviews.map(review => review.product_id));
+    const unreviewedProductIds = Array.from(productIds).filter(id => !reviewedProductIds.has(id));
+    
+    if (unreviewedProductIds.length === 0) {
+      return []; // All products have been reviewed
+    }
+    
+    // Step 5: Get details for the products that can be reviewed
+    const { data: products, error: productsError } = await supabase
+      .from('products')
+      .select(`
+        id, 
+        name
+      `)
+      .in('id', unreviewedProductIds);
+    
+    if (productsError) {
+      throw new Error(`Failed to fetch product details: ${productsError.message}`);
+    }
+    
+    // Step 6: Fetch product images
+    const productsWithImages = await Promise.all(products.map(async (product) => {
+      const { data: images } = await supabase
+        .from('product_images')
+        .select('url')
+        .eq('product_id', product.id)
+        .limit(1);
+      
+      const orderInfo = orderProductMap.get(product.id) || { 
+        orderId: '', 
+        orderDate: new Date().toISOString() 
+      };
+      
+      return {
+        id: product.id,
+        name: product.name,
+        image: images && images.length > 0 ? images[0].url : '/placeholder.svg',
+        orderId: orderInfo.orderId,
+        orderDate: orderInfo.orderDate
+      };
+    }));
+    
+    return productsWithImages;
+  } catch (error) {
+    console.error('Error fetching reviewable products:', error);
+    return [];
   }
 }

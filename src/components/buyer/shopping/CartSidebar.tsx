@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -22,7 +21,7 @@ interface CartSidebarProps {
 }
 
 const CartSidebar: React.FC<CartSidebarProps> = ({ children }) => {
-  const { items, totalItems, totalPrice, removeItem, updateQuantity } = useCart();
+  const { items, totalItems, totalPrice, removeItem, updateQuantity, isCartOpen, setIsCartOpen } = useCart();
   const navigate = useNavigate();
   
   const handleCheckout = () => {
@@ -30,7 +29,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ children }) => {
   };
 
   return (
-    <Sheet>
+    <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
       <SheetTrigger asChild>
         {children || (
           <Button variant="outline" size="icon" className="relative">
@@ -63,7 +62,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ children }) => {
                 Looks like you haven't added any products to your cart yet.
               </p>
               <SheetClose asChild>
-                <Button className="mt-6">Continue Shopping</Button>
+                <Button className="mt-6" onClick={() => setIsCartOpen(false)}>Continue Shopping</Button>
               </SheetClose>
             </div>
           ) : (
@@ -142,12 +141,15 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ children }) => {
             
             <SheetFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
               <SheetClose asChild>
-                <Button variant="outline" className="sm:flex-1">
+                <Button variant="outline" className="sm:flex-1" onClick={() => setIsCartOpen(false)}>
                   Continue Shopping
                 </Button>
               </SheetClose>
               <SheetClose asChild>
-                <Button onClick={handleCheckout} className="sm:flex-1">
+                <Button onClick={() => {
+                  handleCheckout();
+                  setIsCartOpen(false);
+                }} className="sm:flex-1">
                   Checkout
                 </Button>
               </SheetClose>

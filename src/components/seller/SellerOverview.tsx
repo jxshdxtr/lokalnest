@@ -20,7 +20,8 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer 
+  ResponsiveContainer,
+  Legend
 } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -377,48 +378,60 @@ const SellerOverview = () => {
   // Fetch revenue data for bar chart
   const fetchRevenueData = async (sellerId: string) => {
     try {
-      // Get the last 6 months
-      const months = [];
-      const today = new Date();
+      // Since today is April 22, 2025, let's get the last 6 months (Nov 2024 to Apr 2025)
+      const revenueByMonth: RevenueData[] = [
+        { name: 'Nov', value: 0 },
+        { name: 'Dec', value: 0 },
+        { name: 'Jan', value: 0 },
+        { name: 'Feb', value: 0 },
+        { name: 'Mar', value: 0 },
+        { name: 'Apr', value: 0 },
+      ];
       
-      for (let i = 5; i >= 0; i--) {
-        const month = new Date(today.getFullYear(), today.getMonth() - i, 1);
-        months.push({
-          name: month.toLocaleString('default', { month: 'short' }),
-          startDate: month.toISOString(),
-          endDate: new Date(month.getFullYear(), month.getMonth() + 1, 0).toISOString()
-        });
-      }
+      // Get all order data in one query for the entire period
+      const startDate = new Date(2024, 10, 1).toISOString(); // Nov 1, 2024
+      const endDate = new Date(2025, 4, 30).toISOString();   // Apr 30, 2025
       
-      const revenueByMonth: RevenueData[] = [];
+      const { data: allOrderData, error } = await supabase
+        .from('order_items')
+        .select(`
+          total_price, 
+          product_id, 
+          products:product_id(seller_id), 
+          orders:order_id(created_at)
+        `)
+        .eq('products.seller_id', sellerId)
+        .gte('orders.created_at', startDate)
+        .lt('orders.created_at', endDate);
       
-      // For each month, calculate total revenue
-      for (const month of months) {
-        const { data: monthRevenue, error } = await supabase
-          .from('order_items')
-          .select(`
-            total_price, 
-            product_id, 
-            products:product_id(seller_id), 
-            orders:order_id(created_at)
-          `)
-          .eq('products.seller_id', sellerId)
-          .gte('orders.created_at', month.startDate)
-          .lte('orders.created_at', month.endDate);
-          
-        if (error) throw error;
+      if (error) throw error;
+      
+      // Filter orders that belong to this seller
+      const validOrderData = allOrderData?.filter(item => 
+        item.products?.seller_id === sellerId && 
+        item.orders?.created_at
+      ) || [];
+      
+      console.log('Valid order data count:', validOrderData.length);
+      
+      // Process each order and assign to the correct month
+      validOrderData.forEach(order => {
+        const orderDate = new Date(order.orders.created_at);
+        const monthName = orderDate.toLocaleString('default', { month: 'short' });
+        const monthIndex = revenueByMonth.findIndex(item => item.name === monthName);
         
-        // Filter out any records that don't belong to this seller
-        const validMonthRevenue = monthRevenue?.filter(item => item.products?.seller_id === sellerId) || [];
-        
-        const totalMonthRevenue = validMonthRevenue.reduce((sum, item) => sum + (item.total_price || 0), 0);
-        
-        revenueByMonth.push({
-          name: month.name,
-          value: Math.round(totalMonthRevenue)
-        });
-      }
+        if (monthIndex >= 0) {
+          revenueByMonth[monthIndex].value += (order.total_price || 0);
+          console.log(`Added ${order.total_price} to ${monthName}, new total: ${revenueByMonth[monthIndex].value}`);
+        }
+      });
       
+      // Round values for display
+      revenueByMonth.forEach(month => {
+        month.value = Math.round(month.value);
+      });
+      
+      console.log('Final revenue by month:', revenueByMonth);
       setRevenueData(revenueByMonth);
       
     } catch (error) {
@@ -632,14 +645,14 @@ const SellerOverview = () => {
           <CardContent>
             <div className="h-80 flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
+                <PieChart margin={{ top: 0, right: 10, bottom: 30, left: 10 }}>
                   <Pie
                     data={categoryData}
                     cx="50%"
-                    cy="50%"
-                    labelLine={true}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
+                    cy="45%"
+                    labelLine={false}
+                    label={false}
+                    outerRadius={90}
                     fill="#8884d8"
                     dataKey="value"
                   >
@@ -647,7 +660,17 @@ const SellerOverview = () => {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => [`${value} products`, 'Count']} />
+                  <Legend 
+                    layout="horizontal" 
+                    align="center"
+                    verticalAlign="bottom"
+                    formatter={(value, entry, index) => (
+                      <span style={{ color: "#333", fontSize: "0.875rem", padding: "0 5px" }}>
+                        {value} ({categoryData[index]?.value || 0} products)
+                      </span>
+                    )}
+                  />
+                  <Tooltip formatter={(value) => `${value} products`} />
                 </PieChart>
               </ResponsiveContainer>
             </div>

@@ -7,7 +7,7 @@ import PromotionManagement from './components/seller/PromotionManagement';
 import CustomerManagement from './components/seller/CustomerManagement';
 import SellerSettings from './components/seller/SellerSettings';
 import LogisticsManagement from './components/seller/logistics/LogisticsManagement';
-import InventoryManagement from './components/seller/InventoryManagement';
+import InventoryManagement from './components/seller/InventoryManagementNew';
 import ReviewManagement from './components/seller/ReviewManagement';
 import BuyerDashboard from './pages/BuyerDashboard';
 import Checkout from './pages/Checkout';
@@ -26,6 +26,7 @@ import { CartProvider } from './components/buyer/shopping/Cart';
 import AdminDashboard from './pages/AdminDashboard';
 import { ThemeProvider } from './components/theme/ThemeProvider';
 import Profile from './pages/Profile';
+import InventoryManagementNew from './components/seller/InventoryManagementNew';
 
 function App() {
   return (
@@ -45,7 +46,7 @@ function App() {
                 <Route index element={<Navigate to="/seller/dashboard/overview" replace />} />
                 <Route path="overview" element={<div>Overview</div>} />
                 <Route path="products" element={<ProductManagement />} />
-                <Route path="inventory" element={<InventoryManagement />} />
+                <Route path="inventory" element={<InventoryManagementNew />} />
                 <Route path="orders" element={<OrderManagement />} />
                 <Route path="customers" element={<CustomerManagement />} />
                 <Route path="promotions" element={<PromotionManagement />} />

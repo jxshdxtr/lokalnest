@@ -24,6 +24,7 @@ import {
   Calendar, 
   Tag, 
   Package, 
+  CreditCard,
   Truck,
   ClipboardCheck,
   Loader2,
@@ -241,22 +242,59 @@ const OrderManagement = () => {
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
+      // For COD orders, if status is being set to delivered, also update payment status to paid
+      const orderToUpdate = orders.find(order => order.id === orderId);
+      let updateData: any = { status };
+      
+      if (status === 'delivered' && orderToUpdate?.payment_method?.toLowerCase() === 'cash on delivery') {
+        updateData.payment_status = 'paid';
+      }
+      
       const { error } = await supabase
         .from('orders')
-        .update({ status })
+        .update(updateData)
         .eq('id', orderId);
         
       if (error) throw error;
       
       // Update local state
       setOrders(orders.map(order => 
-        order.id === orderId ? { ...order, status } : order
+        order.id === orderId 
+          ? { ...order, status, ...(updateData.payment_status ? { payment_status: updateData.payment_status } : {}) } 
+          : order
       ));
       
       toast.success(`Order status updated to ${status}`);
+      if (updateData.payment_status) {
+        toast.success(`Payment status automatically updated to paid for COD order`);
+      }
     } catch (error) {
       console.error('Error updating order status:', error);
       toast.error('Failed to update order status');
+    }
+  };
+  
+  const updatePaymentStatus = async (orderId: string, status: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          status: status,
+          payment_status: 'approved' // Changed from 'paid' to 'approved'
+        })
+        .eq('id', orderId);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setOrders(orders.map(order => 
+        order.id === orderId ? { ...order, status, payment_status: 'approved' } : order
+      ));
+      
+      toast.success(`Payment approved and order status updated`);
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      toast.error('Failed to update payment status');
     }
   };
 
@@ -328,6 +366,8 @@ const OrderManagement = () => {
     switch(status.toLowerCase()) {
       case 'paid':
         return <Badge className="bg-green-100 text-green-800 border-green-200">Paid</Badge>;
+      case 'approved':
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Approved</Badge>;
       case 'pending':
         return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pending</Badge>;
       case 'refunded':
@@ -498,26 +538,33 @@ const OrderManagement = () => {
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             
-                            {order.status === 'processing' && (
-                              <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'shipped')}>
-                                <Truck className="mr-2 h-4 w-4" />
-                                Mark as Shipped
-                              </DropdownMenuItem>
-                            )}
+                            {/* Always show status change options regardless of current status */}
+                            <DropdownMenuItem onClick={() => updatePaymentStatus(order.id, 'approved')}>
+                              <CreditCard className="mr-2 h-4 w-4" />
+                              {order.status === 'approved' ? 'Payment Already Approved' : 'Approve Payment'}
+                            </DropdownMenuItem>
                             
-                            {order.status === 'shipped' && (
-                              <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'delivered')}>
-                                <ClipboardCheck className="mr-2 h-4 w-4" />
-                                Mark as Delivered
-                              </DropdownMenuItem>
-                            )}
+                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'processing')}>
+                              <Tag className="mr-2 h-4 w-4" />
+                              Mark as Processing
+                            </DropdownMenuItem>
                             
-                            {(order.status === 'processing' || order.status === 'shipped') && (
-                              <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'cancelled')}>
-                                <Tag className="mr-2 h-4 w-4" />
-                                Cancel Order
-                              </DropdownMenuItem>
-                            )}
+                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'shipped')}>
+                              <Truck className="mr-2 h-4 w-4" />
+                              Mark as Shipped
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'delivered')}>
+                              <ClipboardCheck className="mr-2 h-4 w-4" />
+                              Mark as Delivered{order.payment_method?.toLowerCase() === 'cash on delivery' && ' (Will update COD payment)'}
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'cancelled')}>
+                              <X className="mr-2 h-4 w-4" />
+                              Mark as Cancelled
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuSeparator />
                             
                             <DropdownMenuItem onClick={() => openOrderDetails(order)}>
                               <Package className="mr-2 h-4 w-4" />

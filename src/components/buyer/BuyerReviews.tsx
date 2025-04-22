@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Star, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -33,6 +32,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'sonner';
+import { getUserReviews, submitReview, deleteReview, updateReview } from '@/services/reviewService';
+import { getReviewableProducts } from '@/services/orderService';
 
 interface Review {
   id: string;
@@ -42,42 +43,23 @@ interface Review {
   rating: number;
   content: string;
   date: string;
+  isVerified?: boolean;
+}
+
+interface ProductToReview {
+  id: string;
+  name: string;
+  image: string;
+  orderId: string;
+  orderDate: string;
 }
 
 const BuyerReviews = () => {
-  const [reviews, setReviews] = useState<Review[]>([
-    {
-      id: "rev_1",
-      productId: "prod_1",
-      productName: "Handwoven Cotton Tote Bag",
-      productImage: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=2670&q=80",
-      rating: 5,
-      content: "The quality of this bag exceeded my expectations! The weaving is intricate and the material is durable. Love that it's eco-friendly too.",
-      date: "2023-10-20"
-    },
-    {
-      id: "rev_2",
-      productId: "prod_2",
-      productName: "Handcrafted Wooden Bowls",
-      productImage: "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?auto=format&fit=crop&w=2670&q=80",
-      rating: 4,
-      content: "Beautiful craftsmanship and natural wood grain. They're a bit smaller than I expected but still very useful for serving snacks.",
-      date: "2023-10-10"
-    }
-  ]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
   
-  const [productsToReview, setProductsToReview] = useState([
-    {
-      id: "prod_3",
-      name: "Hand-painted Ceramic Mug",
-      image: "https://images.unsplash.com/photo-1547619292-8816ee7cdd50?auto=format&fit=crop&w=2670&q=80",
-    },
-    {
-      id: "prod_4",
-      name: "Bamboo Serving Tray",
-      image: "https://images.unsplash.com/photo-1605518216938-7c31b7b14ad0?auto=format&fit=crop&w=2670&q=80",
-    }
-  ]);
+  const [productsToReview, setProductsToReview] = useState<ProductToReview[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
   
   const [editReview, setEditReview] = useState<Review | null>(null);
   const [newReview, setNewReview] = useState({
@@ -92,6 +74,40 @@ const BuyerReviews = () => {
   
   // For edit review
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetchReviews();
+    fetchProductsToReview();
+  }, []);
+
+  const fetchReviews = async () => {
+    setReviewsLoading(true);
+    try {
+      const fetchedReviews = await getUserReviews();
+      setReviews(fetchedReviews);
+      console.log("Fetched reviews:", fetchedReviews);
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      toast.error('Failed to load your reviews');
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const fetchProductsToReview = async () => {
+    setProductsLoading(true);
+    try {
+      const products = await getReviewableProducts();
+      setProductsToReview(products);
+      console.log("Products to review:", products);
+    } catch (error) {
+      console.error('Error fetching products to review:', error);
+      toast.error('Failed to load products to review');
+    } finally {
+      setProductsLoading(false);
+    }
+  };
 
   const handleRatingChange = (rating: number, isEditing = false) => {
     if (isEditing && editReview) {
@@ -101,9 +117,23 @@ const BuyerReviews = () => {
     }
   };
 
-  const handleDeleteReview = (id: string) => {
-    setReviews(reviews.filter(review => review.id !== id));
-    toast.success("Review deleted successfully");
+  const handleDeleteReview = async (id: string) => {
+    try {
+      setIsSubmitting(true);
+      const success = await deleteReview(id);
+      
+      if (success) {
+        setReviews(reviews.filter(review => review.id !== id));
+        toast.success("Review deleted successfully");
+        
+        // Refresh products to review since this might now be available to review again
+        fetchProductsToReview();
+      }
+    } catch (error) {
+      console.error('Error deleting review:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEditReview = (review: Review) => {
@@ -111,43 +141,79 @@ const BuyerReviews = () => {
     setIsEditDialogOpen(true);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editReview) return;
     
-    setReviews(reviews.map(r => r.id === editReview.id ? editReview : r));
-    setIsEditDialogOpen(false);
-    setEditReview(null);
-    toast.success("Review updated successfully");
+    try {
+      setIsSubmitting(true);
+      const success = await updateReview(editReview.id, {
+        rating: editReview.rating,
+        comment: editReview.content
+      });
+      
+      if (success) {
+        setReviews(reviews.map(r => r.id === editReview.id ? editReview : r));
+        setIsEditDialogOpen(false);
+        setEditReview(null);
+        toast.success("Review updated successfully");
+      }
+    } catch (error) {
+      console.error('Error updating review:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleSubmitNewReview = () => {
+  const handleSubmitNewReview = async () => {
     if (!selectedProductId) return;
     
     const product = productsToReview.find(p => p.id === selectedProductId);
     if (!product) return;
     
-    const newReviewItem: Review = {
-      id: `rev_${Date.now()}`,
-      productId: selectedProductId,
-      productName: product.name,
-      productImage: product.image,
-      rating: newReview.rating,
-      content: newReview.content,
-      date: new Date().toISOString().split('T')[0]
-    };
-    
-    setReviews([...reviews, newReviewItem]);
-    setProductsToReview(productsToReview.filter(p => p.id !== selectedProductId));
-    
-    setIsNewReviewDialogOpen(false);
-    setNewReview({
-      productId: "",
-      rating: 5,
-      content: ""
-    });
-    setSelectedProductId(null);
-    
-    toast.success("Review submitted successfully");
+    try {
+      setIsSubmitting(true);
+      
+      // Submit the review to the database
+      const result = await submitReview({
+        productId: selectedProductId,
+        rating: newReview.rating,
+        comment: newReview.content
+      });
+      
+      if (result) {
+        // Create a new review object for the UI
+        const newReviewItem: Review = {
+          id: result.id,
+          productId: selectedProductId,
+          productName: product.name,
+          productImage: product.image,
+          rating: newReview.rating,
+          content: newReview.content,
+          date: new Date().toISOString(),
+          isVerified: true
+        };
+        
+        setReviews([newReviewItem, ...reviews]);
+        
+        // Remove the product from the products to review list
+        setProductsToReview(productsToReview.filter(p => p.id !== selectedProductId));
+        
+        setIsNewReviewDialogOpen(false);
+        setNewReview({
+          productId: "",
+          rating: 5,
+          content: ""
+        });
+        setSelectedProductId(null);
+        
+        toast.success("Review submitted successfully");
+      }
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      toast.error('Failed to submit your review');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderStars = (rating: number, interactive = false, isEditing = false) => {
@@ -181,7 +247,11 @@ const BuyerReviews = () => {
         </TabsList>
         
         <TabsContent value="my-reviews" className="space-y-4">
-          {reviews.length > 0 ? (
+          {reviewsLoading ? (
+            <div className="text-center py-10">
+              <p className="text-muted-foreground">Loading your reviews...</p>
+            </div>
+          ) : reviews.length > 0 ? (
             <div className="grid gap-4">
               {reviews.map((review) => (
                 <Card key={review.id}>
@@ -219,7 +289,12 @@ const BuyerReviews = () => {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteReview(review.id)}>Delete</AlertDialogAction>
+                              <AlertDialogAction 
+                                onClick={() => handleDeleteReview(review.id)}
+                                disabled={isSubmitting}
+                              >
+                                Delete
+                              </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
@@ -229,6 +304,11 @@ const BuyerReviews = () => {
                   <CardContent>
                     <div className="flex mb-2">
                       {renderStars(review.rating)}
+                      {review.isVerified && (
+                        <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-medium">
+                          Verified Purchase
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm">{review.content}</p>
                   </CardContent>
@@ -243,7 +323,11 @@ const BuyerReviews = () => {
         </TabsContent>
         
         <TabsContent value="to-review" className="space-y-4">
-          {productsToReview.length > 0 ? (
+          {productsLoading ? (
+            <div className="text-center py-10">
+              <p className="text-muted-foreground">Loading products to review...</p>
+            </div>
+          ) : productsToReview.length > 0 ? (
             <div className="grid gap-4">
               {productsToReview.map((product) => (
                 <Card key={product.id}>
@@ -259,7 +343,9 @@ const BuyerReviews = () => {
                         </div>
                         <div>
                           <h3 className="font-medium">{product.name}</h3>
-                          <p className="text-sm text-muted-foreground">Purchased recently</p>
+                          <p className="text-sm text-muted-foreground">
+                            Ordered on {new Date(product.orderDate).toLocaleDateString()}
+                          </p>
                         </div>
                       </div>
                       <Dialog open={isNewReviewDialogOpen && selectedProductId === product.id} onOpenChange={(open) => {
@@ -296,8 +382,19 @@ const BuyerReviews = () => {
                             </div>
                           </div>
                           <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsNewReviewDialogOpen(false)}>Cancel</Button>
-                            <Button onClick={handleSubmitNewReview}>Submit Review</Button>
+                            <Button 
+                              variant="outline" 
+                              onClick={() => setIsNewReviewDialogOpen(false)}
+                              disabled={isSubmitting}
+                            >
+                              Cancel
+                            </Button>
+                            <Button 
+                              onClick={handleSubmitNewReview}
+                              disabled={isSubmitting}
+                            >
+                              {isSubmitting ? "Submitting..." : "Submit Review"}
+                            </Button>
                           </DialogFooter>
                         </DialogContent>
                       </Dialog>
@@ -342,8 +439,19 @@ const BuyerReviews = () => {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveEdit}>Save Changes</Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsEditDialogOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveEdit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Saving..." : "Save Changes"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

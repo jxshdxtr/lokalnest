@@ -205,7 +205,32 @@ const InventoryManagementNew: React.FC = () => {
       const previousQuantity = selectedProduct.stock_quantity;
       const newQuantity = previousQuantity + restockQuantity;
       
-      // Update locally first for immediate UI feedback
+      // Update product stock in the database
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ 
+          stock_quantity: newQuantity 
+        })
+        .eq('id', selectedProduct.id);
+        
+      if (updateError) throw updateError;
+      
+      // Create inventory log entry in the database
+      const { error: logError } = await supabase
+        .from('inventory_logs')
+        .insert({
+          product_id: selectedProduct.id,
+          previous_quantity: previousQuantity,
+          new_quantity: newQuantity,
+          change_quantity: restockQuantity,
+          reason: restockReason,
+          created_at: new Date().toISOString(),
+          created_by: sellerId  // Using created_by instead of staff_id
+        });
+        
+      if (logError) throw logError;
+      
+      // Update locally for immediate UI feedback
       setProducts(products.map(p => 
         p.id === selectedProduct.id 
           ? {
@@ -220,7 +245,7 @@ const InventoryManagementNew: React.FC = () => {
           : p
       ));
       
-      // Create new log entry
+      // Create new log entry for the UI
       const newLog: InventoryLog = {
         id: Date.now().toString(),
         product_id: selectedProduct.id,
@@ -236,8 +261,6 @@ const InventoryManagementNew: React.FC = () => {
       
       setLogs([newLog, ...logs]);
       
-      // Here you would also make an API call to update the database
-      // For demo purposes we'll just show a toast
       toast.success(`Updated stock for ${selectedProduct.name}`);
       
       // Reset form and close dialog
@@ -245,8 +268,8 @@ const InventoryManagementNew: React.FC = () => {
       setRestockReason("");
       setShowRestockDialog(false);
     } catch (error) {
+      console.error("Failed to update stock:", error);
       toast.error("Failed to update stock");
-      console.error(error);
     }
   };
   
@@ -574,4 +597,4 @@ const InventoryManagementNew: React.FC = () => {
   );
 };
 
-export default InventoryManagementNew; 
+export default InventoryManagementNew;
