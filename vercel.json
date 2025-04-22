@@ -1,9 +1,9 @@
 {
-  "routes": [
-    { "src": "/auth/callback", "dest": "/index.html" },
-    { "src": "/buyer/home", "dest": "/index.html" },
-    { "src": "/seller/dashboard", "dest": "/index.html" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/auth/callback", "destination": "/index.html" },
+    { "source": "/buyer/home", "destination": "/index.html" },
+    { "source": "/seller/dashboard", "destination": "/index.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
     {
