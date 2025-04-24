@@ -160,10 +160,11 @@ export async function getFeaturedProducts(): Promise<ProductWithSeller[]> {
     // Transform data to match the expected format
     const formattedProducts = (data || []).map(product => {
       // Find primary image or use first available
-      const primaryImage = product.product_images.find(img => img.is_primary);
+      const productImages = Array.isArray(product.product_images) ? product.product_images : [];
+      const primaryImage = productImages.find(img => img?.is_primary);
       const image = primaryImage 
         ? primaryImage.url 
-        : (product.product_images.length > 0 ? product.product_images[0].url : '');
+        : (productImages.length > 0 ? productImages[0].url : '');
 
       return {
         id: product.id,
@@ -192,10 +193,31 @@ export async function getAllProducts(filters: {
   sortBy?: string;
 }): Promise<ProductWithSeller[]> {
   try {
-    // Start building the query
-    let query = supabase
-      .from('products')
-      .select(`
+    // Prepare selection string based on whether we need to filter by category
+    let selectStr = `
+      id,
+      name,
+      price,
+      is_available,
+      stock_quantity,
+      seller_profiles(business_name, location),
+      product_images(url, is_primary)
+    `;
+    
+    // Add categories with proper join type based on filter
+    if (filters.category && filters.category !== 'All Categories') {
+      selectStr = `
+        id,
+        name,
+        price,
+        is_available,
+        stock_quantity,
+        categories!inner(name),
+        seller_profiles(business_name, location),
+        product_images(url, is_primary)
+      `;
+    } else {
+      selectStr = `
         id,
         name,
         price,
@@ -204,7 +226,13 @@ export async function getAllProducts(filters: {
         categories(name),
         seller_profiles(business_name, location),
         product_images(url, is_primary)
-      `)
+      `;
+    }
+
+    // Start building the query
+    let query = supabase
+      .from('products')
+      .select(selectStr)
       .eq('is_available', true)
       .gt('stock_quantity', 0);
 
@@ -229,24 +257,35 @@ export async function getAllProducts(filters: {
     const { data, error } = await query;
 
     if (error) throw error;
-
+    
+    // Define the expected product data structure
+    type ProductData = {
+      id: string;
+      name: string;
+      price: number;
+      product_images: Array<{ url: string; is_primary?: boolean | null }> | null;
+      seller_profiles?: { business_name?: string | null; location?: string | null } | null;
+      categories?: { name: string } | null;
+    };
+    
     // Transform data to match the expected format
-    let formattedProducts = (data || []).map(product => {
+    let formattedProducts = ((Array.isArray(data) ? data as unknown as ProductData[] : []) || []).map(product => {
       // Find primary image or use first available
-      const primaryImage = product.product_images.find(img => img.is_primary);
+      const productImages = Array.isArray(product.product_images) ? product.product_images : [];
+      const primaryImage = productImages.find(img => img?.is_primary);
       const image = primaryImage 
         ? primaryImage.url 
-        : (product.product_images.length > 0 ? product.product_images[0].url : '');
+        : (productImages.length > 0 ? productImages[0].url : '');
 
       return {
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        image: image,
-        seller: product.seller_profiles.business_name,
-        category: product.categories ? product.categories.name : 'Uncategorized',
-        location: product.seller_profiles?.location || 'Philippines'
-      };
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          image: image,
+          seller: product.seller_profiles?.business_name || 'Unknown',
+          category: product.categories ? product.categories.name : 'Uncategorized',
+          location: product.seller_profiles?.location || 'Philippines'
+        };
     });
 
     // Apply search filter client-side

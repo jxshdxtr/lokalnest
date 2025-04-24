@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, ArrowLeft } from 'lucide-react';
 
 interface ProfileFormData {
   full_name: string;
@@ -162,6 +162,15 @@ const Profile = () => {
 
   return (
     <div className="container max-w-4xl py-10">
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="flex items-center gap-1 mb-4"
+        onClick={() => navigate('/buyer/home')}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Home
+      </Button>
       <h1 className="text-2xl font-bold mb-8">My Profile</h1>
       
       <div className="grid gap-8">

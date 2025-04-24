@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CreditCard,
   Clock, 
   CheckCircle2, 
   XCircle,
-  Plus
+  Plus,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +43,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PaymentMethod {
   id: string;
@@ -79,32 +81,9 @@ const BuyerPayments = () => {
     }
   ]);
 
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    {
-      id: "tx_1",
-      date: "2023-10-25",
-      amount: 1500,
-      description: "Order #ORD-8294",
-      status: 'completed',
-      paymentMethod: 'Visa ending in 4242'
-    },
-    {
-      id: "tx_2",
-      date: "2023-10-15",
-      amount: 1200,
-      description: "Order #ORD-7392",
-      status: 'completed',
-      paymentMethod: 'Cash on Delivery'
-    },
-    {
-      id: "tx_3",
-      date: "2023-09-30",
-      amount: 900,
-      description: "Order #ORD-6104",
-      status: 'pending',
-      paymentMethod: 'Visa ending in 4242'
-    }
-  ]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
+  const [transactionError, setTransactionError] = useState<string | null>(null);
 
   const [newCardDetails, setNewCardDetails] = useState({
     name: "",
@@ -115,6 +94,78 @@ const BuyerPayments = () => {
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("card");
+
+  // Fetch transaction history for the current buyer
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      setIsLoadingTransactions(true);
+      setTransactionError(null);
+
+      try {
+        // Get the current user session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          throw new Error('You must be logged in to view your transactions');
+        }
+        
+        const buyerId = session.user.id;
+        
+        // Fetch orders for the current buyer
+        const { data: orders, error: ordersError } = await supabase
+          .from('orders')
+          .select('id, created_at, total_amount, status, payment_status, payment_method')
+          .eq('buyer_id', buyerId)
+          .order('created_at', { ascending: false });
+          
+        if (ordersError) {
+          throw ordersError;
+        }
+        
+        // Transform the orders data into transaction format
+        const transformedTransactions: Transaction[] = orders.map(order => ({
+          id: order.id,
+          date: order.created_at,
+          amount: order.total_amount,
+          description: `Order #${order.id.slice(0, 8).toUpperCase()}`,
+          status: mapPaymentStatusToTransactionStatus(order.payment_status, order.status),
+          paymentMethod: formatPaymentMethodName(order.payment_method)
+        }));
+        
+        setTransactions(transformedTransactions);
+      } catch (error) {
+        console.error('Failed to fetch transactions:', error);
+        setTransactionError(error instanceof Error ? error.message : 'An error occurred');
+        toast.error('Failed to load your transactions');
+      } finally {
+        setIsLoadingTransactions(false);
+      }
+    };
+    
+    fetchTransactions();
+  }, []);
+  
+  // Helper function to map payment status from DB to UI status
+  const mapPaymentStatusToTransactionStatus = (paymentStatus: string, orderStatus: string): 'completed' | 'pending' | 'failed' => {
+    if (paymentStatus === 'approved' || paymentStatus === 'paid') {
+      return 'completed';
+    } else if (paymentStatus === 'failed' || paymentStatus === 'rejected') {
+      return 'failed';
+    } else {
+      return 'pending';
+    }
+  };
+  
+  // Helper function to format payment method name
+  const formatPaymentMethodName = (method: string): string => {
+    if (method.includes('card')) {
+      return 'Credit/Debit Card';
+    } else if (method.toLowerCase().includes('cod')) {
+      return 'Cash on Delivery';
+    } else {
+      return method;
+    }
+  };
 
   const handleSetDefaultPaymentMethod = (id: string) => {
     setPaymentMethods(
@@ -361,30 +412,42 @@ const BuyerPayments = () => {
               <CardDescription>View your recent transactions</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {transactions.map((transaction) => (
-                  <div key={transaction.id} className="flex items-center justify-between p-4 border border-border rounded-md">
-                    <div className="space-y-1">
-                      <div className="flex items-center">
-                        <h3 className="font-medium">{transaction.description}</h3>
-                        <div className="ml-3 flex items-center">
-                          {getStatusIcon(transaction.status)}
-                          {getStatusBadge(transaction.status)}
+              {isLoadingTransactions ? (
+                <div className="flex flex-col items-center justify-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                  <p className="text-sm text-muted-foreground">Loading your transactions...</p>
+                </div>
+              ) : transactionError ? (
+                <div className="text-center py-10">
+                  <p className="text-red-500 mb-2">Error loading transactions</p>
+                  <p className="text-sm text-muted-foreground">{transactionError}</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {transactions.map((transaction) => (
+                    <div key={transaction.id} className="flex items-center justify-between p-4 border border-border rounded-md">
+                      <div className="space-y-1">
+                        <div className="flex items-center">
+                          <h3 className="font-medium">{transaction.description}</h3>
+                          <div className="ml-3 flex items-center">
+                            {getStatusIcon(transaction.status)}
+                            {getStatusBadge(transaction.status)}
+                          </div>
                         </div>
+                        <p className="text-sm text-muted-foreground">{new Date(transaction.date).toLocaleDateString()}</p>
+                        <p className="text-xs text-muted-foreground">{transaction.paymentMethod}</p>
                       </div>
-                      <p className="text-sm text-muted-foreground">{new Date(transaction.date).toLocaleDateString()}</p>
-                      <p className="text-xs text-muted-foreground">{transaction.paymentMethod}</p>
+                      <p className="font-semibold">₱{transaction.amount.toLocaleString()}</p>
                     </div>
-                    <p className="font-semibold">₱{transaction.amount.toLocaleString()}</p>
-                  </div>
-                ))}
-                
-                {transactions.length === 0 && (
-                  <div className="text-center py-10">
-                    <p className="text-muted-foreground">No transactions yet</p>
-                  </div>
-                )}
-              </div>
+                  ))}
+                  
+                  {transactions.length === 0 && (
+                    <div className="text-center py-10">
+                      <p className="text-muted-foreground">No transactions yet</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

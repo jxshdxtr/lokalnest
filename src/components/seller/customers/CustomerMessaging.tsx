@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Send, ArrowLeft } from 'lucide-react';
+import { Send, ArrowLeft, Image, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { Customer } from './types';
+import { v4 as uuidv4 } from 'uuid';
 
 interface CustomerMessagingProps {
   customer: Customer | null;
@@ -23,6 +24,7 @@ interface Message {
   read: boolean;
   sender_id: string;
   recipient_id: string;
+  image_url?: string;
 }
 
 interface TypingIndicator {
@@ -38,6 +40,10 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
   const [sending, setSending] = useState(false);
   const [isCustomerTyping, setIsCustomerTyping] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const subscriptionRef = useRef<any>(null);
   const presenceChannelRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -70,6 +76,11 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
       if (presenceChannelRef.current) {
         presenceChannelRef.current.unsubscribe();
       }
+      
+      // Clean up image preview
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
     };
   }, [isOpen, customer]);
 
@@ -90,12 +101,9 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
   };
 
   const setupMessagesSubscription = async () => {
-    if (!customer) return;
+    if (!customer || !currentUserId) return;
 
     try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session.session) return;
-
       // Find the actual user_id linked to this customer
       let customerId;
       
@@ -122,7 +130,7 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
         return;
       }
 
-      // Create a channel for real-time updates
+      // Create a channel for real-time updates - this improved approach catches both sent and received messages
       const channel = supabase
         .channel('seller-messages')
         .on(
@@ -131,15 +139,21 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
             event: 'INSERT',
             schema: 'public',
             table: 'messages',
-            filter: `sender_id=eq.${customerId}`,
+            filter: `or(and(sender_id=eq.${currentUserId},recipient_id=eq.${customerId}),and(sender_id=eq.${customerId},recipient_id=eq.${currentUserId}))`,
           },
           (payload) => {
-            // Only add messages that aren't already in our state
+            // Process any new message in this conversation
             const newMessage = payload.new as Message;
+            
             // Check if the message already exists in our state
             const messageExists = messages.some((msg) => msg.id === newMessage.id);
             if (!messageExists) {
               setMessages((prevMessages) => [...prevMessages, newMessage]);
+              
+              // Mark as read if it's from the customer and we're viewing it
+              if (newMessage.sender_id === customerId && newMessage.recipient_id === currentUserId) {
+                markMessageAsRead(newMessage.id);
+              }
             }
           }
         )
@@ -177,6 +191,24 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
       );
     } catch (error) {
       console.error('Error marking messages as read:', error);
+    }
+  };
+
+  const markMessageAsRead = async (messageId: string) => {
+    try {
+      await supabase
+        .from('messages')
+        .update({ read: true })
+        .eq('id', messageId);
+
+      // Update local state
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          msg.id === messageId ? { ...msg, read: true } : msg
+        )
+      );
+    } catch (error) {
+      console.error('Error marking message as read:', error);
     }
   };
 
@@ -245,10 +277,7 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
   };
 
   const sendMessage = async () => {
-    if (!message.trim() || !customer) return;
-    
-    // Debug - log the customer object
-    console.log('Customer object:', customer);
+    if ((!message.trim() && !selectedImage) || !customer) return;
     
     setSending(true);
     try {
@@ -304,36 +333,118 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
         return;
       }
       
-      // For debugging - log the IDs we're using
-      console.log('Sending message with:', { sellerId, customerId });
+      let imageUrl = null;
+      
+      // Upload image if selected
+      if (selectedImage) {
+        imageUrl = await uploadImage(selectedImage);
+      }
       
       const newMessage = {
         sender_id: sellerId,
         recipient_id: customerId,
         message_content: message.trim(),
+        image_url: imageUrl,
         read: false
       };
       
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('messages')
-        .insert(newMessage)
-        .select();
+        .insert(newMessage);
       
       if (error) {
         console.error('Error detail:', error);
         throw error;
       }
       
-      if (data) {
-        setMessages([...messages, data[0] as Message]);
-        setMessage('');
-        toast.success('Message sent');
-      }
+      setMessage('');
+      setSelectedImage(null); 
+      setPreviewUrl(null);
+      
+      // The message will appear via the subscription rather than adding it manually
+      // This ensures consistent behavior between both parties
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Failed to send message');
     } finally {
       setSending(false);
+    }
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    setUploadingImage(true);
+    try {
+      // Get current user ID (seller)
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) {
+        throw new Error('You must be logged in to send images');
+      }
+      
+      const sellerId = session.session.user.id;
+      
+      // Create a unique file name
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${uuidv4()}.${fileExt}`;
+      const filePath = `${sellerId}/${fileName}`;
+      
+      // Upload the file to Supabase Storage directly
+      const { error: uploadError } = await supabase.storage
+        .from('messages')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: file.type
+        });
+      
+      if (uploadError) {
+        console.error('Upload error details:', uploadError);
+        throw new Error(`Failed to upload image: ${uploadError.message}`);
+      }
+      
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('messages')
+        .getPublicUrl(filePath);
+      
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image');
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+      
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      
+      setSelectedImage(file);
+      
+      // Create a preview URL
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
     }
   };
 
@@ -516,7 +627,19 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
                           {isSentByMe ? 'You' : customer?.full_name || 'Customer'}
                         </span>
                       </div>
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.message_content}</p>
+                      {msg.image_url && (
+                        <div className="mb-2">
+                          <img 
+                            src={msg.image_url} 
+                            alt="Shared image" 
+                            className="rounded-lg max-w-full max-h-48 object-contain cursor-pointer"
+                            onClick={() => window.open(msg.image_url, '_blank')}
+                          />
+                        </div>
+                      )}
+                      {msg.message_content && (
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.message_content}</p>
+                      )}
                       <p className="text-xs mt-1 opacity-70">{formatMessageTime(msg.created_at)}</p>
                     </div>
                     {isSentByMe && (
@@ -547,14 +670,46 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
           )}
         </ScrollArea>
         
+        {/* Image preview area */}
+        {previewUrl && (
+          <div className="relative mx-4 mb-2">
+            <div className="relative border rounded-md p-2 bg-gray-50">
+              <img 
+                src={previewUrl} 
+                alt="Preview" 
+                className="max-h-32 max-w-full object-contain rounded-md mx-auto"
+              />
+              <button 
+                className="absolute top-1 right-1 bg-gray-800 rounded-full p-1 text-white opacity-80 hover:opacity-100"
+                onClick={handleRemoveImage}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+        
         <div className="flex gap-2 mt-2 items-center">
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*"
+            onChange={handleFileSelect}
+          />
           <div className="flex space-x-2 text-gray-500">
-            <button className="p-2 hover:bg-gray-100 rounded-full">
-              <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                <polyline points="21 15 16 10 5 21"></polyline>
-              </svg>
+            <button 
+              className="p-2 hover:bg-gray-100 rounded-full relative"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingImage}
+            >
+              {uploadingImage ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Image className="w-5 h-5" />
+              )}
             </button>
           </div>
           <Textarea
@@ -572,10 +727,14 @@ const CustomerMessaging: React.FC<CustomerMessagingProps> = ({ customer, isOpen,
           <Button 
             onClick={sendMessage} 
             size="icon" 
-            disabled={sending || !message.trim()}
+            disabled={sending || (!message.trim() && !selectedImage)}
             className="h-10 w-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
           >
-            <Send className="h-4 w-4" />
+            {sending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </Button>
         </div>
       </DialogContent>

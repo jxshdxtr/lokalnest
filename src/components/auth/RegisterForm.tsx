@@ -293,29 +293,34 @@ const RegisterForm = ({ isLoading, setIsLoading, showPassword, togglePasswordVis
           {isLoading ? 'Creating account...' : 'Create Account'}
         </Button>
 
-        <div className="relative flex items-center justify-center mt-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-border"></div>
-          </div>
-          <div className="relative bg-background dark:bg-background px-4 text-sm text-muted-foreground">
-            Or continue with
-          </div>
-        </div>
+        {/* Only show Google auth option for buyer accounts */}
+        {form.watch('accountType') === 'buyer' && (
+          <>
+            <div className="relative flex items-center justify-center mt-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border"></div>
+              </div>
+              <div className="relative bg-background dark:bg-background px-4 text-sm text-muted-foreground">
+                Or continue with
+              </div>
+            </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          disabled={isLoading}
-          onClick={handleGoogleSignUp}
-        >
-          <img
-            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-            alt="Google logo"
-            className="mr-2 h-4 w-4"
-          />
-          Google
-        </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              disabled={isLoading}
+              onClick={handleGoogleSignUp}
+            >
+              <img
+                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                alt="Google logo"
+                className="mr-2 h-4 w-4"
+              />
+              Google
+            </Button>
+          </>
+        )}
       </form>
     </Form>
   );
