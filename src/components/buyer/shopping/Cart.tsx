@@ -44,7 +44,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       // Check product availability in database and get the seller_id
       const { data: productData, error } = await supabase
         .from('products')
-        .select('stock_quantity, is_available, seller_id')
+        .select('stock_quantity, is_available, seller_id, name')
         .eq('id', product.id)
         .single();
       
@@ -58,6 +58,15 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         toast.error('This product is currently unavailable');
         return;
       }
+
+      // Ensure we have a valid seller_id
+      if (!productData.seller_id) {
+        console.error('Product has no seller_id:', product.id);
+        toast.error('Cannot add product without seller information');
+        return;
+      }
+      
+      console.log(`Adding product ${product.id} with seller ID: ${productData.seller_id}`);
       
       setItems(currentItems => {
         // Check if item already exists in cart

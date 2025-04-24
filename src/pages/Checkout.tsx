@@ -98,6 +98,7 @@ const Checkout: React.FC = () => {
           const sellerId = items[0]?.seller || null;
           
           console.log('Creating payment intent for seller:', sellerId);
+          // Create payment intent will work regardless of whether user has a seller profile or not
           const { clientSecret, paymentIntentId } = await createPaymentIntent(items, sellerId);
           setClientSecret(clientSecret);
           setPaymentIntentId(paymentIntentId);
@@ -109,7 +110,7 @@ const Checkout: React.FC = () => {
 
       fetchPaymentIntent();
     }
-  }, [paymentMethod, items]);
+  }, [paymentMethod, items, clientSecret]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -138,36 +139,61 @@ const Checkout: React.FC = () => {
 
     try {
       // Format the shipping address
-      const formattedAddress = `${shippingInfo.address}, ${shippingInfo.city}, ${shippingInfo.province} ${shippingInfo.postalCode}`;
+      const formattedAddress = `${shippingInfo.fullName}, ${shippingInfo.address}, ${shippingInfo.city}, ${shippingInfo.province} ${shippingInfo.postalCode}, Phone: ${shippingInfo.phone}`;
+      
+      // Check that we have items in the cart
+      if (!items || items.length === 0) {
+        toast.error('Your cart is empty');
+        setIsProcessing(false);
+        return;
+      }
+
+      console.log('Placing order with:', { 
+        items: items.length,
+        paymentMethod,
+        address: formattedAddress
+      });
       
       if (paymentMethod === 'cod') {
         // Process COD order
-        const order = await createOrder(
-          items,
-          formattedAddress,
-          formattedAddress, // Use same address for billing
-          'cod'
-        );
-        
-        toast.success('Order placed successfully!');
-        clearCart();
-        navigate('/buyer/orders');
+        console.log('Processing COD order...');
+        try {
+          const order = await createOrder(
+            items,
+            formattedAddress,
+            formattedAddress, // Use same address for billing
+            'cod'
+          );
+          
+          console.log('COD order created successfully:', order);
+          toast.success('Order placed successfully!');
+          clearCart();
+          navigate('/buyer/orders');
+        } catch (codError: any) {
+          console.error('COD order creation error:', codError);
+          toast.error(codError.message || 'Failed to place your COD order. Please try again.');
+        }
       } else if (paymentMethod === 'stripe' && paymentIntentId) {
         // For Stripe, the payment is processed by the StripeCardElement component
         // Here we just create the order with the payment_intent_id
-        const order = await createOrder(
-          items,
-          formattedAddress,
-          formattedAddress,
-          'stripe'
-        );
-        
-        // We'll update the order status when the payment succeeds
-        // This is handled in the onPaymentSuccess callback
+        try {
+          const order = await createOrder(
+            items,
+            formattedAddress,
+            formattedAddress,
+            'stripe'
+          );
+          
+          // We'll update the order status when the payment succeeds
+          // This is handled in the onPaymentSuccess callback
+        } catch (stripeError: any) {
+          console.error('Stripe order creation error:', stripeError);
+          toast.error(stripeError.message || 'Failed to process your card payment. Please try again.');
+        }
       }
-    } catch (error) {
-      toast.error('There was a problem processing your order.');
-      console.error('Order creation error:', error);
+    } catch (error: any) {
+      console.error('General checkout error:', error);
+      toast.error(error.message || 'There was a problem processing your order. Please try again.');
     } finally {
       setIsProcessing(false);
     }

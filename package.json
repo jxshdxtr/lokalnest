@@ -10,7 +10,8 @@
     "build": "tsc && vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "fix-missing-seller-ids": "node scripts/run-migrations.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

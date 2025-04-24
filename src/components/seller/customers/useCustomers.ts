@@ -28,23 +28,20 @@ export const useCustomers = () => {
     }
     
     try {
-      // Use the generic query instead of RPC to avoid TypeScript errors
+      // Direct query to get seller customers (not using the RPC function since it doesn't exist)
       const { data, error: queryError } = await supabase
         .from('seller_customers')
-        .select('*, profiles:customer_id(full_name, email, phone, avatar_url)')
+        .select('*, profiles:customer_id(*)')
         .eq('seller_id', sellerId);
       
       if (!queryError && data) {
-        // Filter to ensure customers belong to this seller
-        const filteredData = data.filter(item => item.seller_id === sellerId);
-        
         // Map the database results to our Customer interface
-        const mappedCustomers: Customer[] = filteredData.map((item: any) => ({
+        const mappedCustomers: Customer[] = data.map((item: any) => ({
           id: item.id,
           full_name: item.profiles?.full_name || 'Unknown',
           email: item.profiles?.email || '',
           phone: item.profiles?.phone || '',
-          location: item.location || '',
+          location: item.profiles?.location || '',
           avatar_url: item.profiles?.avatar_url,
           total_orders: item.total_orders || 0,
           total_spent: item.total_spent || 0,

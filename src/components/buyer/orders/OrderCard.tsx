@@ -19,9 +19,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Star } from 'lucide-react';
+import { Star, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { submitReview } from '@/services/reviewService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface OrderCardProps {
   order: Order;
@@ -29,7 +30,9 @@ interface OrderCardProps {
 
 const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<{
     id: string;
     name: string;
@@ -109,7 +112,53 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
     }
   };
 
+  const handleCancelOrder = async () => {
+    if (order.status !== 'processing') {
+      toast.error('Only orders in processing status can be cancelled');
+      return;
+    }
+    
+    try {
+      setIsCancelling(true);
+      
+      // Get current user session
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast.error('You must be logged in to cancel an order');
+        return;
+      }
+      
+      // Update the order status to cancelled
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'cancelled' })
+        .eq('id', order.id)
+        .eq('buyer_id', user.id); // Ensure the buyer can only cancel their own orders
+        
+      if (error) {
+        throw error;
+      }
+      
+      toast.success('Order cancelled successfully');
+      // Close the cancellation dialog
+      setIsCancelDialogOpen(false);
+      
+      // Since we can't directly update the order prop, we'll use a page reload
+      // In a more sophisticated implementation, we'd use a state management pattern
+      // or callback to update the parent component's state
+      window.location.reload();
+      
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      toast.error('Failed to cancel the order. Please try again or contact support.');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const isDelivered = order.status === 'delivered';
+  const isProcessing = order.status === 'processing';
 
   return (
     <>
@@ -165,10 +214,23 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
                 Click on any product to leave a review
               </div>
             )}
+            
+            {isProcessing && (
+              <div className="flex justify-end pt-4">
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={() => setIsCancelDialogOpen(true)}
+                >
+                  Cancel Order
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
+      {/* Review Dialog */}
       <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -212,6 +274,49 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             </Button>
             <Button onClick={handleSubmitReview} disabled={isSubmitting}>
               {isSubmitting ? "Submitting..." : "Submit Review"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Order Confirmation Dialog */}
+      <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Order</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel this order? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="flex items-center p-4 border border-red-200 bg-red-50 rounded-md mb-4">
+              <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+              <p className="text-sm text-red-700">
+                Once cancelled, your order will not be processed. Any payment made will be refunded according to our refund policy.
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Order Details:</p>
+              <p className="text-sm">Order #{order.id}</p>
+              <p className="text-sm">Total: ₱{order.total.toLocaleString()}</p>
+              <p className="text-sm">Items: {order.items.length}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsCancelDialogOpen(false)} 
+              disabled={isCancelling}
+            >
+              Keep Order
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleCancelOrder} 
+              disabled={isCancelling}
+            >
+              {isCancelling ? "Cancelling..." : "Confirm Cancellation"}
             </Button>
           </DialogFooter>
         </DialogContent>

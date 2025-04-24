@@ -18,6 +18,13 @@ export async function createOrder(items: CartItem[], shippingAddress: string, bi
       throw new Error('You must be signed in to place an order');
     }
     
+    // Validate cart items - make sure we have at least one item
+    if (!items || items.length === 0) {
+      throw new Error('Your cart is empty. Please add items before checkout.');
+    }
+
+    console.log('Creating order with items:', JSON.stringify(items));
+    
     // Calculate total amount
     const totalAmount = items.reduce((total, item) => total + item.price * item.quantity, 0);
     const shippingFee = 150;
@@ -31,6 +38,8 @@ export async function createOrder(items: CartItem[], shippingAddress: string, bi
     // In a multi-seller checkout, this would need to be handled differently
     const potentialSellerId = items[0]?.seller || null;
     
+    console.log('Potential seller ID:', potentialSellerId);
+    
     // Validate that the seller_id is in a proper UUID format
     // If it's not a valid UUID, don't include it in the order
     const orderData: any = {
@@ -38,7 +47,7 @@ export async function createOrder(items: CartItem[], shippingAddress: string, bi
       total_amount: totalWithShipping,
       shipping_address: shippingAddress,
       billing_address: billingAddress,
-      payment_method: paymentMethod,
+      payment_method: paymentMethod === 'cod' ? 'Cash on Delivery' : 'stripe', // Ensure consistent payment method naming
       status: 'processing',
       payment_status: paymentStatus,
       created_at: new Date().toISOString() // Ensure created_at is set
@@ -47,9 +56,13 @@ export async function createOrder(items: CartItem[], shippingAddress: string, bi
     // Only add seller_id if it's a valid UUID
     if (potentialSellerId && typeof potentialSellerId === 'string' && isValidUUID(potentialSellerId)) {
       orderData.seller_id = potentialSellerId;
+      console.log('Valid seller ID included in order');
+    } else {
+      console.log('No valid seller ID found for order');
     }
     
     // Create the order
+    console.log('Creating order with data:', JSON.stringify(orderData));
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert(orderData)
@@ -57,8 +70,11 @@ export async function createOrder(items: CartItem[], shippingAddress: string, bi
       .single();
       
     if (orderError || !order) {
+      console.error('Order creation error:', orderError);
       throw new Error(`Failed to create order: ${orderError?.message || 'Unknown error'}`);
     }
+    
+    console.log('Order created successfully:', order.id);
     
     // Create order items ensuring we only use product_id not the whole product object
     const orderItems = items.map(item => ({
@@ -74,63 +90,51 @@ export async function createOrder(items: CartItem[], shippingAddress: string, bi
       .insert(orderItems);
       
     if (itemsError) {
+      console.error('Order items creation error:', itemsError);
       throw new Error(`Failed to add order items: ${itemsError.message}`);
     }
+    
+    console.log('Order items created successfully');
     
     // Add or update seller_customers record to establish the relationship
     // Only proceed if we have a valid seller ID
     if (potentialSellerId && typeof potentialSellerId === 'string' && isValidUUID(potentialSellerId)) {
-      // First, get the profile ID for the customer (buyer)
-      // This is needed because seller_customers.customer_id references public.profiles.id, not auth.users.id
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single();
-      
-      if (profileError || !profileData) {
-        console.error('Error finding profile for customer:', profileError);
-        // Continue with order creation even if we can't update the seller_customers table
-      } else {
-        const customerId = profileData.id;
-        const currentDate = new Date().toISOString();
-        
-        // Now check if a seller-customer relationship already exists
-        const { data: existingRecord } = await supabase
-          .from('seller_customers')
-          .select('*')
-          .eq('seller_id', potentialSellerId)
-          .eq('customer_id', customerId)
+      console.log('Attempting to update seller-customer relationship');
+      try {
+        // First, try to find the profile data directly by the user's auth ID
+        const { data: directProfileData, error: directProfileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id) // Try direct match first (if profile.id = user.id)
           .single();
         
-        if (existingRecord) {
-          // Update existing record
-          await supabase
-            .from('seller_customers')
-            .update({
-              total_orders: (existingRecord.total_orders || 0) + 1,
-              total_spent: (existingRecord.total_spent || 0) + totalWithShipping,
-              last_purchase_date: currentDate,
-              updated_at: currentDate,
-              status: 'active' // Mark as active since they just placed an order
-            })
-            .eq('id', existingRecord.id);
-        } else {
-          // Create new record
-          await supabase
-            .from('seller_customers')
-            .insert({
-              seller_id: potentialSellerId,
-              customer_id: customerId, // Use the profile ID here
-              total_orders: 1,
-              total_spent: totalWithShipping,
-              last_purchase_date: currentDate,
-              created_at: currentDate,
-              updated_at: currentDate,
-              status: 'active',
-              tags: []
-            });
+        if (!directProfileError && directProfileData) {
+          console.log('Found profile with direct ID match');
+          const customerId = directProfileData.id;
+          await updateOrCreateSellerCustomerRelationship(potentialSellerId, customerId, totalWithShipping);
+          return order;
         }
+        
+        // If direct match fails, try by user_id
+        console.log('Trying to find profile by user_id');
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (profileError || !profileData) {
+          console.error('Error finding profile for customer:', profileError);
+          // Continue with order creation even if we can't update the seller_customers table
+          console.log('Returning order without updating seller_customers');
+          return order;
+        }
+        
+        const customerId = profileData.id;
+        await updateOrCreateSellerCustomerRelationship(potentialSellerId, customerId, totalWithShipping);
+      } catch (relationshipError) {
+        console.error('Error with seller-customer relationship:', relationshipError);
+        // We'll still consider the order successful even if this part fails
       }
     }
     
@@ -139,6 +143,50 @@ export async function createOrder(items: CartItem[], shippingAddress: string, bi
     console.error('Order creation failed:', error);
     toast.error(error instanceof Error ? error.message : 'Failed to create your order');
     throw error;
+  }
+}
+
+// Helper function to update or create seller-customer relationship
+async function updateOrCreateSellerCustomerRelationship(sellerId: string, customerId: string, totalAmount: number) {
+  const currentDate = new Date().toISOString();
+  
+  // Check if a seller-customer relationship already exists
+  const { data: existingRecord } = await supabase
+    .from('seller_customers')
+    .select('*')
+    .eq('seller_id', sellerId)
+    .eq('customer_id', customerId)
+    .single();
+  
+  if (existingRecord) {
+    // Update existing record
+    console.log('Updating existing seller-customer relationship');
+    await supabase
+      .from('seller_customers')
+      .update({
+        total_orders: (existingRecord.total_orders || 0) + 1,
+        total_spent: (existingRecord.total_spent || 0) + totalAmount,
+        last_purchase_date: currentDate,
+        updated_at: currentDate,
+        status: 'active' // Mark as active since they just placed an order
+      })
+      .eq('id', existingRecord.id);
+  } else {
+    // Create new record
+    console.log('Creating new seller-customer relationship');
+    await supabase
+      .from('seller_customers')
+      .insert({
+        seller_id: sellerId,
+        customer_id: customerId,
+        total_orders: 1,
+        total_spent: totalAmount,
+        last_purchase_date: currentDate,
+        created_at: currentDate,
+        updated_at: currentDate,
+        status: 'active',
+        tags: []
+      });
   }
 }
 
@@ -216,8 +264,8 @@ export async function getOrders(): Promise<Order[]> {
           
         return {
           name: product?.name || 'Product Name Unavailable',
-          quantity: item.quantity,
-          price: item.unit_price,
+        quantity: item.quantity,
+        price: item.unit_price,
           image: images && images.length > 0 ? images[0].url : '',
           product_id: item.product_id // Include the product_id in the returned item
         };

@@ -73,4 +73,4 @@ export async function savePaymentMethod(paymentMethodId: string) {
     console.error('Saving payment method failed:', error);
     throw error;
   }
-} 
+}

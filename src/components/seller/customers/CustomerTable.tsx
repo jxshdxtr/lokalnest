@@ -154,6 +154,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, loading, onUpd
                         <MessagesSquare className="h-4 w-4 mr-2" />
                         Message
                       </DropdownMenuItem>
+                      {/* 
                       {customer.status === 'active' ? (
                         <DropdownMenuItem onClick={() => onUpdateStatus(customer.id, 'inactive')}>
                           <UserX className="h-4 w-4 mr-2" />
@@ -165,6 +166,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ customers, loading, onUpd
                           Mark Active
                         </DropdownMenuItem>
                       )}
+                      */}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </td>

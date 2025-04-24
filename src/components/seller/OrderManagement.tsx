@@ -99,92 +99,63 @@ const OrderManagement = () => {
         return;
       }
 
-      // SIMPLEST APPROACH: Manual fetching of each component
-      // 1. Get seller's products
-      let { data: products } = await supabase
-        .from('products')
-        .select('id, name')
+      // Direct approach: Query orders by seller_id
+      const { data: orderDetails, error: orderError } = await supabase
+        .from('orders')
+        .select('id, created_at, buyer_id, total_amount, status, payment_status, payment_method, shipping_address')
         .eq('seller_id', session.user.id);
+        
+      if (orderError) throw orderError;
       
-      if (!products || products.length === 0) {
+      if (!orderDetails || orderDetails.length === 0) {
         setOrders([]);
         setLoading(false);
         return;
       }
       
-      const productIds = products.map(p => p.id);
+      // Get buyer profiles
+      const buyerIds = [...new Set(orderDetails.map(order => order.buyer_id))];
+      const buyerProfiles = {};
       
-      // 2. Get order items referencing these products
-      const orderItemIdsByProduct = {};
-      for (const productId of productIds) {
+      for (const buyerId of buyerIds) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .eq('id', buyerId)
+          .single();
+            
+        buyerProfiles[buyerId] = profile?.full_name || 'Customer';
+      }
+      
+      // Get order items for these orders
+      const orderItems = [];
+      const orderIdList = orderDetails.map(order => order.id);
+      
+      for (const orderId of orderIdList) {
         const { data: items } = await supabase
           .from('order_items')
-          .select('id')
-          .eq('product_id', productId);
+          .select('id, order_id, product_id, quantity, unit_price, total_price')
+          .eq('order_id', orderId);
           
         if (items && items.length > 0) {
-          orderItemIdsByProduct[productId] = items.map(item => item.id);
+          orderItems.push(...items);
         }
       }
       
-      // 3. Get full order item details and references
-      const orderItems = [];
-      const orderIdList = [];
+      // Get product details
+      const productIds = [...new Set(orderItems.map(item => item.product_id))];
+      const productDetails = {};
+      const productImages = {};
       
-      for (const productId in orderItemIdsByProduct) {
-        for (const itemId of orderItemIdsByProduct[productId]) {
-          const { data: item } = await supabase
-            .from('order_items')
-            .select('id, order_id, product_id, quantity, unit_price, total_price')
-            .eq('id', itemId)
-            .single();
-            
-          if (item) {
-            orderItems.push(item);
-            if (!orderIdList.includes(item.order_id)) {
-              orderIdList.push(item.order_id);
-            }
-          }
-        }
-      }
-      
-      if (orderItems.length === 0) {
-        setOrders([]);
-        setLoading(false);
-        return;
-      }
-      
-      // 4. Get order details
-      const orderDetails = [];
-      for (const orderId of orderIdList) {
-        const { data: order } = await supabase
-          .from('orders')
-          .select('id, created_at, buyer_id, total_amount, status, payment_status, payment_method, shipping_address')
-          .eq('id', orderId)
+      for (const productId of productIds) {
+        const { data: product } = await supabase
+          .from('products')
+          .select('id, name')
+          .eq('id', productId)
           .single();
           
-        if (order) {
-          orderDetails.push(order);
-        }
-      }
-      
-      // 5. Get buyer profiles
-      const buyerProfiles = {};
-      for (const order of orderDetails) {
-        if (!buyerProfiles[order.buyer_id]) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('id, full_name')
-            .eq('id', order.buyer_id)
-            .single();
-            
-          buyerProfiles[order.buyer_id] = profile?.full_name || 'Customer';
-        }
-      }
-      
-      // 6. Get product images
-      const productImages = {};
-      for (const productId of productIds) {
+        productDetails[productId] = product?.name || 'Unknown Product';
+        
         const { data: images } = await supabase
           .from('product_images')
           .select('url')
@@ -195,17 +166,16 @@ const OrderManagement = () => {
         productImages[productId] = images && images.length > 0 ? images[0].url : undefined;
       }
       
-      // 7. Build the complete orders
+      // Build the complete orders
       const completeOrders = orderDetails.map(order => {
         // Find items for this order
         const items = orderItems
           .filter(item => item.order_id === order.id)
           .map(item => {
-            const product = products.find(p => p.id === item.product_id);
             return {
               id: item.id,
               product_id: item.product_id,
-              product_name: product?.name || 'Unknown Product',
+              product_name: productDetails[item.product_id],
               quantity: item.quantity,
               unit_price: item.unit_price,
               total_price: item.total_price,
