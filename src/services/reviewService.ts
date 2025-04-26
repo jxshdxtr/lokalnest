@@ -52,11 +52,80 @@ export async function submitReview(review: ReviewSubmission) {
       return null;
     }
     
+    // Get product and seller information to create a notification
+    const { data: productData, error: productError } = await supabase
+      .from('products')
+      .select('name, seller_id')
+      .eq('id', review.productId)
+      .single();
+    
+    if (!productError && productData) {
+      // Create notification for the seller about the new review
+      await createNewReviewNotification(
+        productData.seller_id, 
+        data.id,
+        review.productId,
+        productData.name,
+        review.rating
+      );
+    }
+    
     return data;
   } catch (error) {
     console.error('Error in submitReview:', error);
     toast.error('Something went wrong while submitting your review');
     return null;
+  }
+}
+
+/**
+ * Create a notification for the seller when a new review is submitted
+ */
+async function createNewReviewNotification(
+  sellerId: string, 
+  reviewId: string,
+  productId: string,
+  productName: string,
+  rating: number
+): Promise<boolean> {
+  try {
+    console.log('Creating review notification for seller:', sellerId);
+    
+    // Rating message varies based on star rating
+    const ratingText = rating >= 4 
+      ? `positive ${rating}-star` 
+      : rating >= 3 
+        ? `${rating}-star` 
+        : `negative ${rating}-star`;
+    
+    // Use the RPC function to create notification (respects user preferences)
+    const { data, error } = await (supabase.rpc as any)('create_user_notification', {
+      p_user_id: sellerId,
+      p_type: 'new_review',
+      p_title: `New ${ratingText} Review`,
+      p_message: `A customer left a ${ratingText} review for your product "${productName}".`,
+      p_data: JSON.stringify({
+        review_id: reviewId,
+        product_id: productId
+      }),
+      p_preference_key: 'review_notifications'
+    });
+
+    if (error) {
+      console.error('Error creating review notification:', error);
+      return false;
+    }
+    
+    if (data === null) {
+      console.log('Notification not created - seller has disabled review notifications');
+    } else {
+      console.log('Review notification created successfully with ID:', data);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Exception in createNewReviewNotification:', error);
+    return false;
   }
 }
 

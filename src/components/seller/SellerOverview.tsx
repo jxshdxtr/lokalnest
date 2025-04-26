@@ -490,41 +490,76 @@ const SellerOverview = () => {
   // Fetch recent orders
   const fetchRecentOrders = async (sellerId: string) => {
     try {
-      // Get recent orders for this seller's products
-      const { data: orderItems, error } = await supabase
-        .from('order_items')
+      console.log('Fetching recent orders for seller:', sellerId);
+      
+      // Get orders where this seller is the seller_id
+      const { data: orders, error: ordersError } = await supabase
+        .from('orders')
         .select(`
           id,
-          order_id,
-          product_id,
-          quantity,
-          unit_price,
-          total_price,
-          products:product_id(name, seller_id),
-          orders:order_id(created_at, buyer_id, status, profiles:buyer_id(full_name))
+          created_at,
+          buyer_id,
+          status,
+          total_amount,
+          profiles:buyer_id(full_name)
         `)
-        .eq('products.seller_id', sellerId)
-        .order('id', { ascending: false })
+        .eq('seller_id', sellerId)
+        .order('created_at', { ascending: false })
         .limit(5);
       
-      if (error) throw error;
+      if (ordersError) {
+        console.error('Error fetching orders:', ordersError);
+        throw ordersError;
+      }
       
-      // Filter to ensure orders belong to the current seller
-      const validOrderItems = orderItems?.filter(item => item.products?.seller_id === sellerId) || [];
+      console.log('Orders retrieved:', orders?.length || 0);
       
-      // Format order data
-      const formattedOrders: RecentOrder[] = validOrderItems.map(item => ({
-        id: item.order_id,
-        customer: item.orders?.profiles?.full_name || 'Anonymous',
-        product: item.products?.name || 'Unknown Product',
-        amount: `₱${(item.total_price || 0).toLocaleString('en-PH', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2
-        })}`,
-        status: item.orders?.status || 'Processing',
-        date: new Date(item.orders?.created_at || '').toLocaleDateString('en-PH')
-      }));
+      if (!orders || orders.length === 0) {
+        console.log('No orders found for seller');
+        setRecentOrders([]);
+        return;
+      }
       
+      // For each order, get a representative product to display
+      const formattedOrders: RecentOrder[] = await Promise.all(
+        orders.map(async (order) => {
+          // Get first product for this order
+          const { data: orderItems } = await supabase
+            .from('order_items')
+            .select(`
+              product_id,
+              quantity,
+              unit_price,
+              total_price,
+              products:product_id(name)
+            `)
+            .eq('order_id', order.id)
+            .limit(1);
+          
+          const orderDate = new Date(order.created_at);
+          const product = orderItems && orderItems.length > 0 
+            ? orderItems[0].products?.name || 'Unknown Product'
+            : 'Unknown Product';
+          
+          const amount = order.total_amount 
+            ? `₱${order.total_amount.toLocaleString('en-PH', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })}`
+            : '₱0.00';
+          
+          return {
+            id: order.id || 'Unknown',
+            customer: order.profiles?.full_name || 'Anonymous',
+            product,
+            amount,
+            status: order.status || 'Processing',
+            date: orderDate.toLocaleDateString('en-PH')
+          };
+        })
+      );
+      
+      console.log('Formatted orders:', formattedOrders);
       setRecentOrders(formattedOrders);
       
     } catch (error) {
@@ -680,9 +715,17 @@ const SellerOverview = () => {
 
       {/* Recent Orders */}
       <Card>
-        <CardHeader>
-          <CardTitle>Recent Orders</CardTitle>
-          <CardDescription>Latest customer orders</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Recent Orders</CardTitle>
+            <CardDescription>Latest customer orders</CardDescription>
+          </div>
+          {isVerified && (
+            <Button onClick={() => navigate('/seller/dashboard/orders')} variant="outline" size="sm">
+              <ShoppingBag className="mr-2 h-4 w-4" />
+              View All Orders
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {recentOrders.length > 0 ? (
@@ -722,6 +765,11 @@ const SellerOverview = () => {
           ) : (
             <div className="text-center py-8">
               <p className="text-muted-foreground">No orders found</p>
+              {isVerified && (
+                <Button onClick={() => navigate('/seller/dashboard/orders')} variant="outline" className="mt-4">
+                  Go to Orders Page
+                </Button>
+              )}
             </div>
           )}
         </CardContent>

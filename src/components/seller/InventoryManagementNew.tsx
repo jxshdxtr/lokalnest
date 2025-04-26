@@ -1,14 +1,49 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { 
+  Card, 
+  CardContent, 
+  CardHeader 
+} from "@/components/ui/card";
 import {
   Table,
+  TableBody,
+  TableCell,
+  TableHead,
   TableHeader,
   TableRow,
-  TableHead,
-  TableBody,
-  TableCell
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Search, 
+  Plus, 
+  MoreVertical, 
+  FileText,
+  Pencil,
+  Trash2
+} from "lucide-react";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -16,33 +51,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { 
-  Pencil, 
-  Trash2, 
-  MoreVertical, 
-  ArrowUpDown, 
-  Plus, 
-  FileText,
-  Download,
-  Filter,
-  Search
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSellerVerification } from "@/hooks/use-seller-verification";
@@ -134,6 +143,7 @@ const InventoryManagementNew: React.FC = () => {
               ? "low_stock" 
               : "in_stock"
         }));
+        
         setProducts(mappedProducts);
       } else {
         console.log('No products found or DB error, using empty array');
@@ -165,31 +175,32 @@ const InventoryManagementNew: React.FC = () => {
         // Filter logs to ensure they belong to this seller's products
         const filteredLogs = data.filter(log => log.products?.seller_id === sellerId);
         
-        // Map the database results to our InventoryLog interface
-        const mappedLogs: InventoryLog[] = filteredLogs.map((log: any) => ({
+        // Map logs to our type
+        const mappedLogs: InventoryLog[] = filteredLogs.map(log => ({
           id: log.id,
-          product_id: log.product_id || '',
-          product_name: log.products?.name || 'Unknown Product',
-          product_category: log.products?.categories?.name || 'Uncategorized',
-          previous_quantity: log.previous_quantity,
-          new_quantity: log.new_quantity,
-          change_quantity: log.change_quantity,
-          reason: log.reason || '',
+          product_id: log.product_id,
+          product_name: log.products ? log.products.name : 'Unknown Product',
+          product_category: log.products?.categories ? log.products.categories.name : 'Uncategorized',
+          previous_quantity: log.previous_quantity || 0,
+          new_quantity: log.new_quantity || 0,
+          change_quantity: log.change_quantity || 0,
+          reason: log.reason || 'No reason provided',
           timestamp: log.created_at || new Date().toISOString(),
-          staff_name: 'Staff Member' // We don't have this in the raw data
+          staff_name: log.created_by ? log.created_by : 'System'
         }));
         
         setLogs(mappedLogs);
       } else {
-        console.error('Query error or no logs found:', queryError);
+        console.log('No logs found or DB error, using empty array');
         setLogs([]);
       }
     } catch (error) {
       console.error("Error fetching inventory logs:", error);
-      setLogs([]);
+      toast.error("Failed to load inventory logs");
     }
   }, [sellerId, isVerified]);
 
+  // Initial fetch
   useEffect(() => {
     // Only fetch data if the seller is verified
     if (isVerified && sellerId) {
@@ -261,6 +272,17 @@ const InventoryManagementNew: React.FC = () => {
       
       setLogs([newLog, ...logs]);
       
+      // Check if stock is now low and notify if needed
+      if (newQuantity > 0 && newQuantity <= (selectedProduct.low_stock_threshold || 5)) {
+        createLowStockNotification(
+          sellerId, 
+          selectedProduct.id, 
+          selectedProduct.name, 
+          newQuantity, 
+          selectedProduct.low_stock_threshold || 5
+        );
+      }
+      
       toast.success(`Updated stock for ${selectedProduct.name}`);
       
       // Reset form and close dialog
@@ -270,6 +292,46 @@ const InventoryManagementNew: React.FC = () => {
     } catch (error) {
       console.error("Failed to update stock:", error);
       toast.error("Failed to update stock");
+    }
+  };
+  
+  // Create low stock notification
+  const createLowStockNotification = async (
+    sellerId: string,
+    productId: string,
+    productName: string,
+    currentStock: number,
+    threshold: number
+  ) => {
+    try {
+      console.log('Creating low stock notification for seller:', sellerId);
+      
+      // Use the RPC function to create notification (respects user preferences)
+      const { data, error } = await (supabase.rpc as any)('create_user_notification', {
+        p_user_id: sellerId,
+        p_type: 'low_stock',
+        p_title: `Low Stock Alert: ${productName}`,
+        p_message: `Your product "${productName}" is running low on stock. Current quantity: ${currentStock} (threshold: ${threshold})`,
+        p_data: JSON.stringify({
+          product_id: productId,
+          current_stock: currentStock,
+          threshold: threshold
+        }),
+        p_preference_key: 'stock_alerts'
+      });
+
+      if (error) {
+        console.error('Error creating low stock notification:', error);
+        return;
+      }
+      
+      if (data === null) {
+        console.log('Notification not created - seller has disabled stock alerts');
+      } else {
+        console.log('Low stock notification created successfully with ID:', data);
+      }
+    } catch (error) {
+      console.error('Exception in createLowStockNotification:', error);
     }
   };
   
@@ -338,40 +400,31 @@ const InventoryManagementNew: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Inventory Management</h1>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={() => {}}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button onClick={() => {}}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Product
-          </Button>
+      <Tabs defaultValue="inventory">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <TabsList>
+            <TabsTrigger value="inventory">Inventory</TabsTrigger>
+            <TabsTrigger value="logs">Activity Logs</TabsTrigger>
+          </TabsList>
+          
+          <div className="relative w-full sm:w-auto">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name or SKU..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 w-full sm:w-[250px]"
+            />
+          </div>
         </div>
-      </div>
-      
-      {/* Filters */}
-      <div className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-          <Input
-            placeholder="Search products..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-        
-        <div className="flex space-x-2">
+
+        <div className="flex flex-wrap gap-3 mb-6">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[160px]">
-              <Filter className="h-4 w-4 mr-2" />
+            <SelectTrigger className="w-auto sm:w-[150px]">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="in_stock">In Stock</SelectItem>
               <SelectItem value="low_stock">Low Stock</SelectItem>
               <SelectItem value="out_of_stock">Out of Stock</SelectItem>
@@ -379,95 +432,141 @@ const InventoryManagementNew: React.FC = () => {
           </Select>
           
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[180px]">
-              <Filter className="h-4 w-4 mr-2" />
+            <SelectTrigger className="w-auto sm:w-[180px]">
               <SelectValue placeholder="Filter by category" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {categories.map(category => (
-                <SelectItem key={category} value={category.toLowerCase()}>
-                  {category}
-                </SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category} value={category.toLowerCase()}>{category}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-      </div>
-      
-      {/* Inventory Table */}
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[100px]">SKU</TableHead>
-              <TableHead className="min-w-[250px]">Product</TableHead>
-              <TableHead>
-                <div className="flex items-center">
-                  Current Stock
-                  <ArrowUpDown className="ml-2 h-3 w-3" />
+        
+        <TabsContent value="inventory" className="mt-0">
+          <Card>
+            <CardHeader className="bg-muted/50">
+              <h2 className="text-lg font-medium">Product Inventory</h2>
+            </CardHeader>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-24">SKU</TableHead>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                        Loading inventory data...
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredProducts.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                        No products found matching your filters
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredProducts.map((product) => (
+                      <TableRow key={product.id}>
+                        <TableCell className="font-mono text-sm">{product.sku}</TableCell>
+                        <TableCell>{product.name}</TableCell>
+                        <TableCell>{product.stock_quantity}</TableCell>
+                        <TableCell>{getStatusBadge(product.status)}</TableCell>
+                        <TableCell>{product.category_name}</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openRestockDialog(product)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Update Stock
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => viewProductLogs(product.id)}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                View History
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-red-600">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Product
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="logs" className="mt-0">
+          <Card>
+            <CardHeader className="bg-muted/50">
+              <h2 className="text-lg font-medium">Inventory Activity Logs</h2>
+            </CardHeader>
+            <CardContent className="p-0">
+              {logs.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground">
+                  No inventory activity logs found
                 </div>
-              </TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  Loading inventory data...
-                </TableCell>
-              </TableRow>
-            ) : filteredProducts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  No products found matching your filters
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="font-mono text-sm">{product.sku}</TableCell>
-                  <TableCell>{product.name}</TableCell>
-                  <TableCell>{product.stock_quantity}</TableCell>
-                  <TableCell>{getStatusBadge(product.status)}</TableCell>
-                  <TableCell>{product.category_name}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openRestockDialog(product)}>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Update Stock
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => viewProductLogs(product.id)}>
-                          <FileText className="mr-2 h-4 w-4" />
-                          View History
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Product
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead>Change</TableHead>
+                        <TableHead>Current Stock</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Reason</TableHead>
+                        <TableHead>By</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {logs.map((log) => (
+                        <TableRow key={log.id}>
+                          <TableCell className="whitespace-nowrap">
+                            {new Date(log.timestamp).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>{log.product_name}</TableCell>
+                          <TableCell className={log.change_quantity > 0 ? "text-green-600" : "text-red-600"}>
+                            {log.change_quantity > 0 ? "+" : ""}{log.change_quantity}
+                          </TableCell>
+                          <TableCell>{log.new_quantity}</TableCell>
+                          <TableCell>{log.product_category}</TableCell>
+                          <TableCell>{log.reason}</TableCell>
+                          <TableCell>{log.staff_name}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
       
       {/* Restock Dialog */}
       <Dialog open={showRestockDialog} onOpenChange={setShowRestockDialog}>
@@ -561,19 +660,17 @@ const InventoryManagementNew: React.FC = () => {
                 {productLogs.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center">
-                      No history available for this product
+                      No history found for this product
                     </TableCell>
                   </TableRow>
                 ) : (
                   productLogs.map((log) => (
                     <TableRow key={log.id}>
-                      <TableCell>
+                      <TableCell className="whitespace-nowrap">
                         {new Date(log.timestamp).toLocaleDateString()}
                       </TableCell>
-                      <TableCell>
-                        <span className={log.change_quantity > 0 ? "text-green-600" : "text-red-600"}>
-                          {log.change_quantity > 0 ? `+${log.change_quantity}` : log.change_quantity}
-                        </span>
+                      <TableCell className={log.change_quantity > 0 ? "text-green-600" : "text-red-600"}>
+                        {log.change_quantity > 0 ? "+" : ""}{log.change_quantity}
                       </TableCell>
                       <TableCell>{log.new_quantity}</TableCell>
                       <TableCell>{log.product_category}</TableCell>
@@ -585,12 +682,6 @@ const InventoryManagementNew: React.FC = () => {
               </TableBody>
             </Table>
           </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowLogDialog(false)}>
-              Close
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

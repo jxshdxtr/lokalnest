@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import NotificationsMenu from '@/components/notifications/NotificationsMenu';
 
 const categories = [
   { name: "Textiles & Clothing", href: "/category/textiles-clothing" },
@@ -304,6 +305,11 @@ const Navbar = () => {
           <div className="hidden md:block">
             <ThemeToggle />
           </div>
+          
+          {/* Notifications menu - only show for signed in users */}
+          {isSignedIn && user && (
+            <NotificationsMenu />
+          )}
           
           {/* User dropdown or login button */}
           {isSignedIn && user ? (

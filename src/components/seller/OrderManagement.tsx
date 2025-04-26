@@ -49,6 +49,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { updateOrderStatus, OrderStatus } from "@/services/orderService";
 
 interface OrderItem {
   id: string;
@@ -210,58 +211,91 @@ const OrderManagement = () => {
     setSearchTerm(e.target.value);
   };
 
-  const updateOrderStatus = async (orderId: string, status: string) => {
+  const handleOrderStatusChange = async (orderId: string, status: string) => {
     try {
-      // For COD orders, if status is being set to delivered, also update payment status to paid
       const orderToUpdate = orders.find(order => order.id === orderId);
-      let updateData: any = { status };
-      
-      if (status === 'delivered' && orderToUpdate?.payment_method?.toLowerCase() === 'cash on delivery') {
-        updateData.payment_status = 'paid';
+      if (!orderToUpdate) {
+        toast.error('Order not found');
+        return;
       }
       
-      const { error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', orderId);
+      let success = false;
+      
+      // For notifiable status changes, use the imported updateOrderStatus that sends notifications
+      if (status === 'shipped' || status === 'delivered' || status === 'payment_approved') {
+        success = await updateOrderStatus(orderId, status as OrderStatus);
         
-      if (error) throw error;
-      
-      // Update local state
-      setOrders(orders.map(order => 
-        order.id === orderId 
-          ? { ...order, status, ...(updateData.payment_status ? { payment_status: updateData.payment_status } : {}) } 
-          : order
-      ));
-      
-      toast.success(`Order status updated to ${status}`);
-      if (updateData.payment_status) {
-        toast.success(`Payment status automatically updated to paid for COD order`);
+        // For COD orders if status is delivered, also update payment status locally
+        if (success && status === 'delivered' && orderToUpdate?.payment_method?.toLowerCase() === 'cash on delivery') {
+          // Update payment status separately since the service function doesn't handle this
+          const { error: paymentUpdateError } = await supabase
+            .from('orders')
+            .update({ payment_status: 'paid' })
+            .eq('id', orderId);
+            
+          if (paymentUpdateError) throw paymentUpdateError;
+          
+          // Update local state including payment status
+          setOrders(orders.map(order => 
+            order.id === orderId ? { ...order, status, payment_status: 'paid' } : order
+          ));
+          
+          toast.success(`Order status updated to ${status}`);
+          toast.success(`Payment status automatically updated to paid for COD order`);
+        } else if (success) {
+          // Just update local state with the new status
+          setOrders(orders.map(order => 
+            order.id === orderId ? { ...order, status } : order
+          ));
+          
+          toast.success(`Order status updated to ${status}`);
+        } else {
+          toast.error(`Failed to update order status to ${status}`);
+        }
+      } else {
+        // For other statuses that don't need buyer notifications, use direct update
+        const { error: statusUpdateError } = await supabase
+          .from('orders')
+          .update({ status })
+          .eq('id', orderId);
+          
+        if (statusUpdateError) throw statusUpdateError;
+        
+        // Update local state
+        setOrders(orders.map(order => 
+          order.id === orderId ? { ...order, status } : order
+        ));
+        
+        toast.success(`Order status updated to ${status}`);
       }
     } catch (error) {
       console.error('Error updating order status:', error);
       toast.error('Failed to update order status');
     }
   };
-  
+
   const updatePaymentStatus = async (orderId: string, status: string) => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: status,
-          payment_status: 'approved' // Changed from 'paid' to 'approved'
-        })
-        .eq('id', orderId);
+      // Get the order to ensure we have the buyer_id
+      const orderToUpdate = orders.find(order => order.id === orderId);
+      if (!orderToUpdate) {
+        toast.error('Order not found');
+        return;
+      }
+
+      // Use the imported updateOrderStatus function that sends notifications
+      const success = await updateOrderStatus(orderId, 'payment_approved' as OrderStatus);
+      
+      if (success) {
+        // Update local state
+        setOrders(orders.map(order => 
+          order.id === orderId ? { ...order, status: 'payment_approved', payment_status: 'approved' } : order
+        ));
         
-      if (error) throw error;
-      
-      // Update local state
-      setOrders(orders.map(order => 
-        order.id === orderId ? { ...order, status, payment_status: 'approved' } : order
-      ));
-      
-      toast.success(`Payment approved and order status updated`);
+        toast.success(`Payment approved and order status updated`);
+      } else {
+        toast.error('Failed to update payment status');
+      }
     } catch (error) {
       console.error('Error updating payment status:', error);
       toast.error('Failed to update payment status');
@@ -514,22 +548,22 @@ const OrderManagement = () => {
                               {order.status === 'approved' ? 'Payment Already Approved' : 'Approve Payment'}
                             </DropdownMenuItem>
                             
-                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'processing')}>
+                            <DropdownMenuItem onClick={() => handleOrderStatusChange(order.id, 'processing')}>
                               <Tag className="mr-2 h-4 w-4" />
                               Mark as Processing
                             </DropdownMenuItem>
                             
-                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'shipped')}>
+                            <DropdownMenuItem onClick={() => handleOrderStatusChange(order.id, 'shipped')}>
                               <Truck className="mr-2 h-4 w-4" />
                               Mark as Shipped
                             </DropdownMenuItem>
                             
-                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'delivered')}>
+                            <DropdownMenuItem onClick={() => handleOrderStatusChange(order.id, 'delivered')}>
                               <ClipboardCheck className="mr-2 h-4 w-4" />
                               Mark as Delivered{order.payment_method?.toLowerCase() === 'cash on delivery' && ' (Will update COD payment)'}
                             </DropdownMenuItem>
                             
-                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'cancelled')}>
+                            <DropdownMenuItem onClick={() => handleOrderStatusChange(order.id, 'cancelled')}>
                               <X className="mr-2 h-4 w-4" />
                               Mark as Cancelled
                             </DropdownMenuItem>

@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { CartItem } from '@/components/buyer/shopping/Cart';
-import { Order } from '@/components/buyer/orders/types';
+import { Order as BuyerOrder } from '@/components/buyer/orders/types';
 import { toast } from 'sonner';
 
 // Helper function to validate UUID format
@@ -9,184 +9,298 @@ function isValidUUID(uuid: string) {
   return uuidRegex.test(uuid);
 }
 
-export async function createOrder(items: CartItem[], shippingAddress: string, billingAddress: string, paymentMethod: string) {
-  try {
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      throw new Error('You must be signed in to place an order');
-    }
-    
-    // Validate cart items - make sure we have at least one item
-    if (!items || items.length === 0) {
-      throw new Error('Your cart is empty. Please add items before checkout.');
-    }
+// Order status types
+export type OrderStatus = 'pending' | 'payment_approved' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 
-    console.log('Creating order with items:', JSON.stringify(items));
-    
-    // Calculate total amount
-    const totalAmount = items.reduce((total, item) => total + item.price * item.quantity, 0);
-    const shippingFee = 150;
-    const totalWithShipping = totalAmount + shippingFee;
-    
-    // For Stripe payments, we'll set payment_status to 'pending' initially
-    // For COD, we'll set it to 'awaiting_payment'
-    const paymentStatus = paymentMethod === 'stripe' ? 'pending' : 'awaiting_payment';
-    
-    // Get seller_id from the first item (assuming all items are from the same seller)
-    // In a multi-seller checkout, this would need to be handled differently
-    const potentialSellerId = items[0]?.seller || null;
-    
-    console.log('Potential seller ID:', potentialSellerId);
-    
-    // Validate that the seller_id is in a proper UUID format
-    // If it's not a valid UUID, don't include it in the order
-    const orderData: any = {
-      buyer_id: user.id,
-      total_amount: totalWithShipping,
-      shipping_address: shippingAddress,
-      billing_address: billingAddress,
-      payment_method: paymentMethod === 'cod' ? 'Cash on Delivery' : 'stripe', // Ensure consistent payment method naming
-      status: 'processing',
-      payment_status: paymentStatus,
-      created_at: new Date().toISOString() // Ensure created_at is set
-    };
-    
-    // Only add seller_id if it's a valid UUID
-    if (potentialSellerId && typeof potentialSellerId === 'string' && isValidUUID(potentialSellerId)) {
-      orderData.seller_id = potentialSellerId;
-      console.log('Valid seller ID included in order');
-    } else {
-      console.log('No valid seller ID found for order');
-    }
-    
-    // Create the order
-    console.log('Creating order with data:', JSON.stringify(orderData));
-    const { data: order, error: orderError } = await supabase
+// Order interface
+export interface Order {
+  id: string;
+  buyer_id: string;
+  seller_id: string;
+  product_ids: string[];
+  status: OrderStatus;
+  total_amount: number;
+  created_at: string;
+  updated_at: string;
+  payment_method: string;
+  shipping_address: string;
+  billing_address: string;
+  payment_status?: string;
+  estimated_delivery?: string;
+  tracking_number?: string;
+}
+
+// Get orders for the current user (as a buyer)
+export async function getBuyerOrders(): Promise<Omit<Order, 'product_ids'>[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
       .from('orders')
-      .insert(orderData)
-      .select()
-      .single();
-      
-    if (orderError || !order) {
-      console.error('Order creation error:', orderError);
-      throw new Error(`Failed to create order: ${orderError?.message || 'Unknown error'}`);
-    }
+      .select('*')
+      .eq('buyer_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
     
-    console.log('Order created successfully:', order.id);
-    
-    // Create order items ensuring we only use product_id not the whole product object
-    const orderItems = items.map(item => ({
-      order_id: order.id,
-      product_id: item.id,
-      quantity: item.quantity,
-      unit_price: item.price,
-      total_price: item.price * item.quantity
+    // Transform the database records to match the expected Order type
+    return (data || []).map(order => ({
+      id: order.id,
+      buyer_id: order.buyer_id,
+      seller_id: order.seller_id,
+      // Set empty array as this field is omitted in the return type
+      product_ids: [],
+      status: order.status as OrderStatus,
+      total_amount: order.total_amount,
+      created_at: order.created_at,
+      updated_at: order.updated_at,
+      payment_method: order.payment_method,
+      shipping_address: order.shipping_address,
+      billing_address: order.billing_address,
+      tracking_number: order.tracking_number
     }));
-    
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItems);
-      
-    if (itemsError) {
-      console.error('Order items creation error:', itemsError);
-      throw new Error(`Failed to add order items: ${itemsError.message}`);
-    }
-    
-    console.log('Order items created successfully');
-    
-    // Add or update seller_customers record to establish the relationship
-    // Only proceed if we have a valid seller ID
-    if (potentialSellerId && typeof potentialSellerId === 'string' && isValidUUID(potentialSellerId)) {
-      console.log('Attempting to update seller-customer relationship');
-      try {
-        // First, try to find the profile data directly by the user's auth ID
-        const { data: directProfileData, error: directProfileError } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', user.id) // Try direct match first (if profile.id = user.id)
-          .single();
-        
-        if (!directProfileError && directProfileData) {
-          console.log('Found profile with direct ID match');
-          const customerId = directProfileData.id;
-          await updateOrCreateSellerCustomerRelationship(potentialSellerId, customerId, totalWithShipping);
-          return order;
-        }
-        
-        // If direct match fails, try by user_id
-        console.log('Trying to find profile by user_id');
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (profileError || !profileData) {
-          console.error('Error finding profile for customer:', profileError);
-          // Continue with order creation even if we can't update the seller_customers table
-          console.log('Returning order without updating seller_customers');
-          return order;
-        }
-        
-        const customerId = profileData.id;
-        await updateOrCreateSellerCustomerRelationship(potentialSellerId, customerId, totalWithShipping);
-      } catch (relationshipError) {
-        console.error('Error with seller-customer relationship:', relationshipError);
-        // We'll still consider the order successful even if this part fails
-      }
-    }
-    
-    return order;
   } catch (error) {
-    console.error('Order creation failed:', error);
-    toast.error(error instanceof Error ? error.message : 'Failed to create your order');
-    throw error;
+    console.error('Error fetching buyer orders:', error);
+    return [];
   }
 }
 
-// Helper function to update or create seller-customer relationship
-async function updateOrCreateSellerCustomerRelationship(sellerId: string, customerId: string, totalAmount: number) {
-  const currentDate = new Date().toISOString();
-  
-  // Check if a seller-customer relationship already exists
-  const { data: existingRecord } = await supabase
-    .from('seller_customers')
-    .select('*')
-    .eq('seller_id', sellerId)
-    .eq('customer_id', customerId)
-    .single();
-  
-  if (existingRecord) {
-    // Update existing record
-    console.log('Updating existing seller-customer relationship');
-    await supabase
-      .from('seller_customers')
-      .update({
-        total_orders: (existingRecord.total_orders || 0) + 1,
-        total_spent: (existingRecord.total_spent || 0) + totalAmount,
-        last_purchase_date: currentDate,
-        updated_at: currentDate,
-        status: 'active' // Mark as active since they just placed an order
+// Get orders for the current user (as a seller)
+export async function getSellerOrders(): Promise<Order[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('seller_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    
+    // Transform the database records to match the expected Order type
+    return (data || []).map(order => ({
+      id: order.id,
+      buyer_id: order.buyer_id,
+      seller_id: order.seller_id,
+      product_ids: [], // Set empty array or fetch from order_items if needed
+      status: order.status as OrderStatus,
+      total_amount: order.total_amount,
+      created_at: order.created_at,
+      updated_at: order.updated_at,
+      payment_method: order.payment_method,
+      shipping_address: order.shipping_address,
+      billing_address: order.billing_address,
+      tracking_number: order.tracking_number
+    }));
+  } catch (error) {
+    console.error('Error fetching seller orders:', error);
+    return [];
+  }
+}
+
+// Create a new order
+export async function createOrder(orderData: Partial<Order>): Promise<string | null> {
+  try {
+    // Get the current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    
+    // Set the buyer ID to the current user
+    orderData.buyer_id = user.id;
+    
+    // Default values
+    orderData.status = 'pending';
+    orderData.created_at = new Date().toISOString();
+    orderData.updated_at = new Date().toISOString();
+    
+    // Set billing_address to shipping_address if not provided
+    if (!orderData.billing_address && orderData.shipping_address) {
+      orderData.billing_address = orderData.shipping_address;
+    }
+    
+    // Check if required fields are present
+    if (!orderData.payment_method) {
+      throw new Error('Payment method is required');
+    }
+    if (!orderData.shipping_address) {
+      throw new Error('Shipping address is required');
+    }
+    if (!orderData.billing_address) {
+      throw new Error('Billing address is required');
+    }
+
+    const { data, error } = await supabase
+      .from('orders')
+      .insert(orderData as any)
+      .select('id')
+      .single();
+
+    if (error) throw error;
+
+    // Create notification for the seller
+    if (orderData.seller_id) {
+      await createNewOrderNotification(orderData.seller_id, data.id);
+    }
+
+    return data.id;
+  } catch (error) {
+    console.error('Error creating order:', error);
+    return null;
+  }
+}
+
+// Update order status
+export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<boolean> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    // First get the order to check if we're the seller
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .single();
+
+    if (orderError) throw orderError;
+    
+    // Check if the current user is the seller for this order
+    if (order.seller_id !== user.id) {
+      throw new Error('You are not authorized to update this order');
+    }
+
+    // Update the order status
+    const { error } = await supabase
+      .from('orders')
+      .update({ 
+        status, 
+        updated_at: new Date().toISOString() 
       })
-      .eq('id', existingRecord.id);
-  } else {
-    // Create new record
-    console.log('Creating new seller-customer relationship');
-    await supabase
-      .from('seller_customers')
-      .insert({
-        seller_id: sellerId,
-        customer_id: customerId,
-        total_orders: 1,
-        total_spent: totalAmount,
-        last_purchase_date: currentDate,
-        created_at: currentDate,
-        updated_at: currentDate,
-        status: 'active',
-        tags: []
-      });
+      .eq('id', orderId);
+
+    if (error) throw error;
+
+    // Create notification for the buyer based on the status
+    if (status === 'payment_approved') {
+      await createPaymentApprovedNotification(order.buyer_id, orderId);
+    } else if (status === 'shipped') {
+      await createOrderShippedNotification(order.buyer_id, orderId);
+    } else if (status === 'delivered') {
+      await createOrderDeliveredNotification(order.buyer_id, orderId);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    toast.error(`Failed to update order status: ${error.message}`);
+    return false;
+  }
+}
+
+// Helper function to create a notification for new order
+async function createNewOrderNotification(sellerId: string, orderId: string): Promise<boolean> {
+  try {
+    console.log('Creating notification for seller:', sellerId, 'for order:', orderId);
+    
+    // Use the enhanced database function that checks preferences automatically
+    const { data, error } = await (supabase.rpc as any)('create_order_notification', {
+      p_user_id: sellerId,
+      p_order_id: orderId,
+      p_title: 'New Order Received',
+      p_message: `You have received a new order #${orderId}. Please review and process it.`,
+      p_type: 'new_order'
+    });
+
+    if (error) {
+      console.error('Error creating order notification:', error);
+      return false;
+    }
+    
+    if (data === null) {
+      console.log('Notification not created - seller has disabled order notifications');
+    } else {
+      console.log('Order notification created successfully with ID:', data);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Exception in createNewOrderNotification:', error);
+    return false;
+  }
+}
+
+// Helper function to create a notification for payment approved
+async function createPaymentApprovedNotification(buyerId: string, orderId: string): Promise<boolean> {
+  try {
+    // Use RPC function to create notification
+    const { error } = await (supabase.rpc as any)('create_order_status_notification', {
+      p_user_id: buyerId,
+      p_order_id: orderId,
+      p_status: 'payment_approved',
+      p_title: 'Payment Approved',
+      p_message: `Your payment for order #${orderId} has been approved. Your order will be processed soon.`
+    });
+
+    if (error) {
+      console.error('Error creating payment approved notification:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error creating payment approved notification:', error);
+    return false;
+  }
+}
+
+// Helper function to create a notification for order shipped
+async function createOrderShippedNotification(buyerId: string, orderId: string): Promise<boolean> {
+  try {
+    // Use RPC function to create notification
+    const { error } = await (supabase.rpc as any)('create_order_status_notification', {
+      p_user_id: buyerId,
+      p_order_id: orderId,
+      p_status: 'shipped',
+      p_title: 'Order Shipped',
+      p_message: `Your order #${orderId} has been shipped. You can track your delivery status in your orders page.`
+    });
+
+    if (error) {
+      console.error('Error creating order shipped notification:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error creating order shipped notification:', error);
+    return false;
+  }
+}
+
+// Helper function to create a notification for order delivered
+async function createOrderDeliveredNotification(buyerId: string, orderId: string): Promise<boolean> {
+  try {
+    // Use RPC function to create notification
+    const { error } = await (supabase.rpc as any)('create_order_status_notification', {
+      p_user_id: buyerId,
+      p_order_id: orderId,
+      p_status: 'delivered',
+      p_title: 'Order Delivered',
+      p_message: `Your order #${orderId} has been delivered. We hope you enjoy your purchase!`
+    });
+
+    if (error) {
+      console.error('Error creating order delivered notification:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error creating order delivered notification:', error);
+    return false;
   }
 }
 
@@ -211,7 +325,7 @@ export async function updateOrderPaymentStatus(orderId: string, paymentIntentId:
   }
 }
 
-export async function getOrders(): Promise<Order[]> {
+export async function getOrders(): Promise<BuyerOrder[]> {
   try {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     

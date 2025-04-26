@@ -350,6 +350,7 @@ const ProductDetail = () => {
             </div>
 
             {/* Delivery options */}
+            {/* 
             <div>
               <h3 className="font-medium mb-3">Delivery Options</h3>
               <div className="space-y-2">
@@ -366,6 +367,7 @@ const ProductDetail = () => {
                 ))}
               </div>
             </div>
+            */}
 
             {/* Product details/specifications */}
             <div>

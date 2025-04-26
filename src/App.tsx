@@ -18,6 +18,7 @@ import BuyerReviews from './components/buyer/BuyerReviews';
 import BuyerSupport from './components/buyer/BuyerSupport';
 import BuyerMessages from './components/buyer/messaging/BuyerMessages';
 import ProductDetail from './pages/ProductDetail';
+import SellerProfile from './pages/SellerProfile';
 import Auth from './pages/Auth';
 import VerifyOTP from './pages/VerifyOTP';
 import SellerVerification from './pages/SellerVerification';
@@ -77,6 +78,7 @@ function App() {
             
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/artisan/:id" element={<SellerProfile />} />
             <Route path="/profile" element={<Profile />} />
             
             {/* Add additional routes here */}

@@ -98,8 +98,7 @@ const SellerSidebar: React.FC<SellerSidebarProps> = ({ user }) => {
       title: 'Orders',
       href: '/seller/dashboard/orders',
       icon: <ShoppingCart className="h-5 w-5" />,
-      variant: currentPath === '/seller/dashboard/orders' ? 'default' : 'ghost',
-      badge: '3'
+      variant: currentPath === '/seller/dashboard/orders' ? 'default' : 'ghost'
     },
     {
       title: 'Customers',
@@ -116,7 +115,7 @@ const SellerSidebar: React.FC<SellerSidebarProps> = ({ user }) => {
     {
       title: 'Reviews',
       href: '/seller/dashboard/reviews',
-      icon: <Star className="h-5 w-5" />,
+      icon: <Star className="h -5 w-5" />,
       variant: currentPath === '/seller/dashboard/reviews' ? 'default' : 'ghost'
     },
     {
