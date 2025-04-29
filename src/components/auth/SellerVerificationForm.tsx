@@ -472,7 +472,7 @@ const SellerVerificationForm = ({ userId: propsUserId, onComplete }: SellerVerif
                       <SelectContent>
                         <SelectItem value="DTI Certificate">DTI Certificate</SelectItem>
                         <SelectItem value="SEC Registration">SEC Registration</SelectItem>
-                        <SelectItem value="Mayor's Permit">Mayor's Permit</SelectItem>
+                        <SelectItem value="Mayor's Permit">CDA Certificate</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -562,7 +562,7 @@ const SellerVerificationForm = ({ userId: propsUserId, onComplete }: SellerVerif
                       </div>
                     </FormControl>
                     <FormDescription>
-                      Supported formats: JPG, PNG, PDF (Maximum: 20MB)
+                      Supported formats: PDF (Maximum: 20MB)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

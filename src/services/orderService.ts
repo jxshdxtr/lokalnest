@@ -102,7 +102,7 @@ export async function getSellerOrders(): Promise<Order[]> {
 }
 
 // Create a new order
-export async function createOrder(orderData: Partial<Order>): Promise<string | null> {
+export async function createOrder(orderData: Partial<Order>, cartItems?: CartItem[]): Promise<string | null> {
   try {
     // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
@@ -140,6 +140,26 @@ export async function createOrder(orderData: Partial<Order>): Promise<string | n
 
     if (error) throw error;
 
+    // Create order items if cart items are provided
+    if (cartItems && cartItems.length > 0) {
+      const orderItems = cartItems.map(item => ({
+        order_id: data.id,
+        product_id: item.id,
+        quantity: item.quantity,
+        unit_price: item.price,
+        total_price: item.price * item.quantity
+      }));
+      
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+        
+      if (itemsError) {
+        console.error('Error creating order items:', itemsError);
+        // Consider whether to roll back the order if items fail
+      }
+    }
+
     // Create notification for the seller
     if (orderData.seller_id) {
       await createNewOrderNotification(orderData.seller_id, data.id);
@@ -148,7 +168,7 @@ export async function createOrder(orderData: Partial<Order>): Promise<string | n
     return data.id;
   } catch (error) {
     console.error('Error creating order:', error);
-    return null;
+    throw error; // Throw the error so we can handle it in the checkout process
   }
 }
 

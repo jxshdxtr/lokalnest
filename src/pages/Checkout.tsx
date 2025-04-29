@@ -19,7 +19,7 @@ import {
 import { toast } from 'sonner';
 import { ChevronLeft, RefreshCw } from 'lucide-react';
 import { stripePromise, createPaymentIntent } from '@/services/stripeService';
-import { createOrder } from '@/services/orderService';
+import { createOrder, Order } from '@/services/orderService';
 import { getDefaultAddress, getUserProfile } from '@/services/userService';
 import StripeCardElement from '@/components/checkout/StripeCardElement';
 
@@ -154,16 +154,28 @@ const Checkout: React.FC = () => {
         address: formattedAddress
       });
       
+      // Calculate total amount
+      const totalAmount = totalPrice + shippingFee;
+      
+      // Prepare seller ID (assuming all items are from the same seller)
+      // In a real app with multiple sellers, this would need to be handled differently
+      const sellerId = items[0]?.seller || null;
+      
       if (paymentMethod === 'cod') {
         // Process COD order
         console.log('Processing COD order...');
         try {
-          const order = await createOrder(
-            items,
-            formattedAddress,
-            formattedAddress, // Use same address for billing
-            'cod'
-          );
+          const orderData: Partial<Order> = {
+            seller_id: sellerId,
+            status: 'pending',
+            payment_method: 'cod',
+            payment_status: 'pending',
+            total_amount: totalAmount,
+            shipping_address: formattedAddress,
+            billing_address: formattedAddress
+          };
+          
+          const order = await createOrder(orderData, items);
           
           console.log('COD order created successfully:', order);
           toast.success('Order placed successfully!');
@@ -177,12 +189,17 @@ const Checkout: React.FC = () => {
         // For Stripe, the payment is processed by the StripeCardElement component
         // Here we just create the order with the payment_intent_id
         try {
-          const order = await createOrder(
-            items,
-            formattedAddress,
-            formattedAddress,
-            'stripe'
-          );
+          const orderData: Partial<Order> = {
+            seller_id: sellerId,
+            status: 'pending',
+            payment_method: 'stripe',
+            payment_status: 'processing',
+            total_amount: totalAmount,
+            shipping_address: formattedAddress,
+            billing_address: formattedAddress
+          };
+          
+          const order = await createOrder(orderData, items);
           
           // We'll update the order status when the payment succeeds
           // This is handled in the onPaymentSuccess callback
@@ -202,15 +219,26 @@ const Checkout: React.FC = () => {
   const onPaymentSuccess = async (completedPaymentIntentId: string) => {
     try {
       // Format the shipping address
-      const formattedAddress = `${shippingInfo.address}, ${shippingInfo.city}, ${shippingInfo.province} ${shippingInfo.postalCode}`;
+      const formattedAddress = `${shippingInfo.fullName}, ${shippingInfo.address}, ${shippingInfo.city}, ${shippingInfo.province} ${shippingInfo.postalCode}, Phone: ${shippingInfo.phone}`;
+      
+      // Calculate total amount
+      const totalAmount = totalPrice + shippingFee;
+      
+      // Prepare seller ID (assuming all items are from the same seller)
+      const sellerId = items[0]?.seller || null;
       
       // Create the order with the completed payment intent ID
-      const order = await createOrder(
-        items,
-        formattedAddress,
-        formattedAddress,
-        'stripe'
-      );
+      const orderData: Partial<Order> = {
+        seller_id: sellerId,
+        status: 'pending',
+        payment_method: 'stripe',
+        payment_status: 'paid',
+        total_amount: totalAmount,
+        shipping_address: formattedAddress,
+        billing_address: formattedAddress
+      };
+      
+      const order = await createOrder(orderData, items);
       
       // The order has been created and the payment has been processed
       toast.success('Payment successful! Your order has been placed.');

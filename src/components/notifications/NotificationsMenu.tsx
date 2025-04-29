@@ -174,32 +174,34 @@ const NotificationsMenu = () => {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         
-        {notifications.length === 0 ? (
-          <div className="py-4 px-2 text-center text-sm text-muted-foreground">
-            No notifications yet
-          </div>
-        ) : (
-          <>
-            {notifications.map((notification) => (
-              <DropdownMenuItem 
-                key={notification.id} 
-                className={`cursor-pointer p-3 ${!notification.read ? 'bg-muted/50' : ''}`}
-                onClick={() => handleNotificationClick(notification)}
-              >
-                <div className="flex items-start gap-2">
-                  {getNotificationIcon(notification.type)}
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium leading-none">{notification.title}</p>
-                    <p className="text-xs text-muted-foreground">{notification.message}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                    </p>
+        <div className="max-h-[300px] overflow-y-auto">
+          {notifications.length === 0 ? (
+            <div className="py-4 px-2 text-center text-sm text-muted-foreground">
+              No notifications yet
+            </div>
+          ) : (
+            <>
+              {notifications.map((notification) => (
+                <DropdownMenuItem 
+                  key={notification.id} 
+                  className={`cursor-pointer p-3 ${!notification.read ? 'bg-muted/50' : ''}`}
+                  onClick={() => handleNotificationClick(notification)}
+                >
+                  <div className="flex items-start gap-2">
+                    {getNotificationIcon(notification.type)}
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium leading-none">{notification.title}</p>
+                      <p className="text-xs text-muted-foreground">{notification.message}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </DropdownMenuItem>
-            ))}
-          </>
-        )}
+                </DropdownMenuItem>
+              ))}
+            </>
+          )}
+        </div>
         
         <DropdownMenuSeparator />
         <div className="p-2 text-xs text-center">
@@ -217,4 +219,4 @@ const NotificationsMenu = () => {
   );
 };
 
-export default NotificationsMenu; 
+export default NotificationsMenu;
